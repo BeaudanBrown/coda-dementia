@@ -8,7 +8,13 @@ library(here)
 library(dotenv)
 library(rms)
 library(survival)
+library(ggplot2)
+library(cowplot)
 
+sleep_idx <- 1
+inactive_idx <- 2
+light_idx <- 3
+vig_idx <- 4
 mins_in_day <- 1440
 hours_in_day <- 24
 
@@ -54,58 +60,103 @@ full_df$mins_worn <-
 # Variables normalised to 1440 relative to their proportion of total wear time
 full_df$sleep_n <-
   (full_df$dur_spt_sleep_min_pla / full_df$mins_worn) * mins_in_day
-full_df$in_n <-
+full_df$inactive_n <-
   ((full_df$dur_day_total_IN_min_pla + full_df$dur_spt_wake_IN_min_pla) / full_df$mins_worn) * mins_in_day
-full_df$lig_n <-
+full_df$light_n <-
   ((full_df$dur_day_total_LIG_min_pla + full_df$dur_spt_wake_LIG_min_pla) / full_df$mins_worn) * mins_in_day
-full_df$mod_n <-
+full_df$moderate_n <-
   ((full_df$dur_day_total_MOD_min_pla + full_df$dur_spt_wake_MOD_min_pla) / full_df$mins_worn) * mins_in_day
-full_df$vig_n <-
+full_df$vigorous_n <-
   ((full_df$dur_day_total_VIG_min_pla + full_df$dur_spt_wake_VIG_min_pla) / full_df$mins_worn) * mins_in_day
 
-# TODO: Figure out tf Lach mean by this
-# ill add awake-sleep and sleep just for a neat 4 part composition
-# we need to discuss actually how we will handle this though
-# could also add these components to the day components
-# or have a 5 part composition that describes the activity done in the sleep period
-# to discuss!
+full_df$mvpa_n <- full_df$moderate_n + full_df$vigorous_n
 
-full_df$mvpa_n <- full_df$mod_n + full_df$vig_n
+comp <- acomp(data.frame(full_df$sleep_n, full_df$inactive_n, full_df$light_n, full_df$mvpa_n))
+geo_mean <-
+  apply(comp, 2, function(x) exp(mean(log(x))))
 
-contrast_substitution <- function(df, sbp, sub_vec) {
-  comp <- acomp(data.frame(df$sleep_n, df$in_n, df$lig_n, df$mvpa_n))
-  geo_mean <-
-    apply(comp, 2, function(x) exp(mean(log(x))))
+sbp <- matrix(
+  c(
+    1, 1, -1, -1,
+    1, -1, 0, 0,
+    0, 0, 1, -1
+  ),
+  ncol = 4, byrow = TRUE
+)
+v <- gsi.buildilrBase(t(sbp))
 
-  v <- gsi.buildilrBase(t(sbp))
+base_ilr <-
+  ilr(comp, V = v) |>
+  setNames(c("R1", "R2", "R3"))
+mean_ilr <-
+  ilr(acomp(geo_mean), V = v)
 
-  base_ilr <-
-    ilr(comp, V = v) |>
-    setNames(c("R1", "R2", "R3"))
-  mean_ilr <-
-    ilr(acomp(geo_mean), V = v)
-  new_ilr <-
-    acomp(geo_mean + sub_vec) |>
-    ilr(V = v)
+model_data <- select(full_df, dem, time_to_dem, sex, age_assessment) |> cbind(base_ilr)
 
-  model_data <- select(df, dem, time_to_dem, sex, age_assessment) |> cbind(base_ilr)
-
-  dd <- datadist(model_data)
-  options(datadist = "dd")
-  model <-
-    cph(
-        Surv(time_to_dem, dem) ~
-          rcs(R1, 3) + rcs(R2, 3) +
-          rcs(R3, 3) +
-          sex +
-          rcs(age_assessment, 3),
-        data = model_data
-    )
-
-  contrast <- contrast(
-    model,
-    list(R1 = mean_ilr[1], R2 = mean_ilr[2], R3 = mean_ilr[3]),
-    list(R1 = new_ilr[1], R2 = new_ilr[2], R3 = new_ilr[3])
+options(datadist = datadist(model_data))
+model <-
+  cph(
+      Surv(time_to_dem, dem) ~
+        rcs(R1, 3) + rcs(R2, 3) +
+        rcs(R3, 3) +
+        sex +
+        rcs(age_assessment, 3),
+      data = model_data
   )
-  return(contrast$Contrast)
+
+inc <- -90:90 / 1440
+scaled_x <- inc * 1440
+base_offset <- matrix(rep(geo_mean, times = length(inc)), nrow = length(inc), byrow = TRUE)
+
+# List of replacement prefixes and their respective pairs of indexes
+# These are then used to generate and plot the relevant contrasts
+conditions <- list(sleep_inactive = c(sleep_idx, inactive_idx),
+                   sleep_light = c(sleep_idx, light_idx),
+                   sleep_vig = c(sleep_idx, vig_idx))
+
+# Initialize your contrast list
+contrasts <- list()
+
+# Process each condition
+for (cond in names(conditions)) {
+  # Create offset matrix
+  offset <- base_offset
+  offset[, conditions[[cond]][1]] <- base_offset[, conditions[[cond]][1]] + inc
+  offset[, conditions[[cond]][2]] <- base_offset[, conditions[[cond]][2]] - inc
+
+  # Calculate ilrs
+  ilrs <- t(apply(offset, 1, function(comp) ilr(acomp(comp), V = v)))
+
+  # Get contrasts
+  contrasts[[cond]] <- apply(ilrs, 1, function(new_ilr) {
+    contrast_out <- contrast(
+      model,
+      list(R1 = new_ilr[1], R2 = new_ilr[2], R3 = new_ilr[3]),
+      list(R1 = mean_ilr[1], R2 = mean_ilr[2], R3 = mean_ilr[3])
+    )
+    return(c(contrast_out$Contrast, contrast_out$Lower, contrast_out$Upper))
+  })
 }
+
+# Create an empty data frame
+df <- data.frame()
+
+# Iterate over conditions and add data to the dataframe
+for (cond in names(conditions)) {
+  temp_df <- data.frame(
+    X = scaled_x,
+    Y = contrasts[[cond]][1, ],
+    Y_lower = contrasts[[cond]][2, ],
+    Y_upper = contrasts[[cond]][3, ],
+    condition = cond
+  )
+  df <- rbind(df, temp_df)
+}
+
+# Plot using ggplot
+ggplot(df, aes(x = X)) +
+  geom_line(aes(y = Y, color = condition)) +
+  geom_ribbon(aes(ymin = Y_lower, ymax = Y_upper, fill = condition), alpha = 0.2) +
+  xlab("min/day realocated") +
+  ylab("Delta log hazard") +
+  theme_cowplot()

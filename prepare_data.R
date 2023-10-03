@@ -1,4 +1,4 @@
-# load packages 
+# load packages
 library(tidyverse)
 library(dotenv)
 library(data.table)
@@ -13,8 +13,9 @@ data_dir <- Sys.getenv("DATA_DIR")
 # read main dataset
 
 dem_df <-
-  fread(file.path(data_dir, "24hr_behaviours/24hr_behaviours.csv"), 
-        stringsAsFactors = TRUE) |>
+  fread(file.path(data_dir, "24hr_behaviours/24hr_behaviours.csv"),
+    stringsAsFactors = TRUE
+  ) |>
   as_tibble()
 
 # rename and remove some variables
@@ -22,15 +23,17 @@ dem_df <- dem_df |> rename("insomnia_scale_sr" = "insomnia_sr")
 dem_df <- dem_df |> select(-starts_with("dur_day_total_"))
 
 # Sleep disorders data
-sleep_dis_df <- 
-  fread(file.path(data_dir, 
-                  "Sleep_disorders/sleep_disorders_selfreport_primarycare_hosp.csv"))
+sleep_dis_df <-
+  fread(file.path(
+    data_dir,
+    "Sleep_disorders/sleep_disorders_selfreport_primarycare_hosp.csv"
+  ))
 
 # Merge dataframes
 dem_df <- left_join(dem_df, sleep_dis_df, by = "eid")
 
 # sleep disorder prior to accelerometry?
-dem_df$OSA_dx <- 
+dem_df$OSA_dx <-
   ifelse(dem_df$OSA_sr == 1 | dem_df$date_osa_dx <= dem_df$calendar_date, 1, 0)
 dem_df$insomnia_dx <-
   ifelse(dem_df$insomnia_sr == 1 | dem_df$date_insomnia_dx <= dem_df$calendar_date, 1, 0)
@@ -38,8 +41,8 @@ dem_df$sleep_disorder_dx <-
   ifelse(dem_df$sleep_disorder_sr == 1 | dem_df$date_any_sleep_dx <= dem_df$calendar_date, 1, 0)
 
 # replace missing with zero
-dem_df <- 
-  dem_df |> 
+dem_df <-
+  dem_df |>
   mutate(across(c(OSA_dx, insomnia_dx, sleep_disorder_dx), ~ if_else(is.na(.), 0, .)))
 
 ### Prepare confounding variables ###
@@ -79,9 +82,9 @@ dem_df$age_accel <-
 
 dem_df$age_accel <- as.numeric(dem_df$age_accel)
 
-### Create isometric log ratio coordinates 
+### Create isometric log ratio coordinates
 
-# sequential binary partition 
+# sequential binary partition
 
 sbp <- matrix(
   c(
@@ -94,11 +97,12 @@ sbp <- matrix(
 
 v <- gsi.buildilrBase(t(sbp))
 
-# close time use variables 
+# close time use variables
 
-dem_comp <- 
+dem_comp <-
   acomp(data.frame(
-    dem_df$avg_sleep, dem_df$avg_inactivity, dem_df$avg_light, dem_df$avg_mvpa))
+    dem_df$avg_sleep, dem_df$avg_inactivity, dem_df$avg_light, dem_df$avg_mvpa
+  ))
 
 dem_base_ilr <-
   ilr(dem_comp, V = v) |>
@@ -137,8 +141,8 @@ dem_model_data <- select(
 
 ## Tabulate missing data by variable ##
 
-naniar::miss_var_summary(dem_model_data) |> 
+naniar::miss_var_summary(dem_model_data) |>
   print(n = 50)
 
-## Output RDS file ## 
+## Output RDS file ##
 

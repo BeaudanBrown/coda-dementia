@@ -1,15 +1,3 @@
-library(compositions)
-library(tidyverse)
-library(dotenv)
-library(data.table)
-library(rms)
-
-mins_in_day <- 1440
-
-# Load environment variables from the .env file
-dotenv::load_dot_env()
-data_dir <- Sys.getenv("DATA_DIR")
-
 mri_df <-
   fread(file.path(data_dir, "MRI/mri_full_trimmed_v3.csv"), stringsAsFactors = TRUE) |>
   as_tibble()
@@ -252,3 +240,4 @@ tbv_model <- ols(
     assessment_centre_mri1,
   data = mri_model_data
 )
+

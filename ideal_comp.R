@@ -1,5 +1,3 @@
-
-
 dem_comp_df <- as.data.frame(dem_comp)
 dem_comp_model <- lm(cbind(dem_df.sleep_n, dem_df.inactive_n, dem_df.light_n) ~ 1, data = dem_comp_df)
 vcv_mat <- vcov(dem_comp_model)
@@ -95,3 +93,4 @@ worst_df$R2 <- rep(worst_ilr[2], times = nrow(worst_df))
 worst_df$R3 <- rep(worst_ilr[3], times = nrow(worst_df))
 worst_results <- predict(tbv_model, newdata = worst_df)
 worst_avg <- mean(worst_results, na.rm = TRUE)
+

@@ -110,7 +110,9 @@ dem_base_ilr <-
   ilr(dem_comp, V = v) |>
   setNames(c("R1", "R2", "R3"))
 
-### Select model data
+## Construct risk set
+# Death from other causes remain in risk set until end of FU
+# See Young et al (2019)
 
 dem_df <- dem_df |>
   mutate(competing = ifelse(!is.na(date_of_death) & is.na(date_acdem2), 1, 0)) |>
@@ -124,6 +126,8 @@ dem_df <- dem_df |>
 # Create age at dementia or censoring/end of follow-up variable
 
 dem_df$age_dem <- dem_df$age_accel + (dem_df$time_to_dem / 365)
+
+### Select model data
 
 dem_model_data <- select(
   dem_df,

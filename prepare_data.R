@@ -82,6 +82,8 @@ dem_df$age_accel <-
 
 dem_df$age_accel <- as.numeric(dem_df$age_accel)
 
+dem_df <- dem_df |> rename("date_accel" = "calendar_date")
+
 ### Create isometric log ratio coordinates
 
 # sequential binary partition
@@ -110,6 +112,19 @@ dem_base_ilr <-
 
 ### Select model data
 
+dem_df <- dem_df |>
+  mutate(competing = ifelse(!is.na(date_of_death) & is.na(date_acdem2), 1, 0)) |>
+  mutate(time_to_dem = case_when(
+    dem == 1 ~ difftime(date_acdem2, date_accel),
+    competing == 1 ~ difftime("2022-01-01", date_accel),
+    TRUE ~ difftime("2022-01-01", date_accel)
+  )) |>
+  mutate(time_to_dem = as.integer(time_to_dem))
+
+# Create age at dementia or censoring/end of follow-up variable
+
+dem_df$age_dem <- dem_df$age_accel + (dem_df$time_to_dem / 365)
+
 dem_model_data <- select(
   dem_df,
   avg_sleep, avg_inactivity, avg_light, avg_mvpa,
@@ -137,12 +152,12 @@ dem_model_data <- select(
   diagnosed_diabetes,
   BMI,
   smok_status,
+  date_of_death,
+  date_acdem2,
+  date_accel,
+  age_dem,
 ) |> cbind(dem_base_ilr)
-
-## Tabulate missing data by variable ##
-
-naniar::miss_var_summary(dem_model_data) |>
-  print(n = 50)
 
 ## Output RDS file ##
 
+write_rds(dem_model_data, file.path(data_dir, "bootstrap_data.rds"))

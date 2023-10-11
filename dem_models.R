@@ -4,12 +4,21 @@ library(tidyverse)
 library(survival)
 library(rms)
 library(compositions)
+library(data.table)
+library(foreach)
+library(doParallel)
+
+mins_in_day <- 1440
+sub_steps <- 4
+sub_step_mins <- 15
+short_sleep_hours <- 6
+hrs_in_day <- 24
 
 # Load environment variables from the .env file
 dotenv::load_dot_env()
 data_dir <- Sys.getenv("DATA_DIR")
 
-## Define SBP 
+## Define SBP
 
 sbp <- matrix(
   c(
@@ -23,127 +32,176 @@ sbp <- matrix(
 v <- gsi.buildilrBase(t(sbp))
 
 ## Load data
-df <- read_rds(file.path(data_dir, "bootstrap_data.rds"))
-
-## Fit imputation model using MICE (single imputation)
+boot_data <- read_rds(file.path(data_dir, "bootstrap_data.rds"))
 
 # set date variables to strings to avoid errors
 
-df$date_accel <- as.character(df$date_accel)
-df$date_acdem2 <- as.character(df$date_acdem2)
-df$date_of_death <- as.character(df$date_of_death)
+boot_data$date_accel <- as.character(boot_data$date_accel)
+boot_data$date_acdem2 <- as.character(boot_data$date_acdem2)
+boot_data$date_of_death <- as.character(boot_data$date_of_death)
 
 # Matrix of variables to include in imputation model
 
-predmat <- quickpred(df, 
-                     mincor = 0, 
-                     exclude = c("date_acdem2", "date_accel", "date_of_death", 
-                                "avg_sleep", "avg_inactivity", "avg_light", 
-                                "avg_mvpa"))
+predmat <- quickpred(boot_data,
+  mincor = 0,
+  exclude = c(
+    "date_acdem2", "date_accel", "date_of_death",
+    "avg_sleep", "avg_inactivity", "avg_light",
+    "avg_mvpa"
+  )
+)
 
 # exclude dates from being imputed
-predmat["date_acdem2",] <- 0
-predmat["date_of_death",] <- 0
+predmat["date_acdem2", ] <- 0
+predmat["date_of_death", ] <- 0
 
-#imp <- mice(df, predictorMatrix = predmat, m = 1)
+# Helper functions for fitting model and calculating risks
 
-#write_rds(imp, file.path(data_dir, "24hr_behaviours/imp.rds"))
+fit_model <- function(imp) {
+  imp_long <- survSplit(Surv(time = age_accel, event = dem, time2 = age_dem) ~ .,
+    data = imp,
+    cut = seq(
+      from = min(imp$age_dem),
+      to = max(imp$age_dem),
+      length.out = 76
+    ),
+    episode = "timegroup", end = "age_end", event = "dem",
+    start = "age_start"
+  )
 
-read_rds(file.path(data_dir, "24hr_behaviours/imp.rds"))
+  model <-
+    glm(dem ~ rcs(age_start, 5) + pol(R1, 2) + pol(R2, 2) + pol(R3, 2) +
+          rcs(bp_syst_avg, 3) + sex + retired + shift + apoe_e4 + highest_qual +
+          rcs(townsend_deprivation_index, 3) + antidepressant_med +
+          antipsychotic_med + insomnia_med + ethnicity + avg_total_household_income +
+          smok_status, family = binomial, data = imp_long)
+
+  return(model)
+}
+
+calc_risk <- function(composition, stacked_data, model) {
+  ilr <- ilr(composition, V = v)
+
+  ilr_data <-
+    mutate(stacked_data,
+      R1 = ilr[1], R2 = ilr[2], R3 = ilr[3]
+    )
+
+  ilr_data$haz <-
+    predict(model, newdata = ilr_data, type = "response")
+
+  ilr_data <- ilr_data |>
+    group_by(id) |>
+    arrange(age_start) |>
+    mutate(risk = 1 - cumprod(1 - haz)) |>
+    ungroup()
+
+  risk <- ilr_data |>
+    filter(age_start == 75) |>
+    summarise(mean = mean(risk))
+
+  return(risk)
+}
+
+calc_substitution <- function(base_comp, imp_stacked, model, substitution) {
+  inc <- -sub_steps:sub_steps * sub_step_mins / mins_in_day
+
+  sub_comps <- data.frame(matrix(rep(base_comp, length(inc)), nrow = length(inc), byrow = TRUE))
+  colnames(sub_comps) <- c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa")
+  sub_comps[, substitution[1]] <- sub_comps[, substitution[1]] + inc
+  sub_comps[, substitution[2]] <- sub_comps[, substitution[2]] - inc
+  sub_risks <- bind_rows(apply(sub_comps, 1, function(comp) calc_risk(acomp(comp), imp_stacked, model)))
+
+  return(data.frame(
+    offset = inc * mins_in_day,
+    risks = sub_risks
+  ))
+}
+
+ncores <- 2
+c1 <- makeCluster(ncores)
+registerDoParallel(c1)
+set.seed(123)
+
+result <- foreach(i = 1:2, .packages = c("mice", "survival", "rms", "compositions", "tidyverse")) %dopar% {
+  ## Your function or task to parallelize goes here
+  sampled_rows <- sample(seq_len(nrow(boot_data)), nrow(boot_data), replace = TRUE)
+  this_sample <- boot_data[sampled_rows, ]
+  imp <- mice(this_sample, maxit = 1, m = 1, predictorMatrix = predmat)
+  imp <- complete(imp)
+  imp$id <- seq_len(nrow(imp))
+
+  model <- fit_model(imp)
+
+  imp_stacked <- do.call("rbind", replicate(76, imp, simplify = FALSE))
+
+  imp_stacked$age_start <- as.integer(
+    rep(
+      seq(min(imp$age_dem),
+        max(imp$age_dem),
+        length.out = 76
+      ),
+      nrow(imp)
+    )
+  )
+
+  all_comp <- acomp(imp[, c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa")])
+
+  short_sleep_comp <-
+    all_comp[all_comp$avg_sleep < short_sleep_hours / hrs_in_day, ]
+  short_sleep_geo_mean <-
+    acomp(apply(short_sleep_comp, 2, function(x) exp(mean(log(x)))))
+
+  # avg_sleep_comp <-
+  #   all_comp[all_comp$avg_sleep >= short_sleep_hours / hrs_in_day, ]
+  # avg_sleep_geo_mean <-
+  #   acomp(apply(avg_sleep_comp, 2, function(x) exp(mean(log(x)))))
+
+  short_sleep_mvpa <- calc_substitution(short_sleep_geo_mean, imp_stacked, model, c("avg_sleep", "avg_mvpa"))
+  return(short_sleep_mvpa)
+}
+
+stopCluster(c1)
+
+## Estimates from entire dataset
+
+## Fit imputation model using MICE (single imputation)
+
+# imp <- mice(boot_data, predictorMatrix = predmat, m = 1)
+
+# write_rds(imp, file.path(data_dir, "24hr_behaviours/imp.rds"))
+
+# read imputed dataset
+
+# imp <- read_rds(file.path(data_dir, "24hr_behaviours/imp.rds"))
 
 # extract imputed dataset
 
-imp <- complete(imp)
+# imp <- complete(imp)
+# imp$id <- seq_len(nrow(imp))
 
-## Create person-period dataset with age as timescale
+## fit model
 
-imp$id <- 1:nrow(imp)
+model <- fit_model(imp)
 
-imp_long <- survSplit(Surv(time = age_accel, event = dem, time2 = age_dem) ~ .,
-  data = imp,
-  cut = seq(
-    from = min(imp$age_dem),
-    to = max(imp$age_dem),
-    length.out = 76
-  ),
-  episode = "timegroup", end = "age_end", event = "dem",
-  start = "age_start"
-)
+# reference composition
 
-## Fit model ##
+all_comp <- acomp(imp[, c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa")])
 
-m1 <- 
-  glm(dem ~ rcs(age_start,5) + pol(R1,2) + pol(R2,2) + pol(R3,2) + 
-        rcs(bp_syst_avg,3) + sex + retired + shift + apoe_e4 + highest_qual +
-        rcs(townsend_deprivation_index,3) + antidepressant_med +
-        antipsychotic_med + insomnia_med + ethnicity + avg_total_household_income + 
-        smok_status, family = binomial, data = imp_long)
+geo_mean <- acomp(apply(all_comp, 2, function(x) exp(mean(log(x)))))
 
-imp_stacked <- do.call("rbind", replicate(76, imp, simplify = FALSE)) 
+imp_stacked <- do.call("rbind", replicate(76, imp, simplify = FALSE))
 
 imp_stacked$age_start <- as.integer(
-  rep(seq(min(imp_long$age_dem),
-          max(imp_long$age_dem),
-          length.out = 76),
-      nrow(imp)))
+  rep(
+    seq(min(imp$age_dem),
+      max(imp$age_dem),
+      length.out = 76
+    ),
+    nrow(imp)
+  )
+)
 
-# reference composition 
+# substitution
 
-ref_comp <-
-  acomp(data.frame(
-    mean(imp$avg_sleep), mean(imp$avg_inactivity),
-    mean(imp$avg_light), mean(imp$avg_mvpa)
-  ))
-
-ref_ilr <-
-  ilr(ref_comp, V = v) |>
-  setNames(c("R1", "R2", "R3"))
-
-ref_data <- 
-  mutate(imp_stacked, 
-         R1 = ref_ilr[1], R2 = ref_ilr[2], R3 = ref_ilr[3])
-
-ref_data$haz <- 
-  predict(m1, newdata = ref_data, type = "response")
-
-ref_data <- ref_data |> 
-  group_by(id) |> 
-  arrange(age_start) |> 
-  mutate(risk = 1 - cumprod(1-haz)) |> 
-  ungroup()
-
-risk_ref <- ref_data |> 
-  filter(age_start == 75) |> 
-  summarise(mean = mean(risk))
-
-risk_ref
-
-# substitution 
-
-sub_comp <-
-  acomp(data.frame(
-    mean(imp$avg_sleep)+60, mean(imp$avg_inactivity),
-    mean(imp$avg_light), mean(imp$avg_mvpa)-60))
-
-sub_ilr <-
-  ilr(sub_comp, V = v) |>
-  setNames(c("R1", "R2", "R3"))
-
-sub_data <- 
-  mutate(imp_stacked, 
-         R1 = sub_ilr[1], R2 = sub_ilr[2], R3 = sub_ilr[3])
-
-sub_data$haz <- 
-  predict(m1, newdata = sub_data, type = "response")
-
-sub_data <- sub_data |> 
-  group_by(id) |> 
-  arrange(age_start) |> 
-  mutate(risk = 1 - cumprod(1-haz)) |> 
-  ungroup()
-
-risk_sub <- sub_data |> 
-  filter(age_start == 75) |> 
-  summarise(mean = mean(risk))
-
-risk_sub / risk_ref
+ref_mvpa <- calc_substitution(geo_mean, imp_stacked, model, c("avg_sleep", "avg_mvpa"))

@@ -7,6 +7,7 @@ library(compositions)
 library(data.table)
 library(foreach)
 library(doParallel)
+library(boot)
 
 mins_in_day <- 1440
 sub_steps <- 4
@@ -132,15 +133,8 @@ calc_substitution <- function(base_comp, imp_stacked, model, substitution) {
   ))
 }
 
-ncores <- 2
-c1 <- makeCluster(ncores)
-registerDoParallel(c1)
-set.seed(123)
-
-result <- foreach(i = 1:2, .packages = c("mice", "survival", "rms", "compositions", "tidyverse")) %dopar% {
-  ## Your function or task to parallelize goes here
-  sampled_rows <- sample(seq_len(nrow(boot_data)), nrow(boot_data), replace = TRUE)
-  this_sample <- boot_data[sampled_rows, ]
+boot_fn <- function(data, indices) {
+  this_sample <- data[indices, ]
   imp <- mice(this_sample, maxit = 1, m = 1, predictorMatrix = predmat)
   imp <- complete(imp)
   imp$id <- seq_len(nrow(imp))
@@ -152,9 +146,9 @@ result <- foreach(i = 1:2, .packages = c("mice", "survival", "rms", "composition
   imp_stacked$age_start <- as.integer(
     rep(
       seq(min(imp$age_dem),
-        max(imp$age_dem),
-        length.out = 76
-      ),
+          max(imp$age_dem),
+          length.out = 76
+        ),
       nrow(imp)
     )
   )
@@ -166,16 +160,33 @@ result <- foreach(i = 1:2, .packages = c("mice", "survival", "rms", "composition
   short_sleep_geo_mean <-
     acomp(apply(short_sleep_comp, 2, function(x) exp(mean(log(x)))))
 
-  # avg_sleep_comp <-
-  #   all_comp[all_comp$avg_sleep >= short_sleep_hours / hrs_in_day, ]
-  # avg_sleep_geo_mean <-
-  #   acomp(apply(avg_sleep_comp, 2, function(x) exp(mean(log(x)))))
+  avg_sleep_comp <-
+    all_comp[all_comp$avg_sleep >= short_sleep_hours / hrs_in_day, ]
+  avg_sleep_geo_mean <-
+    acomp(apply(avg_sleep_comp, 2, function(x) exp(mean(log(x)))))
 
+  short_sleep_inactive <- calc_substitution(short_sleep_geo_mean, imp_stacked, model, c("avg_sleep", "avg_inactivity"))
+  short_sleep_light <- calc_substitution(short_sleep_geo_mean, imp_stacked, model, c("avg_sleep", "avg_light"))
   short_sleep_mvpa <- calc_substitution(short_sleep_geo_mean, imp_stacked, model, c("avg_sleep", "avg_mvpa"))
-  return(short_sleep_mvpa)
+
+  avg_sleep_inactive <- calc_substitution(avg_sleep_geo_mean, imp_stacked, model, c("avg_sleep", "avg_inactivity"))
+  avg_sleep_light <- calc_substitution(avg_sleep_geo_mean, imp_stacked, model, c("avg_sleep", "avg_light"))
+  avg_sleep_mvpa <- calc_substitution(avg_sleep_geo_mean, imp_stacked, model, c("avg_sleep", "avg_mvpa"))
+
+  full_df <- full_join(short_sleep_inactive, short_sleep_light, by = "offset") |>
+             full_join(short_sleep_mvpa, by = "offset") |>
+             full_join(avg_sleep_inactive, by = "offset") |>
+             full_join(avg_sleep_light, by = "offset") |>
+             full_join(avg_sleep_mvpa, by = "offset") |>
+             select(-offset)
+
+  return(as.matrix(full_df))
 }
 
-stopCluster(c1)
+ncpus <- 6
+# small_sample <- boot_data[sample(1:nrow(boot_data), 5000), ]
+# result <- boot(data = small_sample, statistic = boot_fn, R = ncpus, parallel = "multicore", ncpus = ncpus)
+result <- boot(data = boot_data, statistic = boot_fn, R = ncpus, parallel = "multicore", ncpus = ncpus)
 
 ## Estimates from entire dataset
 
@@ -187,12 +198,12 @@ stopCluster(c1)
 
 # read imputed dataset
 
-# imp <- read_rds(file.path(data_dir, "24hr_behaviours/imp.rds"))
+imp <- read_rds(file.path(data_dir, "24hr_behaviours/imp.rds"))
 
 # extract imputed dataset
 
-# imp <- complete(imp)
-# imp$id <- seq_len(nrow(imp))
+imp <- complete(imp)
+imp$id <- seq_len(nrow(imp))
 
 ## fit model
 
@@ -202,7 +213,15 @@ model <- fit_model(imp)
 
 all_comp <- acomp(imp[, c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa")])
 
-geo_mean <- acomp(apply(all_comp, 2, function(x) exp(mean(log(x)))))
+short_sleep_comp <-
+  all_comp[all_comp$avg_sleep < short_sleep_hours / hrs_in_day, ]
+short_sleep_geo_mean <-
+  acomp(apply(short_sleep_comp, 2, function(x) exp(mean(log(x)))))
+
+avg_sleep_comp <-
+  all_comp[all_comp$avg_sleep >= short_sleep_hours / hrs_in_day, ]
+avg_sleep_geo_mean <-
+  acomp(apply(avg_sleep_comp, 2, function(x) exp(mean(log(x)))))
 
 imp_stacked <- do.call("rbind", replicate(76, imp, simplify = FALSE))
 

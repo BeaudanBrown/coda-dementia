@@ -132,7 +132,9 @@ calc_substitution <- function(base_comp, imp_stacked, model, substitution) {
   return(data.frame(
     offset = inc * mins_in_day,
     risks = sub_risks
-  ))
+  ) |> 
+    setNames(c("offset", 
+               paste(substitution[2], deparse(substitute(short_sleep_geo_mean)), sep = "_"))))
 }
 
 ### FULL SAMPLE ###
@@ -163,13 +165,23 @@ imp_stacked <- do.call("rbind", replicate(76, imp, simplify = FALSE))
 
 imp_stacked$timegroup <- rep(1:76, nrow(imp))
 
-# substitution
+## substitutions
 
-ref_mvpa <- calc_substitution(avg_sleep_geo_mean, imp_stacked, model, 
-                              c("avg_sleep", "avg_mvpa"))
+short_sleep_inactive <- calc_substitution(short_sleep_geo_mean, imp_stacked, model, c("avg_sleep", "avg_inactivity"))
+short_sleep_light <- calc_substitution(short_sleep_geo_mean, imp_stacked, model, c("avg_sleep", "avg_light"))
+short_sleep_mvpa <- calc_substitution(short_sleep_geo_mean, imp_stacked, model, c("avg_sleep", "avg_mvpa"))
 
-ref_mvpa$ratio <-
-  ref_mvpa$mean / ref_mvpa$mean[which(ref_mvpa$offset == 0)]
+avg_sleep_inactive <- calc_substitution(avg_sleep_geo_mean, imp_stacked, model, c("avg_sleep", "avg_inactivity"))
+avg_sleep_light <- calc_substitution(avg_sleep_geo_mean, imp_stacked, model, c("avg_sleep", "avg_light"))
+avg_sleep_mvpa <- calc_substitution(avg_sleep_geo_mean, imp_stacked, model, c("avg_sleep", "avg_mvpa"))
+
+full_df <- full_join(short_sleep_inactive, short_sleep_light, by = "offset") |>
+  full_join(short_sleep_mvpa, by = "offset") |>
+  full_join(avg_sleep_inactive, by = "offset") |>
+  full_join(avg_sleep_light, by = "offset") |>
+  full_join(avg_sleep_mvpa, by = "offset") |>
+  select(-offset)
+
 ggplot(ref_mvpa, aes(x=offset, y=ratio)) + geom_line()
 
 ### Bootstrap ###

@@ -51,9 +51,23 @@ predmat <- quickpred(boot_data,
   )
 )
 
+# method for each imputed variable
+imp.methods <- make.method(boot_data)
+
 # exclude dates from being imputed
 predmat["date_acdem2", ] <- 0
 predmat["date_of_death", ] <- 0
+imp.methods["date_acdem2"] <- ""
+imp.methods["date_of_death"] <- ""
+
+## Impute ##
+
+# imp <- mice(boot_data, predictorMatrix = predmat,
+#             method = imp.methods, m = 1)
+
+#save_rds(imp, file.path(datadir, "full_imp.rds"))
+
+imp <- read_rds(file.path(datadir, "full_imp.rds"))
 
 # Helper functions for fitting model and calculating risks
 
@@ -70,7 +84,7 @@ fit_model <- function(imp) {
   )
 
   model <-
-    glm(dem ~ rcs(age_start, 5) + pol(R1, 2) + pol(R2, 2) + pol(R3, 2) +
+    glm(dem ~ rcs(timegroup, 5) + pol(R1, 2) + pol(R2, 2) + pol(R3, 2) +
           rcs(bp_syst_avg, 3) + sex + retired + shift + apoe_e4 + highest_qual +
           rcs(townsend_deprivation_index, 3) + antidepressant_med +
           antipsychotic_med + insomnia_med + ethnicity + avg_total_household_income +

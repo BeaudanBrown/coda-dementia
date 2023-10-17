@@ -63,12 +63,14 @@ imp.methods["date_of_death"] <- ""
 
 ## Impute ##
 
-# imp <- mice(boot_data, predictorMatrix = predmat,
+#imp <- mice(boot_data, predictorMatrix = predmat,
 #             method = imp.methods, m = 1)
 
-#save_rds(imp, file.path(datadir, "full_imp.rds"))
+# saveRDS(imp, file.path(data_dir, "full_imp.rds"))
 
-imp <- read_rds(file.path(datadir, "full_imp.rds"))
+imp <- read_rds(file.path(data_dir, "full_imp.rds"))
+
+imp <- complete(imp)
 
 # Helper functions for fitting model and calculating risks
 
@@ -85,7 +87,7 @@ fit_model <- function(imp) {
   )
 
   model <-
-    glm(dem ~ rcs(timegroup, 5) + pol(R1, 2) + pol(R2, 2) + pol(R3, 2) +
+    glm(dem ~ rcs(timegroup, 5) + poly(R1, 2) + poly(R2, 2) + poly(R3, 2) +
           rcs(bp_syst_avg, 3) + sex + retired + shift + apoe_e4 + highest_qual +
           rcs(townsend_deprivation_index, 3) + antidepressant_med +
           antipsychotic_med + insomnia_med + ethnicity + avg_total_household_income +
@@ -107,19 +109,19 @@ calc_risk <- function(composition, stacked_data, model) {
 
   ilr_data <- ilr_data |>
     group_by(id) |>
-    arrange(age_start) |>
+    arrange(timegroup) |>
     mutate(risk = 1 - cumprod(1 - haz)) |>
     ungroup()
 
   risk <- ilr_data |>
-    filter(age_start == 75) |>
+    filter(timegroup == 76) |>
     summarise(mean = mean(risk))
 
   return(risk)
 }
 
 calc_substitution <- function(base_comp, imp_stacked, model, substitution) {
-  inc <- -sub_steps:sub_steps * sub_step_mins / mins_in_day
+  inc <- -sub_steps:sub_steps * (sub_step_mins / mins_in_day)
 
   sub_comps <- data.frame(matrix(rep(base_comp, length(inc)), nrow = length(inc), byrow = TRUE))
   colnames(sub_comps) <- c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa")
@@ -132,6 +134,45 @@ calc_substitution <- function(base_comp, imp_stacked, model, substitution) {
     risks = sub_risks
   ))
 }
+
+### FULL SAMPLE ###
+
+imp$id <- seq_len(nrow(imp))
+
+## fit model
+
+model <- fit_model(imp)
+
+# reference composition
+
+all_comp <- acomp(imp[, c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa")])
+
+short_sleep_comp <-
+  all_comp[all_comp$avg_sleep < short_sleep_hours / hrs_in_day, ]
+short_sleep_geo_mean <-
+  acomp(apply(short_sleep_comp, 2, function(x) exp(mean(log(x)))))
+
+avg_sleep_comp <-
+  all_comp[all_comp$avg_sleep >= short_sleep_hours / hrs_in_day, ]
+avg_sleep_geo_mean <-
+  acomp(apply(avg_sleep_comp, 2, function(x) exp(mean(log(x)))))
+
+# stacked dataset for predictions (one row for each follow-up interval)
+
+imp_stacked <- do.call("rbind", replicate(76, imp, simplify = FALSE))
+
+imp_stacked$timegroup <- rep(1:76, nrow(imp))
+
+# substitution
+
+ref_mvpa <- calc_substitution(avg_sleep_geo_mean, imp_stacked, model, 
+                              c("avg_sleep", "avg_mvpa"))
+
+ref_mvpa$ratio <-
+  ref_mvpa$mean / ref_mvpa$mean[which(ref_mvpa$offset == 0)]
+ggplot(ref_mvpa, aes(x=offset, y=ratio)) + geom_line()
+
+### Bootstrap ###
 
 boot_fn <- function(data, indices) {
   this_sample <- data[indices, ]
@@ -188,53 +229,5 @@ ncpus <- 6
 # result <- boot(data = small_sample, statistic = boot_fn, R = ncpus, parallel = "multicore", ncpus = ncpus)
 result <- boot(data = boot_data, statistic = boot_fn, R = ncpus, parallel = "multicore", ncpus = ncpus)
 
-## Estimates from entire dataset
 
-## Fit imputation model using MICE (single imputation)
 
-# imp <- mice(boot_data, predictorMatrix = predmat, m = 1)
-
-# write_rds(imp, file.path(data_dir, "24hr_behaviours/imp.rds"))
-
-# read imputed dataset
-
-imp <- read_rds(file.path(data_dir, "24hr_behaviours/imp.rds"))
-
-# extract imputed dataset
-
-imp <- complete(imp)
-imp$id <- seq_len(nrow(imp))
-
-## fit model
-
-model <- fit_model(imp)
-
-# reference composition
-
-all_comp <- acomp(imp[, c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa")])
-
-short_sleep_comp <-
-  all_comp[all_comp$avg_sleep < short_sleep_hours / hrs_in_day, ]
-short_sleep_geo_mean <-
-  acomp(apply(short_sleep_comp, 2, function(x) exp(mean(log(x)))))
-
-avg_sleep_comp <-
-  all_comp[all_comp$avg_sleep >= short_sleep_hours / hrs_in_day, ]
-avg_sleep_geo_mean <-
-  acomp(apply(avg_sleep_comp, 2, function(x) exp(mean(log(x)))))
-
-imp_stacked <- do.call("rbind", replicate(76, imp, simplify = FALSE))
-
-imp_stacked$age_start <- as.integer(
-  rep(
-    seq(min(imp$age_dem),
-      max(imp$age_dem),
-      length.out = 76
-    ),
-    nrow(imp)
-  )
-)
-
-# substitution
-
-ref_mvpa <- calc_substitution(geo_mean, imp_stacked, model, c("avg_sleep", "avg_mvpa"))

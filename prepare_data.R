@@ -13,7 +13,7 @@ data_dir <- Sys.getenv("DATA_DIR")
 # read main dataset
 
 dem_df <-
-  fread(file.path(data_dir, "24hr_behaviours/24hr_behaviours.csv"),
+  fread(file.path(data_dir, "24hr_behaviours.csv"),
     stringsAsFactors = TRUE
   ) |>
   as_tibble()
@@ -26,7 +26,7 @@ dem_df <- dem_df |> select(-starts_with("dur_day_total_"))
 sleep_dis_df <-
   fread(file.path(
     data_dir,
-    "Sleep_disorders/sleep_disorders_selfreport_primarycare_hosp.csv"
+    "../Sleep_disorders/sleep_disorders_selfreport_primarycare_hosp.csv"
   ))
 
 # Merge dataframes
@@ -127,12 +127,21 @@ dem_df <- dem_df |>
 
 dem_df$age_dem <- dem_df$age_accel + (dem_df$time_to_dem / 365)
 
+## Add WASO and SRI to dataset ##
+
+waso_dat <- fread(file.path(data_dir, "../SRI/sri_data_may2023.csv"))
+
+waso_dat <- select(waso_dat, eid, avg_WASO, avg_sri)
+
+dem_df <- left_join(dem_df, waso_dat, by = "eid")
+
 ### Select model data
 
 dem_model_data <- select(
   dem_df,
   avg_sleep, avg_inactivity, avg_light, avg_mvpa,
   dem, time_to_dem,
+  avg_WASO, avg_sri,
   bp_syst_avg,
   age_accel,
   retired,

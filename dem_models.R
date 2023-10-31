@@ -1,12 +1,4 @@
 # load packages
-# library(mice)
-# library(tidyverse)
-# library(survival)
-# library(rms)
-# library(compositions)
-# library(data.table)
-# library(boot)
-
 list_of_packages <- c(
   "mice",
   "tidyverse",
@@ -26,30 +18,24 @@ if (length(new_packages)) install.packages(new_packages)
 lapply(list_of_packages, library, character.only = TRUE)
 
 # constants
-short_sleep_hours <- 6
-hrs_in_day <- 24
+mins_in_day <- 1440
+sub_steps <- 4
+sub_step_mins <- 15
 
-# Load environment variables from the .env file
-dotenv::load_dot_env()
-data_dir <- Sys.getenv("DATA_DIR")
-output_dir <- Sys.getenv("OUTPUT_DIR")
+## Define SBP
 
-# source helper functions
-source("model_helpers.R")
+sbp <- matrix(
+  c(
+    1, 1, -1, -1,
+    1, -1, 0, 0,
+    0, 0, 1, -1
+  ),
+  ncol = 4, byrow = TRUE
+)
 
-## Impute ##
+v <- gsi.buildilrBase(t(sbp))
 
-# imp <- mice(boot_data, predictorMatrix = predmat,
-#            method = imp_methods, m = 1)
-
-# saveRDS(imp, file.path(data_dir, "full_imp.rds"))
-
-imp <- read_rds(file.path(data_dir, "full_imp.rds"))
-
-imp <- complete(imp)
-imp$id <- seq_len(nrow(imp))
-
-primary_form <- as.formula(dem ~ rcs(timegroup, 5) +
+primary_formula <- as.formula(dem ~ rcs(timegroup, 5) +
     poly(R1, 2) +
     poly(R2, 2) +
     poly(R3, 2) +
@@ -67,9 +53,137 @@ primary_form <- as.formula(dem ~ rcs(timegroup, 5) +
     smok_status
 )
 
-#model <- fit_model(imp, primary_form)
+s1_formula <- as.formula(dem ~ rcs(timegroup, 5) +
+    poly(R1, 2) +
+    poly(R2, 2) +
+    poly(R3, 2) +
+    sex +
+    retired +
+    shift +
+    apoe_e4 +
+    highest_qual +
+    rcs(townsend_deprivation_index, 3) +
+    antidepressant_med +
+    antipsychotic_med +
+    insomnia_med +
+    ethnicity +
+    avg_total_household_income +
+    smok_status +
+    rcs(avg_WASO, 3)
+)
+
+s2_formula <- as.formula(dem ~ rcs(timegroup, 5) +
+    poly(R1, 2) +
+    poly(R2, 2) +
+    poly(R3, 2) +
+    sex +
+    retired +
+    shift +
+    apoe_e4 +
+    highest_qual +
+    rcs(townsend_deprivation_index, 3) +
+    antidepressant_med +
+    antipsychotic_med +
+    insomnia_med +
+    ethnicity +
+    avg_total_household_income +
+    smok_status +
+    sick_disabled +
+    prev_diabetes +
+    prev_cancer +
+    prev_mental_disorder +
+    prev_nervous_system +
+    prev_cvd +
+    bp_med +
+    rcs(BMI, c(22, 26, 32)) +
+    rcs(bp_syst_avg, c(115, 135, 161))
+)
+
+predict_composition_risk <- function(composition, stacked_data, model, timegroup) {
+  ilr <- ilr(composition, V = v)
+
+  ilr_data <-
+    mutate(stacked_data,
+           R1 = ilr[1], R2 = ilr[2], R3 = ilr[3])
+
+  ilr_data$haz <-
+    predict(model, newdata = ilr_data, type = "response")
+
+  ilr_data <- ilr_data |>
+    group_by(id) |>
+    arrange(timegroup) |>
+    mutate(risk = 1 - cumprod(1 - haz)) |>
+    ungroup()
+
+  risk <- ilr_data |>
+    filter(timegroup == timegroup) |>
+    summarise(mean = mean(risk))
+
+  return(risk)
+}
+
+calc_substitution <- function(base_comp, imp_stacked, model, substitution, timegroup) {
+  # The list of substitutions to be calculated in minutes
+  inc <- -sub_steps:sub_steps * (sub_step_mins / mins_in_day)
+
+  # The list of compotitions to be fed into the model after applying the substitutions
+  sub_comps <- data.frame(matrix(rep(base_comp, length(inc)), nrow = length(inc), byrow = TRUE))
+  colnames(sub_comps) <- c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa")
+  sub_comps[, substitution[1]] <- sub_comps[, substitution[1]] + inc
+  sub_comps[, substitution[2]] <- sub_comps[, substitution[2]] - inc
+
+  # The risk predicted by the model for each of these composition
+  sub_risks <-
+    bind_rows(apply(
+                    sub_comps,
+                    1,
+                    function(comp) predict_composition_risk(acomp(comp), imp_stacked, model, timegroup))
+    )
+
+  return(data.frame(
+    offset = inc * mins_in_day,
+    risks = sub_risks
+  ) |>
+    setNames(c("offset",
+               paste(substitution[2], deparse(substitute(base_comp)), sep = "_"))))
+}
+
+fit_model <- function(imp, reg_formula) {
+  imp_long <- survSplit(Surv(time = age_accel, event = dem, time2 = age_dem) ~ .,
+    data = imp,
+    cut = seq(
+      from = min(imp$age_dem),
+      to = max(imp$age_dem),
+      length.out = 76
+    ),
+    episode = "timegroup", end = "age_end", event = "dem",
+    start = "age_start"
+  )
+
+  model <- glm(reg_formula, data = imp_long, family = binomial)
+
+  return(model)
+}
+
+## Impute ##
+
+# imp <- mice(boot_data, predictorMatrix = predmat,
+#            method = imp_methods, m = 1)
+
+# saveRDS(imp, file.path(data_dir, "full_imp.rds"))
+
+# imp <- read_rds(file.path(data_dir, "full_imp.rds"))
+
+# imp <- complete(imp)
+# imp$id <- seq_len(nrow(imp))
+
+#### Primary model - bootstrap ####
 
 ## Get results for substitutions
+
+# primary_model <- fit_model(imp, primary_formula)
+# model_s1 <- fit_model(imp, s1_formula)
+# model_s2 <- fit_model(imp, s2_formula)
 
 #plot_data <- sub_results(model, imp, timegroup = 55)
 # write_rds(plot_data, file.path(data_dir,"primary_mod_res.rds"))
@@ -83,21 +197,8 @@ primary_form <- as.formula(dem ~ rcs(timegroup, 5) +
 #   facet_wrap(~Substitution) +
 #   cowplot::theme_cowplot() +
 #   labs(x = "Time added to sleep", y = "Dementia cumulative incidence by age 75")
-# 
+#
 # plot1
-
-#### Primary model - bootstrap ####
-
-## bootstrap
-
-ncpus <- 5
-boot_out <- boot(
-  data = boot_data, statistic = boot_fn, reg_formula = primary_form,
-  timegroup = timegroup, R = ncpus, parallel = "multicore", ncpus = ncpus
-)
-
-write_rds(boot_out, "boot_primary.rds")
-
 
 #### Figure 1 ####
 
@@ -105,31 +206,11 @@ write_rds(boot_out, "boot_primary.rds")
 
 #### Sensitivity 1 - full sample ####
 
-# s1_form <- as.formula(dem ~ rcs(timegroup, 5) +
-#     poly(R1, 2) +
-#     poly(R2, 2) +
-#     poly(R3, 2) +
-#     sex +
-#     retired +
-#     shift +
-#     apoe_e4 +
-#     highest_qual +
-#     rcs(townsend_deprivation_index, 3) +
-#     antidepressant_med +
-#     antipsychotic_med +
-#     insomnia_med +
-#     ethnicity +
-#     avg_total_household_income +
-#     smok_status +
-#     rcs(avg_WASO, 3)
-# )
-# 
-# model_s1 <- fit_model(imp, s1_form)
-# 
+#
 # ## Get substitution results
-# 
+#
 # plot_data_s1 <- sub_results(model_s1, imp)
-# 
+#
 # plot_s1 <-
 #   plot_data_s1 |>
 #   ggplot(aes(x = offset, y = risk, colour = Reference)) +
@@ -138,64 +219,36 @@ write_rds(boot_out, "boot_primary.rds")
 #   cowplot::theme_cowplot() +
 #   labs(x = "Time added to sleep", y = "Dementia cumulative incidence by age 75") +
 #   ylim(c(0, 0.05))
-# 
+#
 # #### Sensitivity 1 - bootstrap ####
-# 
+#
 # ncpus <- 6
 # boot_out_s1 <- boot(
-#   data = boot_data, statistic = boot_fn, reg_formula = s1_form,
+#   data = boot_data, statistic = boot_substitutions_fn, reg_formula = s1_formula,
 #   R = ncpus, parallel = "multicore", ncpus = ncpus
 # )
-# 
-# 
+#
+#
 # #### Sensitivity 2 - full sample ####
-# 
-# s2_form <- as.formula(dem ~ rcs(timegroup, 5) +
-#     poly(R1, 2) +
-#     poly(R2, 2) +
-#     poly(R3, 2) +
-#     sex +
-#     retired +
-#     shift +
-#     apoe_e4 +
-#     highest_qual +
-#     rcs(townsend_deprivation_index, 3) +
-#     antidepressant_med +
-#     antipsychotic_med +
-#     insomnia_med +
-#     ethnicity +
-#     avg_total_household_income +
-#     smok_status +
-#     sick_disabled +
-#     prev_diabetes +
-#     prev_cancer +
-#     prev_mental_disorder +
-#     prev_nervous_system +
-#     prev_cvd +
-#     bp_med +
-#     rcs(BMI, c(22, 26, 32)) +
-#     rcs(bp_syst_avg, c(115, 135, 161))
-# )
-# 
-# model_s2 <- fit_model(imp, s2_form)
-# 
+#
+#
 # ## Get substitution results
-# 
+#
 # plot_data_s2 <- sub_results(model_s2, imp)
-# 
+#
 # #### Sensitivity 2 - bootstrap ####
-# 
+#
 # ncpus <- 6
 # boot_out_s2 <- boot(
-#   data = boot_data, statistic = boot_fn, reg_formula = s2_form,
+#   data = boot_data, statistic = boot_substitutions_fn, reg_formula = s2_formula,
 #   R = ncpus, parallel = "multicore", ncpus = ncpus
 # )
-# 
-# 
+#
+#
 # #### Sensitivity 3 - full sample ####
-# 
+#
 # ## Create dataset with time since accelerometry as the timescale ##
-# 
+#
 # imp_long <- survSplit(Surv(time = time_to_dem, event = dem) ~ .,
 #   data = imp,
 #   cut = seq(
@@ -206,9 +259,9 @@ write_rds(boot_out, "boot_primary.rds")
 #   episode = "timegroup", end = "time_start", event = "dem",
 #   start = "time_end"
 # )
-# 
-# 
-# model_s3 <- 
+#
+#
+# model_s3 <-
 #   glm(
 #     dem ~ rcs(timegroup, 5) * (poly(R1, 2) + poly(R2, 2) + poly(R3, 2)) +
 #       rcs(age_accel, 3) +

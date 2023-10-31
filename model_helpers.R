@@ -209,7 +209,6 @@ boot_fn <- function(data, indices, reg_formula, timegroup) {
 
   # imputation
   imp <- mice(this_sample, m = 1,
-              maxit = 1,
               predictorMatrix = predmat,
               methods = imp_methods)
 

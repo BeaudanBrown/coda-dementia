@@ -25,7 +25,7 @@ run_primary_bootstrap <- function() {
   run_bootstrap(
     boot_data = boot_data,
     timegroup = 55,
-    reg_formula = primary_form,
+    reg_formula = primary_formula,
     output_name = "boot_primary.rds"
   )
 }
@@ -35,7 +35,7 @@ run_s1_bootstrap <- function(boot_data) {
   run_bootstrap(
     boot_data = boot_data,
     timegroup = 55,
-    reg_formula = s1_form,
+    reg_formula = s1_formula,
     output_name = "boot_s1.rds"
   )
 }
@@ -45,7 +45,7 @@ run_s2_bootstrap <- function(boot_data) {
   run_bootstrap(
     boot_data = boot_data,
     timegroup = 55,
-    reg_formula = s2_form,
+    reg_formula = s2_formula,
     output_name = "boot_s2.rds"
   )
 }

@@ -93,4 +93,3 @@ worst_df$R2 <- rep(worst_ilr[2], times = nrow(worst_df))
 worst_df$R3 <- rep(worst_ilr[3], times = nrow(worst_df))
 worst_results <- predict(tbv_model, newdata = worst_df)
 worst_avg <- mean(worst_results, na.rm = TRUE)
-

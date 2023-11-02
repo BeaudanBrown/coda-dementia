@@ -100,7 +100,7 @@ run_bootstrap <- function(boot_data, timegroup, reg_formula, output_name) {
   # Prepend timestamp to avoid accidental data loss
   timestamp <- format(Sys.time(), "%Y-%m-%d_%H:%M")
   output_name_with_timestamp <- paste(timestamp, output_name, sep = "_")
-  saveRDS(result, file.path(data_dir, output_name_with_timestamp))
+  saveRDS(result, file.path(output_dir, output_name_with_timestamp))
 }
 
 # Ran each bootstrap iteration
@@ -124,54 +124,56 @@ bootstrap_substitutions_fn <- function(
               methods = imp_methods)
 
   imp <- complete(imp)
-  imp$id <- seq_len(nrow(imp))
+  imp_len <- nrow(imp)
+  imp$id <- seq_len(imp_len)
 
   # fit model
   model <- fit_model(imp, reg_formula)
 
   # data for g-computation/standardisation
-  imp_stacked <- do.call("rbind", replicate(timegroup, imp, simplify = FALSE))
-  imp_stacked$timegroup <- rep(1:timegroup, nrow(imp))
+  imp <- do.call("rbind", replicate(timegroup, imp, simplify = FALSE))
+  imp$timegroup <- rep(1:timegroup, imp_len)
+  setDT(imp) # convert imp to a data.table
 
   # substitutions for each reference comp
   short_sleep_inactive <-
     calc_substitution(short_sleep_geo_mean,
-                      imp_stacked,
+                      imp,
                       model,
                       c("avg_sleep", "avg_inactivity"),
                       timegroup = timegroup)
 
   short_sleep_light <-
     calc_substitution(short_sleep_geo_mean,
-                      imp_stacked,
+                      imp,
                       model,
                       c("avg_sleep", "avg_light"),
                       timegroup = timegroup)
 
   short_sleep_mvpa <-
     calc_substitution(short_sleep_geo_mean,
-                      imp_stacked,
+                      imp,
                       model,
                       c("avg_sleep", "avg_mvpa"),
                       timegroup = timegroup)
 
   avg_sleep_inactive <-
     calc_substitution(avg_sleep_geo_mean,
-                      imp_stacked,
+                      imp,
                       model,
                       c("avg_sleep", "avg_inactivity"),
                       timegroup = timegroup)
 
   avg_sleep_light <-
     calc_substitution(avg_sleep_geo_mean,
-                      imp_stacked,
+                      imp,
                       model,
                       c("avg_sleep", "avg_light"),
                       timegroup = timegroup)
 
   avg_sleep_mvpa <-
     calc_substitution(avg_sleep_geo_mean,
-                      imp_stacked,
+                      imp,
                       model,
                       c("avg_sleep", "avg_mvpa"),
                       timegroup = timegroup)

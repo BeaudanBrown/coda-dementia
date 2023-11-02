@@ -99,53 +99,59 @@ s2_formula <- as.formula(dem ~ rcs(timegroup, 5) +
     rcs(bp_syst_avg, c(115, 135, 161))
 )
 
-predict_composition_risk <- function(composition, stacked_data, model, timegroup) {
+predict_composition_risk <- function(composition, stacked_data_table, model, timegroup) {
   ilr <- ilr(composition, V = v)
 
-  ilr_data <-
-    mutate(stacked_data,
-           R1 = ilr[1], R2 = ilr[2], R3 = ilr[3])
+  stacked_data_table[, c("R1", "R2", "R3") := list(ilr[1], ilr[2], ilr[3])]
 
-  ilr_data$haz <-
-    predict(model, newdata = ilr_data, type = "response")
+  stacked_data_table[, haz := predict(model, newdata = .SD, type = "response")]
 
-  ilr_data <- ilr_data |>
-    group_by(id) |>
-    arrange(timegroup) |>
-    mutate(risk = 1 - cumprod(1 - haz)) |>
-    ungroup()
+  setkey(stacked_data_table, id, timegroup) # sort and set keys for efficient grouping and joining
+  stacked_data_table[, risk := 1 - cumprod(1 - haz), by = id]
 
-  risk <- ilr_data |>
-    filter(timegroup == timegroup) |>
-    summarise(mean = mean(risk))
+  risk <- stacked_data_table[timegroup == timegroup, .(mean = mean(risk))]
 
   return(risk)
 }
 
-calc_substitution <- function(base_comp, imp_stacked, model, substitution, timegroup) {
+calc_substitution <- function(base_comp, imp_stacked_dt, model, substitution, timegroup) {
+
   # The list of substitutions to be calculated in minutes
   inc <- -sub_steps:sub_steps * (sub_step_mins / mins_in_day)
 
-  # The list of compotitions to be fed into the model after applying the substitutions
-  sub_comps <- data.frame(matrix(rep(base_comp, length(inc)), nrow = length(inc), byrow = TRUE))
-  colnames(sub_comps) <- c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa")
-  sub_comps[, substitution[1]] <- sub_comps[, substitution[1]] + inc
-  sub_comps[, substitution[2]] <- sub_comps[, substitution[2]] - inc
+  # Initialize a list to hold generated data.tables
+  sub_comps_list <- vector("list", length(inc))
+
+  # Loop over inc and create a sub_comps data table for each element
+  for (i in seq_along(inc)) {
+    # The list of compositions to be fed into the model after applying the substitutions
+    sub_comps <- as.data.table(t(base_comp))
+    setnames(sub_comps, c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa"))
+
+    sub_comps[, (substitution[1]) := .SD[[substitution[1]]] + inc[i]]
+    sub_comps[, (substitution[2]) := .SD[[substitution[2]]] - inc[i]]
+
+    # Store the data.table into list
+    sub_comps_list[[i]] <- sub_comps
+  }
+
+  # Combine all data.tables in the list
+  sub_comps <- rbindlist(sub_comps_list)
 
   # The risk predicted by the model for each of these composition
   sub_risks <-
-    bind_rows(apply(
-                    sub_comps,
-                    1,
-                    function(comp) predict_composition_risk(acomp(comp), imp_stacked, model, timegroup))
+    rbindlist(lapply(
+                     seq_len(nrow(sub_comps)),
+                     function(i) predict_composition_risk(acomp(sub_comps[i]), imp_stacked_dt, model, timegroup))
     )
 
-  return(data.frame(
-    offset = inc * mins_in_day,
-    risks = sub_risks
-  ) |>
-    setNames(c("offset",
-               paste(substitution[2], deparse(substitute(base_comp)), sep = "_"))))
+  result <-
+    setnames(
+      data.table(offset = inc * mins_in_day, risks = sub_risks),
+      c("offset", paste0(substitution[2], "_", deparse(substitute(base_comp))))
+    )
+
+  return(result)
 }
 
 fit_model <- function(imp, reg_formula) {

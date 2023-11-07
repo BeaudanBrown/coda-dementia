@@ -21,7 +21,7 @@ boot_data$date_of_death <- as.character(boot_data$date_of_death)
 # boot_data <- boot_data[1:1000, ]
 
 # Run bootstrap for primary model
-run_primary_bootstrap <- function() {
+run_primary_bootstrap <- function(boot_data) {
   run_bootstrap(
     boot_data = boot_data,
     timegroup = 55,
@@ -118,24 +118,17 @@ bootstrap_substitutions_fn <- function(
 ) {
   this_sample <- data[indices, ]
 
-  # imputation
-  imp <- mice(this_sample, m = 1,
-              predictorMatrix = predmat,
-              methods = imp_methods)
-
+  imp <- mice(this_sample, m = 1, predictorMatrix = predmat, methods = imp_methods)
   imp <- complete(imp)
+  setDT(imp)
+  imp[, id := .I]
   imp_len <- nrow(imp)
-  imp$id <- seq_len(imp_len)
-
   # fit model
   model <- fit_model(imp, reg_formula)
-
   # data for g-computation/standardisation
-  imp <- do.call("rbind", replicate(timegroup, imp, simplify = FALSE))
-  imp$timegroup <- rep(1:timegroup, imp_len)
-  setDT(imp) # convert imp to a data.table
+  imp <- imp[rep(seq_len(imp_len), each = timegroup)]
+  imp[, timegroup := rep(1:timegroup, imp_len)]
 
-  # substitutions for each reference comp
   short_sleep_inactive <-
     calc_substitution(short_sleep_geo_mean,
                       imp,

@@ -25,7 +25,7 @@ run_primary_bootstrap <- function(boot_data) {
   run_bootstrap(
     boot_data = boot_data,
     timegroup = 55,
-    reg_formula = primary_formula,
+    create_formula_fn = get_primary_formula,
     output_name = "boot_primary.rds"
   )
 }
@@ -35,7 +35,7 @@ run_s1_bootstrap <- function(boot_data) {
   run_bootstrap(
     boot_data = boot_data,
     timegroup = 55,
-    reg_formula = s1_formula,
+    create_formula_fn = s1_formula,
     output_name = "boot_s1.rds"
   )
 }
@@ -45,13 +45,13 @@ run_s2_bootstrap <- function(boot_data) {
   run_bootstrap(
     boot_data = boot_data,
     timegroup = 55,
-    reg_formula = s2_formula,
+    create_formula_fn = s2_formula,
     output_name = "boot_s2.rds"
   )
 }
 
 # Run bootstrap for a particular model formula and timegroup target, outputting to a file
-run_bootstrap <- function(boot_data, timegroup, reg_formula, output_name) {
+run_bootstrap <- function(boot_data, timegroup, create_formula_fn, output_name) {
   # Matrix of variables to include in imputation model
   predmat <- quickpred(boot_data,
     mincor = 0,
@@ -86,7 +86,7 @@ run_bootstrap <- function(boot_data, timegroup, reg_formula, output_name) {
   result <- boot(
     data = boot_data,
     statistic = bootstrap_substitutions_fn,
-    reg_formula = reg_formula,
+    create_formula_fn = create_formula_fn,
     timegroup = timegroup,
     predmat = predmat,
     imp_methods = imp_methods,
@@ -109,7 +109,7 @@ run_bootstrap <- function(boot_data, timegroup, reg_formula, output_name) {
 bootstrap_substitutions_fn <- function(
   data,
   indices,
-  reg_formula,
+  create_formula_fn,
   timegroup,
   predmat,
   imp_methods,
@@ -124,7 +124,7 @@ bootstrap_substitutions_fn <- function(
   imp[, id := .I]
   imp_len <- nrow(imp)
   # fit model
-  model <- fit_model(imp, reg_formula)
+  model <- fit_model(imp, create_formula_fn)
   # data for g-computation/standardisation
   imp <- imp[rep(seq_len(imp_len), each = timegroup)]
   imp[, timegroup := rep(1:timegroup, imp_len)]

@@ -35,23 +35,34 @@ sbp <- matrix(
 
 v <- gsi.buildilrBase(t(sbp))
 
-primary_formula <- as.formula(dem ~ rcs(timegroup, 5) +
-    poly(R1, 2) +
-    poly(R2, 2) +
-    poly(R3, 2) +
-    sex +
-    retired +
-    shift +
-    apoe_e4 +
-    highest_qual +
-    rcs(townsend_deprivation_index, 3) +
-    antidepressant_med +
-    antipsychotic_med +
-    insomnia_med +
-    ethnicity +
-    avg_total_household_income +
-    smok_status
-)
+
+get_primary_formula <- function(data) {
+  knots_timegroup <- quantile(data[["timegroup"]], c(0.05, 0.275, 0.5, 0.725, 0.95))
+  knots_deprivation <- quantile(data[["townsend_deprivation_index"]], c(0.1, 0.5, 0.9))
+  print(knots_timegroup)
+  print(knots_deprivation)
+
+  primary_formula <- as.formula(dem ~ rcs(timegroup, knots_timegroup) +
+      poly(R1, 2) +
+      poly(R2, 2) +
+      poly(R3, 2) +
+      sex +
+      retired +
+      shift +
+      apoe_e4 +
+      highest_qual +
+      rcs(townsend_deprivation_index, knots_deprivation) +
+      antidepressant_med +
+      antipsychotic_med +
+      insomnia_med +
+      ethnicity +
+      avg_total_household_income +
+      smok_status
+  )
+
+  return(primary_formula)
+}
+
 
 s1_formula <- as.formula(dem ~ rcs(timegroup, 5) +
     poly(R1, 2) +
@@ -154,7 +165,7 @@ calc_substitution <- function(base_comp, imp_stacked_dt, model, substitution, ti
   return(result)
 }
 
-fit_model <- function(imp, reg_formula) {
+fit_model <- function(imp, create_formula_fn) {
   imp_long <- survSplit(Surv(time = age_accel, event = dem, time2 = age_dem) ~ .,
     data = imp,
     cut = seq(
@@ -166,7 +177,7 @@ fit_model <- function(imp, reg_formula) {
     start = "age_start"
   )
 
-  model <- glm(reg_formula, data = imp_long, family = binomial)
+  model <- glm(create_formula_fn(imp_long), data = imp_long, family = binomial)
 
   return(strip_glm(model))
 }
@@ -189,8 +200,6 @@ strip_glm <- function(cm) {
   cm$family$aic <- c()
   cm$family$validmu <- c()
   cm$family$simulate <- c()
-  attr(cm$terms, ".Environment") <- c()
-  attr(cm$formula, ".Environment") <- c()
 
   return(cm)
 }

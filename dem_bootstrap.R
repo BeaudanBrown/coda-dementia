@@ -3,7 +3,7 @@ source("dem_models.R")
 # Constants
 short_sleep_hours <- 6
 hrs_in_day <- 24
-ncpus <- 5
+ncpus <- 10
 bootstrap_iterations <- ncpus
 
 # Load environment variables from the .env file

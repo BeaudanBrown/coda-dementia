@@ -19,8 +19,8 @@ lapply(list_of_packages, library, character.only = TRUE)
 
 # constants
 mins_in_day <- 1440
-sub_steps <- 4
-sub_step_mins <- 15
+sub_steps <- 12
+sub_step_mins <- 5
 
 ## Define SBP
 
@@ -64,24 +64,30 @@ get_primary_formula <- function(data) {
 }
 
 
-s1_formula <- as.formula(dem ~ rcs(timegroup, 5) +
-    poly(R1, 2) +
-    poly(R2, 2) +
-    poly(R3, 2) +
-    sex +
-    retired +
-    shift +
-    apoe_e4 +
-    highest_qual +
-    rcs(townsend_deprivation_index, 3) +
-    antidepressant_med +
-    antipsychotic_med +
-    insomnia_med +
-    ethnicity +
-    avg_total_household_income +
-    smok_status +
-    rcs(avg_WASO, 3)
-)
+get_s1_formula <- function(data) {
+  knots_timegroup <- quantile(data[["timegroup"]], c(0.05, 0.275, 0.5, 0.725, 0.95))
+  knots_deprivation <- quantile(data[["townsend_deprivation_index"]], c(0.1, 0.5, 0.9))
+  knots_waso <- quantile(data[["avg_WASO"]], c(0.1, 0.5, 0.9))
+
+  s1_formula <- as.formula(dem ~ rcs(timegroup, knots_timegroup) +
+      poly(R1, 2) +
+      poly(R2, 2) +
+      poly(R3, 2) +
+      sex +
+      retired +
+      shift +
+      apoe_e4 +
+      highest_qual +
+      rcs(townsend_deprivation_index, knots_deprivation) +
+      antidepressant_med +
+      antipsychotic_med +
+      insomnia_med +
+      ethnicity +
+      avg_total_household_income +
+      smok_status +
+      rcs(avg_WASO, knots_waso)
+  )
+}
 
 s2_formula <- as.formula(dem ~ rcs(timegroup, 5) +
     poly(R1, 2) +

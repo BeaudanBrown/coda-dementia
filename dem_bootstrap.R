@@ -35,7 +35,7 @@ run_s1_bootstrap <- function(boot_data) {
   run_bootstrap(
     boot_data = boot_data,
     timegroup = 55,
-    create_formula_fn = s1_formula,
+    create_formula_fn = get_s1_formula,
     output_name = "boot_s1.rds"
   )
 }
@@ -118,17 +118,25 @@ bootstrap_substitutions_fn <- function(
 ) {
   this_sample <- data[indices, ]
 
+  print("Imputing")
+  print(format(Sys.time(), "%%H:%M:%S"))
   imp <- mice(this_sample, m = 1, predictorMatrix = predmat, methods = imp_methods)
   imp <- complete(imp)
   setDT(imp)
   imp[, id := .I]
   imp_len <- nrow(imp)
   # fit model
+  print("Fitting model")
+  print(format(Sys.time(), "%%H:%M:%S"))
+  print(gc())
   model <- fit_model(imp, create_formula_fn)
+
   # data for g-computation/standardisation
   imp <- imp[rep(seq_len(imp_len), each = timegroup)]
   imp[, timegroup := rep(1:timegroup, imp_len)]
 
+  print("Generating predictions")
+  print(format(Sys.time(), "%%H:%M:%S"))
   short_sleep_inactive <-
     calc_substitution(short_sleep_geo_mean,
                       imp,
@@ -177,6 +185,8 @@ bootstrap_substitutions_fn <- function(
     full_join(avg_sleep_light, by = "offset") |>
     full_join(avg_sleep_mvpa, by = "offset")
 
+  print("Returning results")
+  print(format(Sys.time(), "%%H:%M:%S"))
   return(as.matrix(full_df))
 }
 

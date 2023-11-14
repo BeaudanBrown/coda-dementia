@@ -39,8 +39,6 @@ v <- gsi.buildilrBase(t(sbp))
 get_primary_formula <- function(data) {
   knots_timegroup <- quantile(data[["timegroup"]], c(0.05, 0.275, 0.5, 0.725, 0.95))
   knots_deprivation <- quantile(data[["townsend_deprivation_index"]], c(0.1, 0.5, 0.9))
-  print(knots_timegroup)
-  print(knots_deprivation)
 
   primary_formula <- as.formula(dem ~ rcs(timegroup, knots_timegroup) +
       poly(R1, 2) +

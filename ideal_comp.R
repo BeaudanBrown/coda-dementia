@@ -1,5 +1,28 @@
-dem_comp_df <- as.data.frame(dem_comp)
-dem_comp_model <- lm(cbind(dem_df.sleep_n, dem_df.inactive_n, dem_df.light_n) ~ 1, data = dem_comp_df)
+source("dem_models.R")
+
+# load packages
+list_of_packages <- c(
+  "mvtnorm"
+)
+
+new_packages <- list_of_packages[!(list_of_packages %in% installed.packages()[, "Package"])]
+
+if (length(new_packages)) install.packages(new_packages)
+
+lapply(list_of_packages, library, character.only = TRUE)
+
+# Load environment variables from the .env file
+dotenv::load_dot_env()
+data_dir <- Sys.getenv("DATA_DIR")
+output_dir <- Sys.getenv("OUTPUT_DIR")
+
+## Load data
+dem_df <- read_rds(file.path(data_dir, "full_imp.rds"))
+dem_df <- complete(dem_df)
+
+dem_comp_df <- as.data.frame(acomp(dem_df[, c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa")]))
+dem_comp_model <-
+  lm(cbind(dem_comp_df$avg_sleep, dem_comp_df$avg_inactivity, dem_comp_df$avg_light) ~ 1, data = dem_comp_df)
 vcv_mat <- vcov(dem_comp_model)
 dem_comp_df$dens <- apply(dem_comp_df[, -4], 1, dmvnorm, mean = coef(dem_comp_model), sigma = vcv_mat, log = TRUE)
 sorted_df <- dem_comp_df[order(dem_comp_df$dens, decreasing = TRUE), ]
@@ -9,7 +32,7 @@ threshold <- quantile(dem_comp_df$dens, probs = c(0.025), na.rm = TRUE)
 
 step_size <- 15
 
-quantiles <- apply(dem_comp, 2, function(column) {
+quantiles <- apply(dem_comp_df, 2, function(column) {
   quantile(column, probs = c(0.025, 0.975), na.rm = TRUE)
 })
 
@@ -46,36 +69,30 @@ generate_compositions <- function(lower, upper) {
 
 generated_comps <- generate_compositions(lower, upper)
 generated_comps <- generated_comps / mins_in_day
-generated_comps$dens <- apply(generated_comps[, -c(4, 5)], 1, dmvnorm, mean = coef(dem_comp_model), sigma = vcv_mat, log = TRUE)
+generated_comps$dens <-
+  apply(generated_comps[, -c(4, 5)], 1, dmvnorm, mean = coef(dem_comp_model), sigma = vcv_mat, log = TRUE)
 generated_comps <- generated_comps[generated_comps$dens > threshold, ]
 
-generate_hazards <- function(comps, base_comp, base_ilr) {
-  ilrs <- t(apply(comps, 1, function(comp) ilr(acomp(comp), V = v)))
+# fit model
+dem_model <- fit_model(dem_df, get_primary_formula)
+ref_row <- as.data.frame(dem_df[1,])
+ref_row$timegroup <- 55
+
+generate_hazards <- function(comps) {
+  ilrs <- t(apply(generated_comps[, c(1, 2, 3, 4)], 1, function(comp) ilr(acomp(comp), V = v)))
 
   # Convert contrasts into a data frame
-  contrasts <- t(apply(ilrs, 1, function(new_ilr) {
-    contrast_out <- contrast(
-      dem_model,
-      list(R1 = new_ilr[1], R2 = new_ilr[2], R3 = new_ilr[3]),
-      list(R1 = base_ilr[1], R2 = base_ilr[2], R3 = base_ilr[3])
-    )
-    return(c(contrast_out$Contrast, contrast_out$Lower, contrast_out$Upper))
-  }))
-  contrasts_df <- as.data.frame(contrasts)
-  colnames(contrasts_df) <- c("Contrast", "Lower", "Upper")
-
-  # Add contrasts to comps data frame
-  comps$Contrast <- contrasts_df$Contrast
-  comps$Lower <- contrasts_df$Lower
-  comps$Upper <- contrasts_df$Upper
-
-  return(comps)
+  risks <- apply(ilrs, 1, function(new_ilr) {
+    ref_row[c("R1", "R2", "R3")] <- new_ilr
+    predict(dem_model, newdata = ref_row, type = "response")
+  })
+  return(risks)
 }
 
-contrasts <- generate_hazards(generated_comps[, c(1, 2, 3, 4)], avg_sleep_geo_mean, dem_base_ilr)
-sorted_contrasts <- contrasts[order(-contrasts$Contrast), ]
-best_comp <- sorted_contrasts[nrow(sorted_contrasts), c(1, 2, 3, 4)]
-worst_comp <- sorted_contrasts[1, c(1, 2, 3, 4)]
+generated_comps$haz <- generate_hazards(generated_comps)
+generated_comps <- generated_comps[order(generated_comps$haz), ]
+best_comp <- generated_comps[1, c(1, 2, 3, 4)]
+worst_comp <- generated_comps[nrow(generated_comps), c(1, 2, 3, 4)]
 best_ilr <- ilr(acomp(best_comp))
 worst_ilr <- ilr(acomp(worst_comp))
 

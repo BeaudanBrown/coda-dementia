@@ -89,32 +89,39 @@ get_s1_formula <- function(data) {
   )
 }
 
-s2_formula <- as.formula(dem ~ rcs(timegroup, 5) +
-    poly(R1, 2) +
-    poly(R2, 2) +
-    poly(R3, 2) +
-    sex +
-    retired +
-    shift +
-    apoe_e4 +
-    highest_qual +
-    rcs(townsend_deprivation_index, 3) +
-    antidepressant_med +
-    antipsychotic_med +
-    insomnia_med +
-    ethnicity +
-    avg_total_household_income +
-    smok_status +
-    sick_disabled +
-    prev_diabetes +
-    prev_cancer +
-    prev_mental_disorder +
-    prev_nervous_system +
-    prev_cvd +
-    bp_med +
-    rcs(BMI, c(22, 26, 32)) +
-    rcs(bp_syst_avg, c(115, 135, 161))
-)
+get_s2_formula <- function(data) {
+  knots_timegroup <- quantile(data[["timegroup"]], c(0.05, 0.275, 0.5, 0.725, 0.95))
+  knots_deprivation <- quantile(data[["townsend_deprivation_index"]], c(0.1, 0.5, 0.9))
+  knots_bmi <- quantile(data[["BMI"]], c(0.1, 0.5, 0.9))
+  knots_bp <- quantile(data[["bp_syst_avg"]], c(0.1, 0.5, 0.9))
+
+  s2_formula <- as.formula(dem ~ rcs(timegroup, knots_timegroup) +
+      poly(R1, 2) +
+      poly(R2, 2) +
+      poly(R3, 2) +
+      sex +
+      retired +
+      shift +
+      apoe_e4 +
+      highest_qual +
+      rcs(townsend_deprivation_index, knots_deprivation) +
+      antidepressant_med +
+      antipsychotic_med +
+      insomnia_med +
+      ethnicity +
+      avg_total_household_income +
+      smok_status +
+      sick_disabled +
+      prev_diabetes +
+      prev_cancer +
+      prev_mental_disorder +
+      prev_nervous_system +
+      prev_cvd +
+      bp_med +
+      rcs(BMI, knots_bmi) +
+      rcs(bp_syst_avg, knots_bp)
+  )
+}
 
 predict_composition_risk <- function(composition, stacked_data_table, model, timegroup) {
   ilr <- ilr(composition, V = v)

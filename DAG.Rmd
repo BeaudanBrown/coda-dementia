@@ -1,0 +1,43 @@
+---
+title: "DAG"
+output:
+  pdf_document: default
+---
+
+```{tikz dag-text, echo=FALSE, opts.label="tikz_settings", fig.align="center", fig.ext="png", fig.path = "figure_files/"}
+\usetikzlibrary{positioning}
+\begin{tikzpicture}[every node/.append style={draw, minimum size=0.5cm}]
+\node [draw=none] (L) at (-2,0) {$L$};
+\node [draw=none] (TUp) at (0,0) {$TU_{\text{past}}$};
+\node [draw=none] (TU) at (2,0) {$TU$};
+\node [draw=none] (W) at (1,-1) {$W$};
+\node [draw=none] (Yk) at (6,0) {$Y_k$};
+\node [draw=none] (U1) at (1,-2) {$U_1$};
+\node [draw=none] (U2) at (5,1) {$U_2$};
+\node [draw=none] (Dk) at (4,0) {$D_k$};
+\node [rectangle] (S) at (2,1) {$S$};
+
+\draw [-latex] (TUp) edge (TU);
+\draw [-latex] (TUp) edge [bend left = 20] (Dk);
+\draw [-latex] (TU) edge [bend right = 15] (Yk);
+\draw [-latex] (TU) edge (Dk);
+\draw [-latex] (TUp) edge [dashed] (W);
+\draw [-latex] (L) edge (W);
+\draw [-latex] (L) edge [bend left = 20] (Dk);
+\draw [-latex] (L) edge [bend left=20] (S);
+\draw [-latex] (L) edge (TUp);
+\draw [-latex] (L) edge [bend left=15] (Yk);
+\draw [-latex] (L) edge [bend left=20] (TU);
+\draw [-latex] (W) edge (Yk);
+\draw [-latex] (W) edge (Dk);
+\draw [-latex] (Dk) edge (Yk);
+\draw [-latex] (W) edge [dashed] (TU);
+\draw [-latex] (U1) edge (L);
+\draw [-latex] (U1) edge (W);
+\draw [-latex] (U1) edge [bend right=20] (Yk);
+\draw [-latex] (U2) edge (Dk);
+\draw [-latex] (U2) edge (Yk);
+
+
+\end{tikzpicture}
+```

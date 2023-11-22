@@ -190,64 +190,12 @@ bootstrap_substitutions_fn <- function(
   return(as.matrix(full_df))
 }
 
+process_boot_output <- function(rds_path) {
+  data <- readRDS(file.path(output_dir, rds_path))
+  num_subs <- sub_steps * 2 + 1
+  sub_col_names <- data$t[1, 1:num_subs]
 
-## Return results from substitutions
-
-sub_results <- function(model, imp, timegroup) {
-  # set up stacked dataset for g-computation (one row for each follow-up interval)
-  imp_stacked <- do.call("rbind", replicate(timegroup, imp, simplify = FALSE))
-
-  imp_stacked$timegroup <- rep(1:timegroup, nrow(imp))
-
-  ## substitutions
-
-  short_sleep_inactive <-
-    calc_substitution(short_sleep_geo_mean,
-                      imp_stacked,
-                      model,
-                      c("avg_sleep", "avg_inactivity"),
-                      timegroup = timegroup)
-
-  short_sleep_light <-
-    calc_substitution(short_sleep_geo_mean,
-                      imp_stacked, model,
-                      c("avg_sleep", "avg_light"),
-                      timegroup = timegroup)
-
-  short_sleep_mvpa <-
-    calc_substitution(short_sleep_geo_mean,
-                      imp_stacked,
-                      model,
-                      c("avg_sleep", "avg_mvpa"),
-                      timegroup = timegroup)
-
-  avg_sleep_inactive <-
-    calc_substitution(avg_sleep_geo_mean,
-                      imp_stacked,
-                      model,
-                      c("avg_sleep", "avg_inactivity"),
-                      timegroup = timegroup)
-
-  avg_sleep_light <-
-    calc_substitution(avg_sleep_geo_mean,
-                      imp_stacked,
-                      model,
-                      c("avg_sleep", "avg_light"),
-                      timegroup = timegroup)
-
-  avg_sleep_mvpa <-
-    calc_substitution(avg_sleep_geo_mean,
-                      imp_stacked,
-                      model,
-                      c("avg_sleep", "avg_mvpa"),
-                      timegroup = timegroup)
-
-  full_df <- full_join(short_sleep_inactive, short_sleep_light, by = "offset") |>
-    full_join(short_sleep_mvpa, by = "offset") |>
-    full_join(avg_sleep_inactive, by = "offset") |>
-    full_join(avg_sleep_light, by = "offset") |>
-    full_join(avg_sleep_mvpa, by = "offset") |>
-    pivot_longer(-offset, values_to = "risk", names_to = "Substitution") |>
+  plot_data <- pivot_longer(as.data.frame(data$t0), -offset, values_to = "risk", names_to = "Substitution") |>
     group_by(Substitution) |>
     mutate(ref_risk = ifelse(offset == 0, risk, NA_real_)) |>
     fill(ref_risk, .direction = "downup") |>
@@ -260,5 +208,58 @@ sub_results <- function(model, imp, timegroup) {
     mutate(Substitution = ifelse(Substitution == "avg_inactivity", "Inactivity",
                                  ifelse(Substitution == "avg_light", "Light activity", "MVPA")))
 
-  return(full_df)
+  get_quantiles <- function(start, substitution, reference) {
+    slice <- data$t[, start:(start + num_subs - 1)]
+    middle_col <- ceiling(ncol(slice) / 2)
+
+    slice <- t(apply(slice, 1, function(row, idx) {
+      zero_offset <- row[middle_col]
+      return(row / zero_offset)
+    }, idx = middle_col))
+
+    quantiles <- as.data.frame(t(as.data.frame(apply(slice, 2, function(column) quantile(column, probs = c(0.025, 0.975))))))
+    colnames(quantiles) <- c("lower", "upper")
+    quantiles$Substitution <- substitution
+    quantiles$Reference <- reference
+    print(quantiles)
+    quantiles$offset <- sub_col_names
+    return(quantiles)
+  }
+
+  sub_start <- num_subs + 1
+
+  inactivity_short_sleep <- get_quantiles(sub_start, "Inactivity", "Short sleepers")
+  sub_start <- sub_start + num_subs
+
+  light_short_sleep <- get_quantiles(sub_start, "Light activity", "Short sleepers")
+  sub_start <- sub_start + num_subs
+
+  mvpa_short_sleep <- get_quantiles(sub_start, "MVPA", "Short sleepers")
+  sub_start <- sub_start + num_subs
+
+  inactivity_avg_sleep <- get_quantiles(sub_start, "Inactivity", "Normal sleepers")
+  sub_start <- sub_start + num_subs
+
+  light_avg_sleep <- get_quantiles(sub_start, "Light activity", "Normal sleepers")
+  sub_start <- sub_start + num_subs
+
+  mvpa_avg_sleep <- get_quantiles(sub_start, "MVPA", "Normal sleepers")
+
+  all_quantiles <- rbind(inactivity_short_sleep,
+                         light_short_sleep,
+                         mvpa_short_sleep,
+                         inactivity_avg_sleep,
+                         light_avg_sleep,
+                         mvpa_avg_sleep)
+
+
+  plot_data <- full_join(plot_data, all_quantiles, by = c("offset", "Substitution", "Reference"))
+
+  ggplot(plot_data, aes(x = offset, y = risk_ratio)) +
+    geom_line() +
+    geom_ribbon(aes(ymin = lower, ymax = upper),
+                alpha = 0.25) +
+    facet_wrap(~ Reference + Substitution) +
+    geom_hline(yintercept = 1, linetype = "dotted") +
+    cowplot::theme_cowplot()
 }

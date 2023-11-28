@@ -124,3 +124,63 @@ bootstrap_ideal_fn <- function(
     full_join(common_risk, by = "timegroup")
   return(as.matrix(full_df))
 }
+
+process_ideal_output <- function(rds_path) {
+  data <- readRDS(file.path(data_dir, rds_path))
+  num_timegroups <- 76
+
+  plot_data <- as.data.frame(data$t0) |>
+    pivot_longer(
+      cols = -timegroup,
+      names_to = "Reference",
+      values_to = "Risk",
+      names_pattern = "(.*)_risk"
+    ) |>
+    mutate(
+      Reference = case_when(
+        Reference == "best"   ~ "best",
+        Reference == "worst"  ~ "worst",
+        Reference == "common" ~ "common"
+      )
+    )
+
+  slice <- data$t[, start:(start + num_timegroups - 1)]
+
+  get_quantiles <- function(start, reference) {
+    slice <- data$t[, start:(start + num_timegroups - 1)]
+
+    quantiles <-
+      as.data.frame(t(as.data.frame(apply(slice, 2, function(column) quantile(column, probs = c(0.025, 0.975))))))
+    colnames(quantiles) <- c("lower", "upper")
+    quantiles$Reference <- reference
+    quantiles$timegroup <- 1:num_timegroups
+    return(quantiles)
+  }
+
+  reference_start <- num_timegroups + 1
+
+  best_quantiles <- get_quantiles(reference_start, "best")
+  reference_start <- reference_start + num_timegroups
+
+  worst_quantiles <- get_quantiles(reference_start, "worst")
+  reference_start <- reference_start + num_timegroups
+
+  common_quantiles <- get_quantiles(reference_start, "common")
+  reference_start <- reference_start + num_timegroups
+
+  all_quantiles <- rbind(best_quantiles,
+                         worst_quantiles,
+                         common_quantiles)
+
+
+  plot_data <- full_join(plot_data, all_quantiles, by = c("timegroup", "Reference"))
+
+  ggplot(plot_data, aes(x = timegroup, y = Risk)) +
+    geom_line() +
+    geom_ribbon(aes(ymin = lower, ymax = upper),
+                alpha = 0.25) +
+    facet_wrap(~ Reference) +
+    cowplot::theme_cowplot()
+}
+
+process_ideal_output("ideal.rds")

@@ -221,7 +221,6 @@ process_boot_output <- function(rds_path) {
     colnames(quantiles) <- c("lower", "upper")
     quantiles$Substitution <- substitution
     quantiles$Reference <- reference
-    print(quantiles)
     quantiles$offset <- sub_col_names
     return(quantiles)
   }

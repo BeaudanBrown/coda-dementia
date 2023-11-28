@@ -135,6 +135,48 @@ waso_dat <- select(waso_dat, eid, avg_WASO, avg_sri)
 
 dem_df <- left_join(dem_df, waso_dat, by = "eid")
 
+### Add prevalent disease variables
+
+### Add in prevalent illness data ###
+
+prev <- fread(file.path(data_dir,"../SRI/disease_dates.csv"),
+              stringsAsFactors = T)
+
+# add in date of actigraphy and number of cancers
+
+adate <- dem_df |> select(eid, date_accel, num_sr_cancers)
+
+prev <- left_join(prev, adate, by = "eid")
+
+prev <- as_tibble(prev)
+
+# create prevalent illness variables
+
+prev <- prev |> mutate(across(starts_with("sr_"), ~ifelse(is.na(.), 0, .)))
+
+prev$date_accel <- as_date(prev$date_accel)
+
+prev <- prev |> 
+  mutate(prev_diabetes = case_when(sr_diabetes == 1 ~ 1,
+                                   sr_diabetes == 0 & date_diabetes < date_accel ~ 1,
+                                   TRUE ~ 0)) |> 
+  mutate(prev_cancer = case_when(num_sr_cancers > 0 ~ 1,
+                                 num_sr_cancers == 0 & date_neoplasm < date_accel ~ 1,
+                                 TRUE ~ 0)) |> 
+  mutate(prev_mental_disorder = case_when(sr_mental_disorder == 1 ~ 1,
+                                          sr_mental_disorder == 0 & date_mental_disorder < date_accel ~ 1,
+                                          TRUE ~ 0)) |> 
+  mutate(prev_nervous_system = case_when(sr_nervous_system == 1 ~ 1,
+                                         sr_nervous_system == 0 & date_nervous_system_disorder < date_accel ~ 1,
+                                         TRUE ~ 0)) |> 
+  mutate(prev_cvd = case_when(sr_cvd == 1 ~ 1,
+                              sr_cvd == 0 & date_CVD < date_accel ~ 1,
+                              TRUE ~ 0))
+
+prev <- prev |> select(eid, starts_with("prev_"))
+
+dem_df <- left_join(dem_df, prev, by = "eid")
+
 ### Select model data
 
 dem_model_data <- select(
@@ -169,6 +211,15 @@ dem_model_data <- select(
   date_acdem2,
   date_accel,
   age_dem,
+  sick_disabled,
+  prev_diabetes,
+  prev_cancer,
+  prev_mental_disorder,
+  prev_nervous_system,
+  prev_cvd,
+  bp_med,
+  BMI,
+  bp_syst_avg
 ) |> cbind(dem_base_ilr)
 
 ## Output RDS file ##

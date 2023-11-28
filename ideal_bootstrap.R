@@ -144,8 +144,6 @@ process_ideal_output <- function(rds_path) {
       )
     )
 
-  slice <- data$t[, start:(start + num_timegroups - 1)]
-
   get_quantiles <- function(start, reference) {
     slice <- data$t[, start:(start + num_timegroups - 1)]
 

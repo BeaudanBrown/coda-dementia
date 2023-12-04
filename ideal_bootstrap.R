@@ -172,13 +172,29 @@ process_ideal_output <- function(rds_path) {
 
 
   plot_data <- full_join(plot_data, all_quantiles, by = c("timegroup", "Reference"))
-
-  ggplot(plot_data, aes(x = timegroup, y = Risk)) +
-    geom_line() +
-    geom_ribbon(aes(ymin = lower, ymax = upper),
+ 
+  plot_data |> 
+    mutate(age = 47 + (timegroup / 2)) |> 
+    mutate(Composition = fct_recode(Reference,
+      'Ideal' = 'best',
+      'Typical' = 'common',
+      'Worst' = 'worst'
+    )) |> 
+    ggplot(aes(x = age, y = Risk)) +
+    geom_line(aes(colour = Composition)) +
+    geom_ribbon(aes(ymin = lower, ymax = upper, fill = Composition),
                 alpha = 0.25) +
-    facet_wrap(~ Reference) +
-    cowplot::theme_cowplot()
+    labs(x = "Age", y = "Cumulative all-cause dementia incidence") +
+    cowplot::theme_cowplot() +
+    scale_color_manual(labels = c("Ideal", "Typical", "Worst"),
+                       values = c("#7AC36A","#56B4E9","#DC3912")) +
+    scale_fill_manual(labels = c("Ideal", "Typical", "Worst"),
+      values = c("#7AC36A","#56B4E9","#DC3912")) +
+    theme(text=element_text(family="serif"))
 }
 
 process_ideal_output("ideal.rds")
+
+ggsave(file.path(data_dir, "Ideal_composition.png"),
+       device = "png", width = 6, height = 6)
+

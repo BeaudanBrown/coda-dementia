@@ -8,7 +8,10 @@ list_of_packages <- c(
   "data.table",
   "parallel",
   "boot",
-  "renv"
+  "renv",
+  "rlang",
+  "cowplot",
+  "extrafont"
 )
 
 new_packages <- list_of_packages[!(list_of_packages %in% installed.packages()[, "Package"])]

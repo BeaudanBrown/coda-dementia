@@ -73,7 +73,7 @@ bootstrap_ideal_fn <- function(
 
   print("Imputing")
   print(format(Sys.time(), "%H:%M:%S"))
-  imp <- mice(this_sample, m = 1, maxit = 1, predictorMatrix = predmat, methods = imp_methods)
+  imp <- mice(this_sample, m = 1, predictorMatrix = predmat, methods = imp_methods)
   imp <- complete(imp)
   setDT(imp)
   imp[, id := .I]
@@ -172,14 +172,14 @@ process_ideal_output <- function(rds_path) {
 
 
   plot_data <- full_join(plot_data, all_quantiles, by = c("timegroup", "Reference"))
- 
-  plot_data |> 
-    mutate(age = 47 + (timegroup / 2)) |> 
+
+  plot_data |>
+    mutate(age = 47 + (timegroup / 2)) |>
     mutate(Composition = fct_recode(Reference,
-      'Ideal' = 'best',
-      'Typical' = 'common',
-      'Worst' = 'worst'
-    )) |> 
+      "Ideal" = "best",
+      "Typical" = "common",
+      "Worst" = "worst"
+    )) |>
     ggplot(aes(x = age, y = Risk)) +
     geom_line(aes(colour = Composition)) +
     geom_ribbon(aes(ymin = lower, ymax = upper, fill = Composition),
@@ -187,14 +187,13 @@ process_ideal_output <- function(rds_path) {
     labs(x = "Age", y = "Cumulative all-cause dementia incidence") +
     cowplot::theme_cowplot() +
     scale_color_manual(labels = c("Ideal", "Typical", "Worst"),
-                       values = c("#7AC36A","#56B4E9","#DC3912")) +
+                       values = c("#7AC36A", "#56B4E9", "#DC3912")) +
     scale_fill_manual(labels = c("Ideal", "Typical", "Worst"),
-      values = c("#7AC36A","#56B4E9","#DC3912")) +
-    theme(text=element_text(family="serif"))
+                      values = c("#7AC36A", "#56B4E9", "#DC3912")) +
+    theme(text = element_text(family = "serif"))
 }
 
 process_ideal_output("ideal.rds")
 
 ggsave(file.path(data_dir, "Ideal_composition.png"),
        device = "png", width = 6, height = 6)
-

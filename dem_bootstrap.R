@@ -218,7 +218,8 @@ process_boot_output <- function(rds_path) {
       return(row / zero_offset)
     }, idx = middle_col))
 
-    quantiles <- as.data.frame(t(as.data.frame(apply(slice, 2, function(column) quantile(column, probs = c(0.025, 0.975))))))
+    quantiles <-
+      as.data.frame(t(apply(slice, 2, function(column) quantile(column, probs = c(0.025, 0.975)))))
     colnames(quantiles) <- c("lower", "upper")
     quantiles$Substitution <- substitution
     quantiles$Reference <- reference
@@ -255,13 +256,12 @@ process_boot_output <- function(rds_path) {
 
   plot_data <- full_join(plot_data, all_quantiles, by = c("offset", "Substitution", "Reference"))
 
-  rr_plot <- function(sub, refcomp, colour){
-    
-    plot_data$Substitution = 
-      if_else(plot_data$Substitution == 'Inactivity', 'Substitution: Inactivity',
-              if_else(plot_data$Substitution == 'Light activity', 'Substitution: Light activity', 
-                      'Substitution: MVPA'))
-    
+  rr_plot <- function(sub, refcomp, colour) {
+    plot_data$Substitution <-
+      if_else(plot_data$Substitution == "Inactivity", "Substitution: Inactivity",
+              if_else(plot_data$Substitution == "Light activity", "Substitution: Light activity",
+                      "Substitution: MVPA"))
+
     plot_data[plot_data$Substitution == sub &
                 plot_data$Reference == refcomp,] |>
       ggplot(aes(x = offset, y = risk_ratio)) +
@@ -276,43 +276,43 @@ process_boot_output <- function(rds_path) {
       cowplot::theme_cowplot() +
       theme(text=element_text(family="serif"))
   }
-  
+
   # normal sleepers
-  p1 <- rr_plot("Substitution: Inactivity", "Normal sleepers","#fc020f")
+  p1 <- rr_plot("Substitution: Inactivity", "Normal sleepers", "#fc020f")
   p2 <- rr_plot("Substitution: Light activity", "Normal sleepers", "#145e01")
   p3 <- rr_plot("Substitution: MVPA", "Normal sleepers", "#011869")
-  
-  pnorm <- 
-    plot_grid(p1 + labs(x = "") + theme(legend.position="none"), 
-              p2 + labs(y = "", x = "", title = "Normal sleepers") + 
-                theme(legend.position="none", plot.title = element_text(hjust = 0.5)), 
-              p3 + labs(y = "", x = "") + theme(legend.position="none"),
-              align = 'vh',
+
+  pnorm <-
+    plot_grid(p1 + labs(x = "") + theme(legend.position = "none"),
+              p2 + labs(y = "", x = "", title = "Normal sleepers") +
+                theme(legend.position = "none", plot.title = element_text(hjust = 0.5)),
+              p3 + labs(y = "", x = "") + theme(legend.position = "none"),
+              align = "vh",
               nrow = 1)
-  
-  # short sleepers 
+
+  # short sleepers
   p4 <- rr_plot("Substitution: Inactivity", "Short sleepers", "#ff747b")
   p5 <- rr_plot("Substitution: Light activity", "Short sleepers", "#6ed853")
   p6 <- rr_plot("Substitution: MVPA", "Short sleepers", "#708ff9")
-  
-  pshort <- 
-    plot_grid(p4 + theme(legend.position="none"), 
-              p5 + labs(y = "", title = "Short sleepers") + 
-                theme(legend.position="none", plot.title = element_text(hjust = 0.5)), 
-              p6 + labs(y = "") + theme(legend.position="none"),
-              align = 'vh',
+
+  pshort <-
+    plot_grid(p4 + theme(legend.position="none"),
+              p5 + labs(y = "", title = "Short sleepers") +
+                theme(legend.position="none", plot.title = element_text(hjust = 0.5)),
+              p6 + labs(y = "") + theme(legend.position = "none"),
+              align = "vh",
               nrow = 1)
-  
-  plot_grid(pnorm, 
+
+  plot_grid(pnorm,
             pshort,
             nrow = 2)
 }
 
-# Load fonts 
+# Load fonts
 
-loadfonts() 
+loadfonts()
 
-## Primary model 
+## Primary model
 
 process_boot_output("boot_primary.rds")
 
@@ -320,7 +320,7 @@ process_boot_output("boot_primary.rds")
 #        device = "png", bg = "white",
 #        width = 10, height = 10)
 
-## Sensitivity 1 
+## Sensitivity 1
 
 process_boot_output("boot_s1.rds")
 
@@ -328,7 +328,7 @@ process_boot_output("boot_s1.rds")
 #        device = "png", bg = "white",
 #        width = 10, height = 10)
 
-## Sensitivity 2 
+## Sensitivity 2
 
 process_boot_output("boot_s2.rds")
 
@@ -338,14 +338,14 @@ ggsave(file.path(data_dir, "sub_s2.png"),
 
 # ### backup - older version of plot with colours for normal vs short
 # rr_plot <- function(sub, colour){
-#   
-#   plot_data$Substitution = 
-#     if_else(plot_data$Substitution == 'Inactivity', 'Substitution: Inactivity',
-#             if_else(plot_data$Substitution == 'Light activity', 'Substitution: Light activity', 
-#                     'Substitution: MVPA'))
-#   
+#  
+#   plot_data$Substitution =
+#     if_else(plot_data$Substitution == "Inactivity", "Substitution: Inactivity",
+#             if_else(plot_data$Substitution == "Light activity", "Substitution: Light activity",
+#                     "Substitution: MVPA"))
+#  
 #   plot_data[plot_data$Substitution == sub,] |>
-#     ggplot(aes(x = offset, y = risk_ratio, 
+#     ggplot(aes(x = offset, y = risk_ratio,
 #                colour = Reference, fill = Reference)) +
 #     geom_line() +
 #     geom_ribbon(aes(ymin = lower, ymax = upper),
@@ -355,28 +355,28 @@ ggsave(file.path(data_dir, "sub_s2.png"),
 #     xlab(expression("Less sleep" %<->% "More sleep")) +
 #     ylab("Risk ratio (all-cause dementia)") +
 #     labs(colour = "Reference composition",
-#          fill = "Reference composition") + 
+#          fill = "Reference composition") +
 #     ylim(c(0.33,3)) +
 #     cowplot::theme_cowplot()
 # }
 # p1 <- rr_plot("Substitution: Inactivity")
 # p2 <- rr_plot("Substitution: Light activity")
 # p3 <- rr_plot("Substitution: MVPA")
-# 
-# p_comb <- 
-#   plot_grid(p1 + theme(legend.position="none"), 
-#             p2 + labs(y = "") + theme(legend.position="none"), 
+#
+# p_comb <-
+#   plot_grid(p1 + theme(legend.position="none"),
+#             p2 + labs(y = "") + theme(legend.position="none"),
 #             p3 + labs(y = "") + theme(legend.position="none"),
-#             align = 'vh',
+#             align = "vh",
 #             nrow = 1)
-# 
+#
 # legend <- get_legend(
-#   p1 + 
+#   p1 +
 #     guides(color = guide_legend(nrow = 1)) +
 #     theme(legend.position = "bottom",
 #           legend.box.margin = margin(0, 0, 0, 330)))
-# 
-# plot_grid(p_comb, 
-#           legend, 
-#           ncol = 1, 
+#
+# plot_grid(p_comb,
+#           legend,
+#           ncol = 1,
 #           rel_heights = c(1, .1))

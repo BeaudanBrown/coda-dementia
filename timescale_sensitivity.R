@@ -20,14 +20,21 @@ boot_data$date_of_death <- as.character(boot_data$date_of_death)
 ### fit imputation model 
 
 # Matrix of variables to include in imputation model
-predmat <- quickpred(boot_data,
-                     mincor = 0,
-                     exclude = c(
-                       "date_acdem2", "date_accel", "date_of_death",
-                       "avg_sleep", "avg_inactivity", "avg_light",
-                       "avg_mvpa", "eid"
-                     )
+predmat <- quickpred(
+  boot_data,
+  mincor = 0,
+  exclude = c(
+    "date_acdem2",
+    "date_accel",
+    "date_of_death",
+    "avg_sleep",
+    "avg_inactivity",
+    "avg_light",
+    "avg_mvpa",
+    "eid"
+  )
 )
+
 predmat["date_acdem2", ] <- 0
 predmat["date_of_death", ] <- 0
 
@@ -45,94 +52,93 @@ imp_methods["date_of_death"] <- ""
 
 imp <- read_rds(file.path(data_dir, "imp_timescale.rds"))
 
-### Fit outcome model 
-model <- fit_model_timescale2(imp, get_primary_formula_timescale2)
+
+### Create long (person-period) dataset
+
+imp_long <- survSplit(
+  Surv(time = time_to_dem, event = dem) ~ .,
+  data = imp,
+  cut = seq(
+    from = min(imp$time_to_dem),
+    to = max(imp$time_to_dem),
+    length.out = 34
+  ),
+  episode = "timegroup",
+  end = "time_end",
+  event = "dem",
+  start = "time_start"
+)
+
+# datadist
+
+dd <- datadist(imp_long)
+options(datadist = "dd")
+
+  
+### Fit model 
+
+knots_timegroup <-
+  quantile(imp_long[["timegroup"]], c(0.05, 0.35, 0.65, 0.95))
+knots_deprivation <-
+  quantile(imp_long[["townsend_deprivation_index"]], c(0.1, 0.5, 0.9))
+
+# %ia% excludes higher order product terms 
+
+model <- lrm(
+  dem ~
+    rcs(timegroup, knots_timegroup) +
+    pol(R1) + 
+    pol(R2) + 
+    pol(R3) +
+    pol(R1) %ia% rcs(timegroup, knots_timegroup) +
+    pol(R2) %ia% rcs(timegroup, knots_timegroup) +
+    pol(R3) %ia% rcs(timegroup, knots_timegroup) +
+    sex +
+    retired +
+    shift +
+    apoe_e4 +
+    highest_qual +
+    rcs(townsend_deprivation_index, knots_deprivation) +
+    antidepressant_med +
+    antipsychotic_med +
+    insomnia_med +
+    ethnicity +
+    avg_total_household_income +
+    smok_status,
+  data = imp_long
+)
+
 
 ### Estimate substitution effects
 
-# data for g-computation/standardisation
+get_hr <- function(model, ilr_sub, ilr_ref) {
+  out <- contrast(
+    model,
+    list(
+      R1 = ilr_sub[1],
+      R2 = ilr_sub[2],
+      R3 = ilr_sub[3],
+      timegroup = 1:34
+    ),
+    list(
+      R1 = ilr_ref[1],
+      R2 = ilr_ref[2],
+      R3 = ilr_ref[3],
+      timegroup = 1:34
+    )
+  )
+  
+  return(tibble(
+    timegroup = out$timegroup,
+    Contrast = out$Contrast,
+    Lower = out$Lower,
+    Upper = out$Upper
+  ))
+}
 
-pred_data <- imp[rep(1,34),]
+# test 
 
-pred_data <- pred_data |> 
-  select(sex,
-         R1, R2, R3,
-           retired,
-           shift,
-           apoe_e4,
-           highest_qual, townsend_deprivation_index,
-           antidepressant_med,
-           antipsychotic_med,
-           insomnia_med,
-           ethnicity,
-           avg_total_household_income,
-           smok_status)
-
-pred_data$timegroup <- 1:34
-
-setDT(pred_data)
-
-all_comp <- acomp(boot_data[, c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa")])
-
-
-# test
-
-test <- predict_composition_risk(all_comp[1,], pred_data, model)
-
-predict(model, newdata = imp[1,])
+get_hr(model, all_comp[1,], all_comp[2,])
 
 
-
-# estimate substitutions 
-
-short_sleep_inactive <-
-  calc_substitution(short_sleep_geo_mean,
-                    imp,
-                    model,
-                    c("avg_sleep", "avg_inactivity"),
-                    timegroup = timegroup)
-
-short_sleep_light <-
-  calc_substitution(short_sleep_geo_mean,
-                    imp,
-                    model,
-                    c("avg_sleep", "avg_light"),
-                    timegroup = timegroup)
-
-short_sleep_mvpa <-
-  calc_substitution(short_sleep_geo_mean,
-                    imp,
-                    model,
-                    c("avg_sleep", "avg_mvpa"),
-                    timegroup = timegroup)
-
-avg_sleep_inactive <-
-  calc_substitution(avg_sleep_geo_mean,
-                    imp,
-                    model,
-                    c("avg_sleep", "avg_inactivity"),
-                    timegroup = timegroup)
-
-avg_sleep_light <-
-  calc_substitution(avg_sleep_geo_mean,
-                    imp,
-                    model,
-                    c("avg_sleep", "avg_light"),
-                    timegroup = timegroup)
-
-avg_sleep_mvpa <-
-  calc_substitution(avg_sleep_geo_mean,
-                    imp,
-                    model,
-                    c("avg_sleep", "avg_mvpa"),
-                    timegroup = timegroup)
-
-# pool results 
-
-full_df <- full_join(short_sleep_inactive, short_sleep_light, by = "offset") |>
-  full_join(short_sleep_mvpa, by = "offset") |>
-  full_join(avg_sleep_inactive, by = "offset") |>
-  full_join(avg_sleep_light, by = "offset") |>
-  full_join(avg_sleep_mvpa, by = "offset")
-
-
+## can either wrangle the above function so that the right ILRs are passed in, or ditch it entirely and just adapt calc_substitution 

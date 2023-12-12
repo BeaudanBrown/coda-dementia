@@ -100,7 +100,7 @@ run_bootstrap <- function(boot_data, timegroup, create_formula_fn, output_name) 
 
   # Prepend timestamp to avoid accidental data loss
   timestamp <- format(Sys.time(), "%Y-%m-%d_%H:%M")
-  output_name_with_timestamp <- paste(output_name, timestamp, sep = "_")
+  output_name_with_timestamp <- paste0(output_name, "_", timestamp, ".rds")
   saveRDS(result, file.path(output_dir, output_name_with_timestamp))
 }
 

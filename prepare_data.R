@@ -181,6 +181,7 @@ dem_df <- left_join(dem_df, prev, by = "eid")
 
 dem_model_data <- select(
   dem_df,
+  eid,
   avg_sleep, avg_inactivity, avg_light, avg_mvpa,
   dem, time_to_dem,
   avg_WASO, avg_sri,

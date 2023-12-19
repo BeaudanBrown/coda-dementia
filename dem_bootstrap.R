@@ -303,9 +303,11 @@ process_boot_output <- function(rds_path) {
               align = "vh",
               nrow = 1)
 
-  plot_grid(pnorm,
+  plot <- plot_grid(pnorm,
             pshort,
             nrow = 2)
+  
+  return(list(plot, plot_data))
 }
 
 # Load fonts
@@ -314,15 +316,22 @@ loadfonts()
 
 ## Primary model
 
-process_boot_output("boot_primary.rds")
+process_boot_output("boot_primary.rds")[[1]]
 
 # ggsave(file.path(data_dir, "sub_primary.png"),
 #        device = "png", bg = "white",
 #        width = 10, height = 10)
 
+# risk ratios 
+
+process_boot_output("boot_primary.rds")[[2]] |> 
+  filter(abs(offset) == 60) |> 
+  filter(Reference == "Short sleepers")
+
+
 ## Sensitivity 1
 
-process_boot_output("boot_s1.rds")
+process_boot_output("boot_s1.rds")[[1]]
 
 # ggsave(file.path(data_dir, "sub_s1.png"),
 #        device = "png", bg = "white",
@@ -330,7 +339,7 @@ process_boot_output("boot_s1.rds")
 
 ## Sensitivity 2
 
-process_boot_output("boot_s2.rds")
+process_boot_output("boot_s2.rds")[[1]]
 
 ggsave(file.path(data_dir, "sub_s2.png"),
        device = "png", bg = "white",

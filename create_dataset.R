@@ -13,11 +13,11 @@ data_dir <- Sys.getenv("DATA_DIR")
 
 # read UKB data
 
-d <- fread(file.path(data_dir, "core_ukb_data/core_ukb_trimmed_Sep2023.csv"))
+d <- fread(file.path(data_dir, "../core_ukb_data/core_ukb_trimmed_Sep2023.csv"))
 
 # Add in SNPs #
 
-snps <- read_csv(file.path(data_dir, "Raw UKB data/SNPs (basket 2)/snp_data.csv"))
+snps <- read_csv(file.path(data_dir, "../Raw UKB data/SNPs (basket 2)/snp_data.csv"))
 
 d <- d |> left_join(snps, by = "eid")
 

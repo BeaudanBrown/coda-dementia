@@ -1,100 +1,49 @@
 source("ideal_comp.R")
 
-sbp <- matrix(
-  c(
-    1, 1, -1, -1,
-    1, -1, 0, 0,
-    0, 0, 1, -1
-  ),
-  ncol = 4, byrow = TRUE
-)
-v <- gsi.buildilrBase(t(sbp))
+# sbp <- matrix(
+#   c(
+#     1, 1, -1, -1,
+#     1, -1, 0, 0,
+#     0, 0, 1, -1
+#   ),
+#   ncol = 4, byrow = TRUE
+# )
+# v <- gsi.buildilrBase(t(sbp))
 
-make_ilr <- function(comp) {
-  return(ilr(acomp(comp), V = v))
-}
-best_and_worst <- get_best_and_worst_comp()
-best_and_worst <- as.data.frame(apply(best_and_worst, 2, make_ilr))
+# make_ilr <- function(comp) {
+#   return(ilr(acomp(comp), V = v))
+# }
+# best_and_worst <- get_best_and_worst_comp()
+# best_and_worst <- as.data.frame(apply(best_and_worst, 2, make_ilr))
 
-mri_df <-
-  fread(file.path(data_dir, "mri_data.csv"), stringsAsFactors = TRUE) |>
-  as_tibble()
+# mri_df <-
+#   fread(file.path(data_dir, "mri_data.csv"), stringsAsFactors = TRUE) |>
+#   as_tibble()
 
-mri_df$assessment_centre_mri1 <- as.factor(mri_df$assessment_centre_mri1)
+# mri_df$assessment_centre_mri1 <- as.factor(mri_df$assessment_centre_mri1)
 
-## merge MRI and main dataset 
+# ## merge MRI and main dataset
 
-boot_df <- read_rds(file.path(data_dir, "bootstrap_data.rds"))
+# boot_df <- read_rds(file.path(data_dir, "bootstrap_data.rds"))
 
-mri_df <- mri_df |> left_join(boot_df, by = "eid")
+# mri_df <- mri_df |> left_join(boot_df, by = "eid")
 
-## Remove participants without accel data 
+# ## Remove participants without accel data
 
-mri_df <- mri_df |> filter(!is.na(age_accel))
+# mri_df <- mri_df |> filter(!is.na(age_accel))
 
-## Remove participants with accelerometry after MRI
+# ## Remove participants with accelerometry after MRI
 
-mri_df <- mri_df |> 
-  mutate(date_mri1 = as_date(date_mri1),
-         date_accel = as_date(date_accel)) |>
-  mutate(mri_accel_time_dif = as.integer(date_mri1 - date_accel)) |> 
-  mutate(mri_before_accel = ifelse(mri_accel_time_dif < 0, 1, 0))
+# mri_df <- mri_df |>
+#   mutate(date_mri1 = as_date(date_mri1),
+#          date_accel = as_date(date_accel)) |>
+#   mutate(mri_accel_time_dif = as.integer(date_mri1 - date_accel)) |>
+#   mutate(mri_before_accel = ifelse(mri_accel_time_dif < 0, 1, 0))
 
-mri_df <- mri_df |> filter(mri_before_accel == 0)
+# mri_df <- mri_df |> filter(mri_before_accel == 0)
 
-# Rename age at MRI scan
-mri_df <- rename(mri_df, 'age_mri' = 'age_assessment_mri1')
-
-# Model data for mri model
-mri_model_data <- select(
-  mri_df,
-  R1, R2, R3,
-  avg_sleep, avg_inactivity, avg_light, avg_mvpa,
-  assessment_centre_mri1,
-  tbv, wmv, gmv, hip, log_wmh,
-  mean_tfmri_headmot,
-  scan_lat_bpos,
-  scan_trans_bpos,
-  scan_long_bpos,
-  scan_tabpos,
-  smok_status,
-  dem,
-  time_to_dem,
-  bp_syst_avg,
-  avg_sri,
-  age_assessment,
-  bp_med,
-  any_cvd,
-  highest_qual,
-  apoe_e4,
-  BMI,
-  antidepressant_med,
-  antipsychotic_med,
-  avg_WASO,
-  retired,
-  shift,
-  pa_modvig,
-  insomnia_med,
-  ethnicity,
-  age_mri,
-  sex,
-  parent_dementa,
-  avg_total_household_income,
-  townsend_deprivation_index,
-  vol_white_matter_norm,
-  vol_grey_matter_norm,
-  vol_hippocampus_l,
-  vol_hippocampus_r,
-  volumetric_scaling_from_t1_head_image_to_standard_space,
-  mri_accel_time_dif,
-  tot_wmh,
-  dem,
-  avg_sleep_duration,
-  time_to_dem,
-  overall_health_rating
-)
-
-options(datadist = datadist(mri_model_data))
+# # Rename age at MRI scan
+# mri_df <- rename(mri_df, "age_mri" = "age_assessment_mri1")
 
 get_mri_formula <- function(outcome_var, model_data) {
   knots_avg_sri_str <-

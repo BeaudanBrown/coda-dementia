@@ -1,7 +1,7 @@
 source("mri_models.R")
 
 ncpus <- 4
-bootstrap_iterations <- 20
+bootstrap_iterations <- 10
 
 # Load environment variables from the .env file
 dotenv::load_dot_env()
@@ -136,8 +136,12 @@ run_bootstrap <- function(boot_data, create_formula_fn, output_name) {
   predmat <- quickpred(boot_data,
     mincor = 0,
     exclude = c(
-      "date_acdem2", "date_accel", "date_of_death",
-      "avg_sleep", "avg_inactivity", "avg_light",
+      "date_acdem2",
+      "date_accel",
+      "date_of_death",
+      "avg_sleep",
+      "avg_inactivity",
+      "avg_light",
       "avg_mvpa"
     )
   )
@@ -170,7 +174,7 @@ run_bootstrap <- function(boot_data, create_formula_fn, output_name) {
   result <- boot(
     data = boot_data,
     statistic = bootstrap_mri_fn,
-    formula_fn = formula_fn,
+    create_formula_fn = create_formula_fn,
     predmat = predmat,
     imp_methods = imp_methods,
     best_and_worst = best_and_worst,
@@ -188,7 +192,7 @@ run_bootstrap <- function(boot_data, create_formula_fn, output_name) {
 bootstrap_mri_fn <- function(
   data,
   indices,
-  formula_fn,
+  create_formula_fn,
   predmat,
   imp_methods,
   best_and_worst
@@ -219,6 +223,7 @@ process_boot_output <- function(rds_path) {
 
 # Combine the phenos, comps, and values into a new data frame
   plot_data <- data.frame(comp = comps, pheno = phenos, value = data$t0)
+  print(plot_data)
 
   num_comps <- 3
 

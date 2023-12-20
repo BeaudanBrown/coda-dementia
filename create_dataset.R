@@ -1,3 +1,5 @@
+source("utils.R")
+
 ### Preparing UKB data ###
 # packages
 library(tidyverse)
@@ -6,10 +8,6 @@ library(emmeans)
 library(data.table)
 library(lubridate)
 library(here)
-
-# Load environment variables from the .env file
-dotenv::load_dot_env()
-data_dir <- Sys.getenv("DATA_DIR")
 
 # read UKB data
 
@@ -272,8 +270,6 @@ d3$mins_worn <-
   d3$awake_sleep
 
 # Variables normalised to 1440 relative to their proportion of total wear time
-
-mins_in_day <- 1440
 
 d3$sleep_n <-
   (d3$dur_spt_sleep_min / d3$mins_worn) * mins_in_day

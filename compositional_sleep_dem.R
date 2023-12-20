@@ -24,6 +24,7 @@ long_sleep_hours <- 9
 source("dem_models.R")
 source("mri_models.R")
 source("ideal_comp.R")
+source("utils.R")
 
 inc <- -sub_amount:sub_amount / mins_in_day
 

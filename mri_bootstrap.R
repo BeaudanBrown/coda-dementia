@@ -1,13 +1,5 @@
 source("mri_models.R")
 
-# Load environment variables from the .env file
-dotenv::load_dot_env()
-data_dir <- Sys.getenv("DATA_DIR")
-output_dir <- Sys.getenv("OUTPUT_DIR")
-
-ncpus <- as.integer(Sys.getenv("NCPUS"))
-bootstrap_iterations <- as.integer(Sys.getenv("BOOT_ITRS"))
-
 mri_df <-
   fread(file.path(data_dir, "../MRI/mri_full_trimmed_v3.csv"), stringsAsFactors = TRUE) |>
   as_tibble()
@@ -151,16 +143,6 @@ run_mri_bootstrap <- function(boot_data, create_formula_fn, output_name) {
   # exclude dates from being imputed
   imp_methods["date_acdem2"] <- ""
   imp_methods["date_of_death"] <- ""
-
-  sbp <- matrix(
-    c(
-      1, 1, -1, -1,
-      1, -1, 0, 0,
-      0, 0, 1, -1
-    ),
-    ncol = 4, byrow = TRUE
-  )
-  v <- gsi.buildilrBase(t(sbp))
 
   make_ilr <- function(comp) {
     return(ilr(acomp(comp), V = v))

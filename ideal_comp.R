@@ -11,11 +11,6 @@ if (length(new_packages)) install.packages(new_packages)
 
 lapply(list_of_packages, library, character.only = TRUE)
 
-# Load environment variables from the .env file
-dotenv::load_dot_env()
-data_dir <- Sys.getenv("DATA_DIR")
-output_dir <- Sys.getenv("OUTPUT_DIR")
-
 generate_compositions <- function(lower, upper) {
   step_size <- 15
 

@@ -1,16 +1,5 @@
 source("dem_models.R")
 
-# Load environment variables from the .env file
-dotenv::load_dot_env()
-data_dir <- Sys.getenv("DATA_DIR")
-output_dir <- Sys.getenv("OUTPUT_DIR")
-
-# Constants
-short_sleep_hours <- 6
-hrs_in_day <- 24
-ncpus <- as.integer(Sys.getenv("NCPUS"))
-bootstrap_iterations <- as.integer(Sys.getenv("BOOT_ITRS"))
-
 ## Load data
 boot_data <- read_rds(file.path(data_dir, "bootstrap_data.rds"))
 # set date variables to strings to avoid errors

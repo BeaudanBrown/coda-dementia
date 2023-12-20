@@ -1,3 +1,5 @@
+source("utils.R")
+
 # load packages
 list_of_packages <- c(
   "mice",
@@ -19,25 +21,6 @@ new_packages <- list_of_packages[!(list_of_packages %in% installed.packages()[, 
 if (length(new_packages)) install.packages(new_packages)
 
 lapply(list_of_packages, library, character.only = TRUE)
-
-# constants
-mins_in_day <- 1440
-sub_steps <- 12
-sub_step_mins <- 5
-
-## Define SBP
-
-sbp <- matrix(
-  c(
-    1, 1, -1, -1,
-    1, -1, 0, 0,
-    0, 0, 1, -1
-  ),
-  ncol = 4, byrow = TRUE
-)
-
-v <- gsi.buildilrBase(t(sbp))
-
 
 get_primary_formula <- function(data) {
   knots_timegroup <- quantile(data[["timegroup"]], c(0.05, 0.275, 0.5, 0.725, 0.95))
@@ -63,7 +46,6 @@ get_primary_formula <- function(data) {
 
   return(primary_formula)
 }
-
 
 get_s1_formula <- function(data) {
   knots_timegroup <- quantile(data[["timegroup"]], c(0.05, 0.275, 0.5, 0.725, 0.95))
@@ -140,7 +122,6 @@ predict_composition_risk <- function(composition, stacked_data_table, model, tim
 }
 
 calc_substitution <- function(base_comp, imp_stacked_dt, model, substitution, timegroup) {
-
   # The list of substitutions to be calculated in minutes
   inc <- -sub_steps:sub_steps * (sub_step_mins / mins_in_day)
 

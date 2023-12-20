@@ -1,3 +1,5 @@
+source("utils.R")
+
 # load packages
 library(tidyverse)
 library(dotenv)
@@ -5,10 +7,6 @@ library(data.table)
 library(compositions)
 library(mice)
 library(survival)
-
-# Load environment variables from the .env file
-dotenv::load_dot_env()
-data_dir <- Sys.getenv("DATA_DIR")
 
 # read main dataset
 
@@ -86,19 +84,6 @@ dem_df <- dem_df |> rename("date_accel" = "calendar_date")
 
 ### Create isometric log ratio coordinates
 
-# sequential binary partition
-
-sbp <- matrix(
-  c(
-    1, 1, -1, -1,
-    1, -1, 0, 0,
-    0, 0, 1, -1
-  ),
-  ncol = 4, byrow = TRUE
-)
-
-v <- gsi.buildilrBase(t(sbp))
-
 # close time use variables
 
 dem_comp <-
@@ -139,7 +124,7 @@ dem_df <- left_join(dem_df, waso_dat, by = "eid")
 
 ### Add in prevalent illness data ###
 
-prev <- fread(file.path(data_dir,"../SRI/disease_dates.csv"),
+prev <- fread(file.path(data_dir, "../SRI/disease_dates.csv"),
               stringsAsFactors = T)
 
 # add in date of actigraphy and number of cancers
@@ -156,19 +141,19 @@ prev <- prev |> mutate(across(starts_with("sr_"), ~ifelse(is.na(.), 0, .)))
 
 prev$date_accel <- as_date(prev$date_accel)
 
-prev <- prev |> 
+prev <- prev |>
   mutate(prev_diabetes = case_when(sr_diabetes == 1 ~ 1,
                                    sr_diabetes == 0 & date_diabetes < date_accel ~ 1,
-                                   TRUE ~ 0)) |> 
+                                   TRUE ~ 0)) |>
   mutate(prev_cancer = case_when(num_sr_cancers > 0 ~ 1,
                                  num_sr_cancers == 0 & date_neoplasm < date_accel ~ 1,
-                                 TRUE ~ 0)) |> 
+                                 TRUE ~ 0)) |>
   mutate(prev_mental_disorder = case_when(sr_mental_disorder == 1 ~ 1,
                                           sr_mental_disorder == 0 & date_mental_disorder < date_accel ~ 1,
-                                          TRUE ~ 0)) |> 
+                                          TRUE ~ 0)) |>
   mutate(prev_nervous_system = case_when(sr_nervous_system == 1 ~ 1,
                                          sr_nervous_system == 0 & date_nervous_system_disorder < date_accel ~ 1,
-                                         TRUE ~ 0)) |> 
+                                         TRUE ~ 0)) |>
   mutate(prev_cvd = case_when(sr_cvd == 1 ~ 1,
                               sr_cvd == 0 & date_CVD < date_accel ~ 1,
                               TRUE ~ 0))

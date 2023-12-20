@@ -1,9 +1,5 @@
 source("ideal_comp.R")
-
-# Load environment variables from the .env file
-dotenv::load_dot_env()
-data_dir <- Sys.getenv("DATA_DIR")
-output_dir <- Sys.getenv("OUTPUT_DIR")
+source("utils.R")
 
 ncpus <- as.integer(Sys.getenv("NCPUS"))
 bootstrap_iterations <- as.integer(Sys.getenv("BOOT_ITRS"))

@@ -1,14 +1,14 @@
 source("ideal_comp.R")
 
-ncpus <- 1
-bootstrap_iterations <- ncpus
-
-best_and_worst <- get_best_and_worst_comp()
-
 # Load environment variables from the .env file
 dotenv::load_dot_env()
 data_dir <- Sys.getenv("DATA_DIR")
 output_dir <- Sys.getenv("OUTPUT_DIR")
+
+ncpus <- as.integer(Sys.getenv("NCPUS"))
+bootstrap_iterations <- as.integer(Sys.getenv("BOOT_ITRS"))
+
+best_and_worst <- get_best_and_worst_comp()
 
 ## Load data
 boot_data <- read_rds(file.path(data_dir, "bootstrap_data.rds"))

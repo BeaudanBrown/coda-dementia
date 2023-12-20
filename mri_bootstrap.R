@@ -1,12 +1,12 @@
 source("mri_models.R")
 
-ncpus <- 4
-bootstrap_iterations <- 10
-
 # Load environment variables from the .env file
 dotenv::load_dot_env()
 data_dir <- Sys.getenv("DATA_DIR")
 output_dir <- Sys.getenv("OUTPUT_DIR")
+
+ncpus <- as.integer(Sys.getenv("NCPUS"))
+bootstrap_iterations <- as.integer(Sys.getenv("BOOT_ITRS"))
 
 mri_df <-
   fread(file.path(data_dir, "../MRI/mri_full_trimmed_v3.csv"), stringsAsFactors = TRUE) |>
@@ -131,7 +131,7 @@ mri_model_data <- select(
 
 options(datadist = datadist(mri_model_data))
 
-run_bootstrap <- function(boot_data, create_formula_fn, output_name) {
+run_mri_bootstrap <- function(boot_data, create_formula_fn, output_name) {
   # Matrix of variables to include in imputation model
   predmat <- quickpred(boot_data,
     mincor = 0,
@@ -207,7 +207,7 @@ bootstrap_mri_fn <- function(
   return(as.matrix(result_df))
 }
 
-run_bootstrap(
+run_mri_bootstrap(
   boot_data = mri_model_data,
   create_formula_fn = get_mri_formula,
   output_name = "boot_mri"

@@ -189,12 +189,6 @@ bootstrap_mri_fn <- function(
   return(as.matrix(result_df))
 }
 
-run_mri_bootstrap(
-  boot_data = mri_model_data,
-  create_formula_fn = get_mri_formula,
-  output_name = "boot_mri"
-)
-
 process_boot_output <- function(rds_path) {
   data <- readRDS(file.path(output_dir, rds_path))
   # data <- readRDS(file.path(data_dir, rds_path))
@@ -248,4 +242,16 @@ process_boot_output <- function(rds_path) {
 }
 
 
-result_df <- process_boot_output("")
+# run_mri_bootstrap(
+#   boot_data = mri_model_data,
+#   create_formula_fn = get_mri_formula,
+#   output_name = "boot_mri"
+# )
+
+# result_df <- process_boot_output("boot_mri.rds")
+# ggplot(result_df, aes(x = comp, y = value, color = pheno)) +
+#   geom_point() +
+#   facet_wrap(~pheno, scales = "free") +
+#   xlab("") +
+#   ylab("Value") +
+#   theme_bw()

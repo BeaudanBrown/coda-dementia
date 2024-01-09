@@ -43,12 +43,16 @@ run_s2_bootstrap <- function(boot_data) {
 ## Run bootstrap for sensitivity analysis model 3
 # excluding dementia cases occuring in first 5 years since accel
 
+subset_data <- boot_data
+subset_data$early_dem <- ifelse(subset_data$dem==1 & subset_data$time_to_dem < 1460, 1, 0)
+subset_data <- subset_data[subset_data$early_dem == 0,]
+
 run_s3_bootstrap <- function(boot_data) {
   run_bootstrap(
-    boot_data = boot_data[boot_data$time_to_dem > 1460,],
+    boot_data = boot_data,
     timegroup = 55,
     create_formula_fn = get_primary_formula,
-    output_name = "boot_s3_excludefirst5.rds",
+    output_name = "boot_s3_excludefirst5.rds"
   )
 }
 
@@ -258,30 +262,60 @@ process_boot_output <- function(rds_path) {
   plot_data <- full_join(plot_data, all_quantiles, by = c("offset", "Substitution", "Reference"))
 
   rr_plot <- function(sub, refcomp, colour) {
-    plot_data$Substitution <-
-      if_else(plot_data$Substitution == "Inactivity", "Substitution: Inactivity",
-              if_else(plot_data$Substitution == "Light activity", "Substitution: Light activity",
-                      "Substitution: MVPA"))
+    
+    plot_data$Substitution <- 
+      ifelse(plot_data$Substitution == "Inactivity","inactivity", 
+             ifelse(plot_data$Substitution == "Light activity",
+                               "light activity", "MVPA"))
 
-    plot_data[plot_data$Substitution == sub &
-                plot_data$Reference == refcomp,] |>
+    plot_data2 <- plot_data[plot_data$Substitution == sub &
+                plot_data$Reference == refcomp,]
+    
+
+    plot_data2 |>
       ggplot(aes(x = offset, y = risk_ratio)) +
       geom_line(colour = colour) +
       geom_ribbon(aes(ymin = lower, ymax = upper),
                   alpha = 0.25, fill = colour) +
       facet_wrap(~ Substitution, nrow = 2) +
       geom_hline(yintercept = 1, linetype = "dotted") +
-      xlab(expression("Less sleep " %<->% "   More sleep")) +
+      xlab("") +
       ylab("Risk ratio (all-cause dementia)") +
-      ylim(c(0.33,3)) +
+      annotate(geom = "text", x=0, y = -0.15,
+               hjust = 0.5,fontface = 1,size = 14/.pt,
+               label = "Minutes", family = "serif") +
+      annotate(geom = "text", x=-20, y = -0.5,
+               hjust = 1,fontface = 1,size = 12/.pt,
+               label = "Less sleep", family = "serif") +
+      annotate(geom = "text", x=20, y = -0.5,
+               hjust = 0,fontface = 1, size = 12/.pt,
+               label = "More sleep", family = "serif") +
+      geom_segment(aes(x = 1, y = -0.625, 
+                       xend = 15, yend = -0.625),
+                   arrow = arrow(length = unit(0.15, "cm"))) +
+      geom_segment(aes(x = -1, y = -0.625, 
+                       xend = -15, yend = -0.625),
+                   arrow = arrow(length = unit(0.15, "cm"))) +
+      annotate(geom = "text", x=-20, y = -0.75,
+               hjust = 1, size = 12/.pt,
+               label = paste("More", plot_data2$Substitution),
+               family = "serif", fontface = 1, size = 12/.pt) +
+      annotate(geom = "text", x=20, y = -0.75,
+               hjust = 0,
+               label = paste("Less", plot_data2$Substitution),
+               family = "serif", fontface = 1, size = 12/.pt) +
+      coord_cartesian(ylim = c(0.33, 3), expand = FALSE, clip = "off") +
       cowplot::theme_cowplot() +
-      theme(text=element_text(family="serif"))
+      theme(text=element_text(size = 12, family="serif"),
+            plot.margin = unit(c(1, 1, 4, 1), "lines"),
+            strip.background = element_blank(),
+            strip.text.x = element_blank())
   }
 
   # normal sleepers
-  p1 <- rr_plot("Substitution: Inactivity", "Normal sleepers", "#fc020f")
-  p2 <- rr_plot("Substitution: Light activity", "Normal sleepers", "#145e01")
-  p3 <- rr_plot("Substitution: MVPA", "Normal sleepers", "#011869")
+  p1 <- rr_plot("inactivity", "Normal sleepers", "#fc020f")
+  p2 <- rr_plot("light activity", "Normal sleepers", "#145e01")
+  p3 <- rr_plot("MVPA", "Normal sleepers", "#011869")
 
   pnorm <-
     plot_grid(p1 + labs(x = "") + theme(legend.position = "none"),
@@ -292,9 +326,9 @@ process_boot_output <- function(rds_path) {
               nrow = 1)
 
   # short sleepers
-  p4 <- rr_plot("Substitution: Inactivity", "Short sleepers", "#ff747b")
-  p5 <- rr_plot("Substitution: Light activity", "Short sleepers", "#6ed853")
-  p6 <- rr_plot("Substitution: MVPA", "Short sleepers", "#708ff9")
+  p4 <- rr_plot("inactivity", "Short sleepers", "#ff747b")
+  p5 <- rr_plot("light activity", "Short sleepers", "#6ed853")
+  p6 <- rr_plot("MVPA", "Short sleepers", "#708ff9")
 
   pshort <-
     plot_grid(p4 + theme(legend.position="none"),
@@ -311,82 +345,35 @@ process_boot_output <- function(rds_path) {
   return(list(plot, plot_data))
 }
 
-# Load fonts
+#### Results 
 
-loadfonts()
-
-## Primary model
-
-process_boot_output("boot_primary.rds")[[1]]
-
+# ## Primary model
+# 
+# process_boot_output("boot_primary.rds")[[1]]
+# # 
 # ggsave(file.path(data_dir, "sub_primary.png"),
 #        device = "png", bg = "white",
-#        width = 10, height = 10)
-
-# risk ratios 
-
-process_boot_output("boot_primary.rds")[[2]] |> 
-  filter(abs(offset) == 60) |> 
-  filter(Reference == "Short sleepers")
-
-
-## Sensitivity 1
-
-process_boot_output("boot_s1.rds")[[1]]
-
+#        width = 14, height = 8)
+# 
+# # risk ratios 
+# 
+# process_boot_output("boot_primary.rds")[[2]] |> 
+#   filter(abs(offset) == 60) |> 
+#   filter(Reference == "Short sleepers")
+# 
+# 
+# ## Sensitivity 1
+# 
+# process_boot_output("boot_s1.rds")[[1]]
+# 
 # ggsave(file.path(data_dir, "sub_s1.png"),
+#       device = "png", bg = "white",
+#       width = 10, height = 10)
+# 
+# ## Sensitivity 2
+# 
+# process_boot_output("boot_s2.rds")[[1]]
+# 
+# ggsave(file.path(data_dir, "sub_s2.png"),
 #        device = "png", bg = "white",
 #        width = 10, height = 10)
-
-## Sensitivity 2
-
-process_boot_output("boot_s2.rds")[[1]]
-
-ggsave(file.path(data_dir, "sub_s2.png"),
-       device = "png", bg = "white",
-       width = 10, height = 10)
-
-# ### backup - older version of plot with colours for normal vs short
-# rr_plot <- function(sub, colour){
-#  
-#   plot_data$Substitution =
-#     if_else(plot_data$Substitution == "Inactivity", "Substitution: Inactivity",
-#             if_else(plot_data$Substitution == "Light activity", "Substitution: Light activity",
-#                     "Substitution: MVPA"))
-#  
-#   plot_data[plot_data$Substitution == sub,] |>
-#     ggplot(aes(x = offset, y = risk_ratio,
-#                colour = Reference, fill = Reference)) +
-#     geom_line() +
-#     geom_ribbon(aes(ymin = lower, ymax = upper),
-#                 alpha = 0.25) +
-#     facet_wrap(~ Substitution, nrow = 2) +
-#     geom_hline(yintercept = 1, linetype = "dotted") +
-#     xlab(expression("Less sleep" %<->% "More sleep")) +
-#     ylab("Risk ratio (all-cause dementia)") +
-#     labs(colour = "Reference composition",
-#          fill = "Reference composition") +
-#     ylim(c(0.33,3)) +
-#     cowplot::theme_cowplot()
-# }
-# p1 <- rr_plot("Substitution: Inactivity")
-# p2 <- rr_plot("Substitution: Light activity")
-# p3 <- rr_plot("Substitution: MVPA")
-#
-# p_comb <-
-#   plot_grid(p1 + theme(legend.position="none"),
-#             p2 + labs(y = "") + theme(legend.position="none"),
-#             p3 + labs(y = "") + theme(legend.position="none"),
-#             align = "vh",
-#             nrow = 1)
-#
-# legend <- get_legend(
-#   p1 +
-#     guides(color = guide_legend(nrow = 1)) +
-#     theme(legend.position = "bottom",
-#           legend.box.margin = margin(0, 0, 0, 330)))
-#
-# plot_grid(p_comb,
-#           legend,
-#           ncol = 1,
-#           rel_heights = c(1, .1))

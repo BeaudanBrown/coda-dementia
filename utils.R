@@ -1,3 +1,5 @@
+library(compositions)
+
 # Load environment variables from the .env file
 dotenv::load_dot_env()
 data_dir <- Sys.getenv("DATA_DIR")

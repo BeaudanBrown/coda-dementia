@@ -196,7 +196,7 @@ run_mri_bootstrap(
 )
 
 process_boot_output <- function(rds_path) {
-  data <- readRDS(file.path(output_dir, "boot_mri.rds"))
+  data <- readRDS(file.path(output_dir, rds_path))
   # data <- readRDS(file.path(data_dir, rds_path))
 
 # Define the phenos and comps

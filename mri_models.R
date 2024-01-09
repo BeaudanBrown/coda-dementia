@@ -47,8 +47,6 @@ source("utils.R")
 # mri_df <- rename(mri_df, "age_mri" = "age_assessment_mri1")
 
 get_mri_formula <- function(outcome_var, model_data) {
-  knots_avg_sri_str <-
-    paste(quantile(model_data[["avg_sri"]], c(0.1, 0.5, 0.9)), collapse = ", ")
   knots_age_mri_str <-
     paste(quantile(model_data[["age_mri"]], c(0.1, 0.5, 0.9)), collapse = ", ")
   knots_deprivation_str <-
@@ -63,8 +61,7 @@ get_mri_formula <- function(outcome_var, model_data) {
     paste(quantile(model_data[["scan_long_bpos"]], c(0.1, 0.5, 0.9)), collapse = ", ")
 
   model_formula <- as.formula(paste(outcome_var, " ~
-      rcs(R1, 3) + rcs(R2, 3) + rcs(R3, 3) +
-      rcs(avg_sri, c(", knots_avg_sri_str, ")) +
+      pol(R1, 2) + pol(R2, 2) + pol(R3, 2) +
       rcs(age_mri, c(", knots_age_mri_str, ")) +
       retired +
       rcs(townsend_deprivation_index, c(", knots_deprivation_str, ")) +
@@ -90,20 +87,29 @@ get_mri_formula <- function(outcome_var, model_data) {
 predict_mri_outcome <- function(outcome_var, model_data, best_and_worst) {
   model_formula <- get_mri_formula(outcome_var, model_data)
 
-  model <- ols(model_formula,
-    data = model_data
-  )
+  model <- ols(model_formula, data = model_data)
   print(summary(model))
 
-  ref_row <- as.data.frame(model_data[1, ])
-  ref_row[c("R1", "R2", "R3")] <- best_and_worst$best
-  best <- predict(model, newdata = ref_row)
+  # Update the local copy with 'best' values and predict outcomes
+  model_data[, "R1"] <- best_and_worst$best[[1]]
+  model_data[, "R2"] <- best_and_worst$best[[2]]
+  model_data[, "R3"] <- best_and_worst$best[[3]]
+  predictions_best <- predict(model, newdata = model_data)
+  best <- mean(predictions_best)
 
-  ref_row[c("R1", "R2", "R3")] <- best_and_worst$worst
-  worst <- predict(model, newdata = ref_row)
+  # Update the local copy with 'worst' values and predict outcomes
+  model_data[, "R1"] <- best_and_worst$worst[[1]]
+  model_data[, "R2"] <- best_and_worst$worst[[2]]
+  model_data[, "R3"] <- best_and_worst$worst[[3]]
+  predictions_worst <- predict(model, newdata = model_data)
+  worst <- mean(predictions_worst)
 
-  ref_row[c("R1", "R2", "R3")] <- best_and_worst$most_common
-  common <- predict(model, newdata = ref_row)
+  # Update the local copy with 'most_common' values and predict outcomes
+  model_data[, "R1"] <- best_and_worst$most_common[[1]]
+  model_data[, "R2"] <- best_and_worst$most_common[[2]]
+  model_data[, "R3"] <- best_and_worst$most_common[[3]]
+  predictions_common <- predict(model, newdata = model_data)
+  common <- mean(predictions_common)
 
   return(data.frame(
     value = c(worst, common, best)
@@ -119,10 +125,3 @@ predict_mri_results <- function(model_data, best_and_worst) {
   final_df <- do.call(rbind, results)
   return(final_df)
 }
-
-# ggplot(final_df, aes(x = reference, y = value, color = outcome)) +
-#   geom_point() +
-#   facet_wrap(~outcome, scales = "free") +
-#   xlab("") +
-#   ylab("Value") +
-#   theme_bw()

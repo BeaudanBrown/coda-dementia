@@ -40,6 +40,18 @@ run_s2_bootstrap <- function(boot_data) {
   )
 }
 
+## Run bootstrap for sensitivity analysis model 3
+# excluding dementia cases occuring in first 5 years since accel
+
+run_s3_bootstrap <- function(boot_data) {
+  run_bootstrap(
+    boot_data = boot_data[boot_data$time_to_dem > 1460,],
+    timegroup = 55,
+    create_formula_fn = get_primary_formula,
+    output_name = "boot_s3_excludefirst5.rds",
+  )
+}
+
 # Run bootstrap for a particular model formula and timegroup target, outputting to a file
 run_bootstrap <- function(boot_data, timegroup, create_formula_fn, output_name) {
   # Matrix of variables to include in imputation model
@@ -48,7 +60,7 @@ run_bootstrap <- function(boot_data, timegroup, create_formula_fn, output_name) 
     exclude = c(
       "date_acdem2", "date_accel", "date_of_death",
       "avg_sleep", "avg_inactivity", "avg_light",
-      "avg_mvpa"
+      "avg_mvpa", "eid"
     )
   )
   predmat["date_acdem2", ] <- 0

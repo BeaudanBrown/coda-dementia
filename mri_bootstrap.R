@@ -248,10 +248,71 @@ process_boot_output <- function(rds_path) {
 #   output_name = "boot_mri"
 # )
 
-# result_df <- process_boot_output("boot_mri.rds")
-# ggplot(result_df, aes(x = comp, y = value, color = pheno)) +
-#   geom_point() +
-#   facet_wrap(~pheno, scales = "free") +
-#   xlab("") +
-#   ylab("Value") +
-#   theme_bw()
+result_df <- process_boot_output(file.path(data_dir, "boot_mri.rds"))
+
+## Plot 
+
+plot_mri <- function(){
+  
+  result_df$comp <- str_to_title(result_df$comp)
+  result_df$comp <- ifelse(result_df$comp == "Common", "Average", result_df$comp)
+  result_df$comp <- factor(result_df$comp, levels = c("Best","Average","Worst"))
+  
+  single_plot <- function(pheno){
+    result_df[result_df$pheno == pheno,] |> 
+      ggplot(aes(x = comp, y = value)) +
+      geom_pointrange(aes(ymin = lower, ymax = upper),
+                      size = 0.1) +
+      labs(x = "Composition") +
+      theme_cowplot()
+  }
+  
+  tbv_plot <- single_plot("tbv")
+  gmv_plot <- single_plot("gmv")
+  wmv_plot <- single_plot("wmv")
+  hip_plot <- single_plot("hip")
+  wmh_plot <- single_plot("log_wmh")
+
+  plot_grid(
+    tbv_plot + 
+      labs(y = expression(paste("Total brain volume ", (cm^{3})))) +
+      labs(x = "") +
+      ylim(c(mean(mri_model_data$tbv,na.rm = T) - 0.5*sd(mri_model_data$tbv,na.rm = T),
+             mean(mri_model_data$tbv,na.rm = T) + 0.5*sd(mri_model_data$tbv,na.rm = T))),
+    gmv_plot + 
+      labs(y = expression(paste("Grey matter volume ", (cm^{3})))) +
+      labs(x = "") +
+      ylim(c(mean(mri_model_data$gmv,na.rm = T) - 0.5*sd(mri_model_data$gmv,na.rm = T),
+             mean(mri_model_data$gmv,na.rm = T) + 0.5*sd(mri_model_data$gmv,na.rm = T))),
+    wmv_plot + 
+      labs(y = expression(paste("White matter volume ", (cm^{3}))),
+           x = "") +
+      ylim(c(mean(mri_model_data$wmv,na.rm = T) - 0.5*sd(mri_model_data$wmv,na.rm = T),
+             mean(mri_model_data$wmv,na.rm = T) + 0.5*sd(mri_model_data$wmv,na.rm = T))),
+    hip_plot + 
+      labs(y = expression(paste("Hippocampal volume ", (cm^{3})))) +
+      ylim(c(mean(mri_model_data$hip,na.rm = T) - 0.5*sd(mri_model_data$hip,na.rm = T),
+             mean(mri_model_data$hip,na.rm = T) + 0.5*sd(mri_model_data$hip,na.rm = T))),
+    wmh_plot + 
+      labs(y = "Log white matter hyperintensities") +
+      ylim(c(mean(mri_model_data$log_wmh,na.rm = T) - 0.5*sd(mri_model_data$log_wmh,na.rm = T),
+             mean(mri_model_data$log_wmh,na.rm = T) + 0.5*sd(mri_model_data$log_wmh,na.rm = T))),
+    nrow = 3
+  )  
+}
+
+# plot_mri()
+
+# save plot
+
+# ggsave(
+#   file.path(
+#     data_dir,
+#     "../../Papers/Substitution Analysis/Main_figures/MRI_compositions.png"
+#   ),
+#   device = "png",
+#   bg = "white",
+#   width = 8,
+#   height = 12,
+#   dpi = 500
+# )

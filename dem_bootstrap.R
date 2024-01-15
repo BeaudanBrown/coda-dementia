@@ -280,7 +280,7 @@ process_boot_output <- function(rds_path) {
       facet_wrap(~ Substitution, nrow = 2) +
       geom_hline(yintercept = 1, linetype = "dotted") +
       xlab("") +
-      ylab("Risk ratio (all-cause dementia)") +
+      ylab("Risk ratio") +
       annotate(geom = "text", x=0, y = -0.15,
                hjust = 0.5,fontface = 1,size = 14/.pt,
                label = "Minutes", family = "serif") +
@@ -318,12 +318,12 @@ process_boot_output <- function(rds_path) {
   p3 <- rr_plot("MVPA", "Normal sleepers", "#011869")
 
   pnorm <-
-    plot_grid(p1 + labs(x = "") + theme(legend.position = "none"),
-              p2 + labs(y = "", x = "", title = "Normal sleepers") +
+    plot_grid(p1 + labs(x = "",title = "Normal sleepers") + 
                 theme(legend.position = "none", plot.title = element_text(hjust = 0.5)),
-              p3 + labs(y = "", x = "") + theme(legend.position = "none"),
+              p2 + labs(x = "", ) + theme(legend.position = "none"),
+              p3 + labs(x = "") + theme(legend.position = "none"),
               align = "vh",
-              nrow = 1)
+              nrow = 3)
 
   # short sleepers
   p4 <- rr_plot("inactivity", "Short sleepers", "#ff747b")
@@ -331,16 +331,17 @@ process_boot_output <- function(rds_path) {
   p6 <- rr_plot("MVPA", "Short sleepers", "#708ff9")
 
   pshort <-
-    plot_grid(p4 + theme(legend.position="none"),
-              p5 + labs(y = "", title = "Short sleepers") +
+    plot_grid(p4 + labs(title = "Short sleepers", y = "") + 
                 theme(legend.position="none", plot.title = element_text(hjust = 0.5)),
+              p5 + labs(y = "") +
+                theme(legend.position="none"),
               p6 + labs(y = "") + theme(legend.position = "none"),
               align = "vh",
-              nrow = 1)
+              nrow = 3)
 
   plot <- plot_grid(pnorm,
             pshort,
-            nrow = 2)
+            nrow = 1)
   
   return(list(plot, plot_data))
 }
@@ -349,11 +350,20 @@ process_boot_output <- function(rds_path) {
 
 # ## Primary model
 # 
-# process_boot_output("boot_primary.rds")[[1]]
-# # 
-# ggsave(file.path(data_dir, "sub_primary.png"),
-#        device = "png", bg = "white",
-#        width = 14, height = 8)
+process_boot_output("boot_primary.rds")[[1]]
+
+# save
+ggsave(
+  file.path(
+    data_dir,
+    "../../Papers/Substitution Analysis/Main_figures/Substitutions.png"
+  ),
+  device = "png",
+  bg = "white",
+  width = 10,
+  height = 12,
+  dpi = 500
+)
 # 
 # # risk ratios 
 # 
@@ -366,14 +376,29 @@ process_boot_output <- function(rds_path) {
 # 
 # process_boot_output("boot_s1.rds")[[1]]
 # 
-# ggsave(file.path(data_dir, "sub_s1.png"),
-#       device = "png", bg = "white",
-#       width = 10, height = 10)
+# ggsave(
+#   file.path(
+#     data_dir,
+#     "../../Papers/Substitution Analysis/Appendix_figures/Sensitivity_1.png"
+#   ),
+#   device = "png",
+#   bg = "white",
+#   width = 10,
+#   height = 12
+# )
+
 # 
 # ## Sensitivity 2
 # 
 # process_boot_output("boot_s2.rds")[[1]]
 # 
-# ggsave(file.path(data_dir, "sub_s2.png"),
-#        device = "png", bg = "white",
-#        width = 10, height = 10)
+# ggsave(
+#   file.path(
+#     data_dir,
+#     "../../Papers/Substitution Analysis/Appendix_figures/Sensitivity_2.png"
+#   ),
+#   device = "png",
+#   bg = "white",
+#   width = 10,
+#   height = 12
+# )

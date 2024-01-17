@@ -189,17 +189,23 @@ bootstrap_mri_fn <- function(
   return(as.matrix(result_df))
 }
 
-process_boot_output <- function(rds_path) {
-  data <- readRDS(file.path(output_dir, rds_path))
-  # data <- readRDS(file.path(data_dir, rds_path))
+process_boot_output <- function(directory, rds_path) {
+  
+  data <- readRDS(file.path(directory, rds_path))
+  
+  # tidy bootstrap output 
+  
+  col_names <- paste(comps, phenos, sep = "_")
+  boot_reps <- as_tibble(data$t)
+  colnames(boot_reps) <- col_names
 
-# Define the phenos and comps
+  ## prepare data for plotting 
+  # Define the phenos and comps
   phenos <- rep(c("tbv", "wmv", "gmv", "hip", "log_wmh"), each = 3)
   comps <- rep(c("worst", "common", "best"), times = 5)
 
-# Combine the phenos, comps, and values into a new data frame
+  # Combine the phenos, comps, and values into a new data frame
   plot_data <- data.frame(comp = comps, pheno = phenos, value = data$t0)
-  print(plot_data)
 
   num_comps <- 3
 
@@ -239,6 +245,8 @@ process_boot_output <- function(rds_path) {
 
 
   plot_data <- full_join(plot_data, all_quantiles, by = c("comp", "pheno"))
+  
+  return(list(plot_data, boot_reps))
 }
 
 
@@ -248,18 +256,20 @@ process_boot_output <- function(rds_path) {
 #   output_name = "boot_mri"
 # )
 
-result_df <- process_boot_output(file.path(data_dir, "boot_mri.rds"))
+result_list <- process_boot_output(data_dir, "boot_mri.rds")
 
-## Plot 
+### Plot 
 
 plot_mri <- function(){
   
-  result_df$comp <- str_to_title(result_df$comp)
-  result_df$comp <- ifelse(result_df$comp == "Common", "Average", result_df$comp)
-  result_df$comp <- factor(result_df$comp, levels = c("Best","Average","Worst"))
+  plot_data <- result_list[[1]]
+  
+  plot_data$comp <- str_to_title(plot_data$comp)
+  plot_data$comp <- ifelse(plot_data$comp == "Common", "Average", plot_data$comp)
+  plot_data$comp <- factor(plot_data$comp, levels = c("Best","Average","Worst"))
   
   single_plot <- function(pheno){
-    result_df[result_df$pheno == pheno,] |> 
+    plot_data[plot_data$pheno == pheno,] |> 
       ggplot(aes(x = comp, y = value)) +
       geom_pointrange(aes(ymin = lower, ymax = upper),
                       size = 0.1) +
@@ -301,7 +311,7 @@ plot_mri <- function(){
   )  
 }
 
-# plot_mri()
+#plot_mri()
 
 # save plot
 
@@ -316,3 +326,51 @@ plot_mri <- function(){
 #   height = 12,
 #   dpi = 500
 # )
+
+### Estimated differences between compositions 
+
+estimates <- result_list[[1]]
+boot_reps <- result_list[[2]]
+
+get_contrasts <- function(pheno){
+  
+  # estimates
+  estimates <- estimates[estimates$pheno == pheno,]
+  estimates <- estimates |> select(pheno, comp, value) |> 
+    pivot_wider(names_from = comp, values_from = value)
+  
+  # CIs
+  boot_reps <- boot_reps |> select(ends_with(pheno))
+  names(boot_reps) <- str_remove(names(boot_reps), "_(.*)")
+  
+  out <-
+    c(
+      paste(
+        pheno,
+        ": worst - common ",
+        round(estimates$worst - estimates$common, 2),
+        " (",
+        round(quantile(boot_reps$worst - boot_reps$common, 0.025), 2),
+        ",",
+        round(quantile(boot_reps$worst - boot_reps$common, 0.975), 2),
+        ")",
+        sep = ""
+      ),
+      paste(
+        pheno,
+        ": best - common ",
+        round(estimates$best - estimates$common, 3),
+        " (",
+        round(quantile(boot_reps$best - boot_reps$common, 0.025), 3),
+        ",",
+        round(quantile(boot_reps$best - boot_reps$common, 0.975), 3),
+        ")",
+        sep = ""
+      )
+    )
+  
+  return(out)
+}
+
+get_contrasts("wmv")
+

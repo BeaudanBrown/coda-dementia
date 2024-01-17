@@ -2,6 +2,7 @@ source("dem_models.R")
 
 ## Load data
 boot_data <- read_rds(file.path(data_dir, "bootstrap_data.rds"))
+
 # set date variables to strings to avoid errors
 boot_data$date_accel <- as.character(boot_data$date_accel)
 boot_data$date_acdem2 <- as.character(boot_data$date_acdem2)
@@ -41,18 +42,16 @@ run_s2_bootstrap <- function(boot_data) {
 }
 
 ## Run bootstrap for sensitivity analysis model 3
-# excluding dementia cases occuring in first 5 years since accel
+# excluding first four years of follow-up
 
-subset_data <- boot_data
-subset_data$early_dem <- ifelse(subset_data$dem==1 & subset_data$time_to_dem < 1460, 1, 0)
-subset_data <- subset_data[subset_data$early_dem == 0,]
+subset_data <- boot_data[boot_data$time_to_dem > (4*365),]
 
 run_s3_bootstrap <- function(boot_data) {
   run_bootstrap(
-    boot_data = boot_data,
+    boot_data = subset_data,
     timegroup = 55,
     create_formula_fn = get_primary_formula,
-    output_name = "boot_s3_excludefirst5.rds"
+    output_name = "boot_s3_excludefirst4.rds"
   )
 }
 

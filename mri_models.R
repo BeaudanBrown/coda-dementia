@@ -1,51 +1,6 @@
 source("ideal_comp.R")
 source("utils.R")
 
-# sbp <- matrix(
-#   c(
-#     1, 1, -1, -1,
-#     1, -1, 0, 0,
-#     0, 0, 1, -1
-#   ),
-#   ncol = 4, byrow = TRUE
-# )
-# v <- gsi.buildilrBase(t(sbp))
-
-# make_ilr <- function(comp) {
-#   return(ilr(acomp(comp), V = v))
-# }
-# best_and_worst <- get_best_and_worst_comp()
-# best_and_worst <- as.data.frame(apply(best_and_worst, 2, make_ilr))
-
-# mri_df <-
-#   fread(file.path(data_dir, "mri_data.csv"), stringsAsFactors = TRUE) |>
-#   as_tibble()
-
-# mri_df$assessment_centre_mri1 <- as.factor(mri_df$assessment_centre_mri1)
-
-# ## merge MRI and main dataset
-
-# boot_df <- read_rds(file.path(data_dir, "bootstrap_data.rds"))
-
-# mri_df <- mri_df |> left_join(boot_df, by = "eid")
-
-# ## Remove participants without accel data
-
-# mri_df <- mri_df |> filter(!is.na(age_accel))
-
-# ## Remove participants with accelerometry after MRI
-
-# mri_df <- mri_df |>
-#   mutate(date_mri1 = as_date(date_mri1),
-#          date_accel = as_date(date_accel)) |>
-#   mutate(mri_accel_time_dif = as.integer(date_mri1 - date_accel)) |>
-#   mutate(mri_before_accel = ifelse(mri_accel_time_dif < 0, 1, 0))
-
-# mri_df <- mri_df |> filter(mri_before_accel == 0)
-
-# # Rename age at MRI scan
-# mri_df <- rename(mri_df, "age_mri" = "age_assessment_mri1")
-
 get_mri_formula <- function(outcome_var, model_data) {
   knots_age_mri_str <-
     paste(quantile(model_data[["age_mri"]], c(0.1, 0.5, 0.9)), collapse = ", ")

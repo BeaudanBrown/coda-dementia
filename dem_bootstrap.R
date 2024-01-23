@@ -261,15 +261,15 @@ process_boot_output <- function(rds_path) {
   plot_data <- full_join(plot_data, all_quantiles, by = c("offset", "Substitution", "Reference"))
 
   rr_plot <- function(sub, refcomp, colour) {
-    
-    plot_data$Substitution <- 
-      ifelse(plot_data$Substitution == "Inactivity","inactivity", 
+
+    plot_data$Substitution <-
+      ifelse(plot_data$Substitution == "Inactivity","inactivity",
              ifelse(plot_data$Substitution == "Light activity",
                                "light activity", "MVPA"))
 
     plot_data2 <- plot_data[plot_data$Substitution == sub &
                 plot_data$Reference == refcomp,]
-    
+
 
     plot_data2 |>
       ggplot(aes(x = offset, y = risk_ratio)) +
@@ -289,10 +289,10 @@ process_boot_output <- function(rds_path) {
       annotate(geom = "text", x=20, y = -0.5,
                hjust = 0,fontface = 1, size = 12/.pt,
                label = "More sleep", family = "serif") +
-      geom_segment(aes(x = 1, y = -0.625, 
+      geom_segment(aes(x = 1, y = -0.625,
                        xend = 15, yend = -0.625),
                    arrow = arrow(length = unit(0.15, "cm"))) +
-      geom_segment(aes(x = -1, y = -0.625, 
+      geom_segment(aes(x = -1, y = -0.625,
                        xend = -15, yend = -0.625),
                    arrow = arrow(length = unit(0.15, "cm"))) +
       annotate(geom = "text", x=-20, y = -0.75,
@@ -317,7 +317,7 @@ process_boot_output <- function(rds_path) {
   p3 <- rr_plot("MVPA", "Normal sleepers", "#011869")
 
   pnorm <-
-    plot_grid(p1 + labs(x = "",title = "Normal sleepers") + 
+    plot_grid(p1 + labs(x = "",title = "Normal sleepers") +
                 theme(legend.position = "none", plot.title = element_text(hjust = 0.5)),
               p2 + labs(x = "", ) + theme(legend.position = "none"),
               p3 + labs(x = "") + theme(legend.position = "none"),
@@ -330,7 +330,7 @@ process_boot_output <- function(rds_path) {
   p6 <- rr_plot("MVPA", "Short sleepers", "#708ff9")
 
   pshort <-
-    plot_grid(p4 + labs(title = "Short sleepers", y = "") + 
+    plot_grid(p4 + labs(title = "Short sleepers", y = "") +
                 theme(legend.position="none", plot.title = element_text(hjust = 0.5)),
               p5 + labs(y = "") +
                 theme(legend.position="none"),
@@ -341,40 +341,41 @@ process_boot_output <- function(rds_path) {
   plot <- plot_grid(pnorm,
             pshort,
             nrow = 1)
-  
+
   return(list(plot, plot_data))
 }
 
-#### Results 
+#### Results
 
 # ## Primary model
-# 
-process_boot_output("boot_primary.rds")[[1]]
+#
+# process_boot_output("boot_primary.rds")[[1]]
 
-# save
-ggsave(
-  file.path(
-    data_dir,
-    "../../Papers/Substitution Analysis/Main_figures/Substitutions.png"
-  ),
-  device = "png",
-  bg = "white",
-  width = 10,
-  height = 12,
-  dpi = 500
-)
-# 
-# # risk ratios 
-# 
-# process_boot_output("boot_primary.rds")[[2]] |> 
-#   filter(abs(offset) == 60) |> 
+# # save
+# ggsave(
+#   file.path(
+#     data_dir,
+#     "../../Papers/Substitution Analysis/Main_figures/Substitutions.png"
+#   ),
+#   device = "png",
+#   bg = "white",
+#   width = 10,
+#   height = 12,
+#   dpi = 500
+# )
+
+#
+# # risk ratios
+#
+# process_boot_output("boot_primary.rds")[[2]] |>
+#   filter(abs(offset) == 60) |>
 #   filter(Reference == "Short sleepers")
-# 
-# 
+#
+#
 # ## Sensitivity 1
-# 
+#
 # process_boot_output("boot_s1.rds")[[1]]
-# 
+#
 # ggsave(
 #   file.path(
 #     data_dir,
@@ -386,11 +387,11 @@ ggsave(
 #   height = 12
 # )
 
-# 
+#
 # ## Sensitivity 2
-# 
+#
 # process_boot_output("boot_s2.rds")[[1]]
-# 
+
 # ggsave(
 #   file.path(
 #     data_dir,

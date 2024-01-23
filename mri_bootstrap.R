@@ -190,7 +190,7 @@ bootstrap_mri_fn <- function(
 }
 
 process_boot_output <- function(directory, rds_path) {
-  
+
   data <- readRDS(file.path(directory, rds_path))
   
   # tidy bootstrap output 
@@ -245,7 +245,7 @@ process_boot_output <- function(directory, rds_path) {
 
 
   plot_data <- full_join(plot_data, all_quantiles, by = c("comp", "pheno"))
-  
+
   return(list(plot_data, boot_reps))
 }
 
@@ -258,25 +258,25 @@ process_boot_output <- function(directory, rds_path) {
 
 result_list <- process_boot_output(data_dir, "boot_mri.rds")
 
-### Plot 
+### Plot
 
-plot_mri <- function(){
-  
+plot_mri <- function() {
+
   plot_data <- result_list[[1]]
-  
+
   plot_data$comp <- str_to_title(plot_data$comp)
   plot_data$comp <- ifelse(plot_data$comp == "Common", "Average", plot_data$comp)
-  plot_data$comp <- factor(plot_data$comp, levels = c("Best","Average","Worst"))
-  
+  plot_data$comp <- factor(plot_data$comp, levels = c("Best", "Average", "Worst"))
+
   single_plot <- function(pheno){
-    plot_data[plot_data$pheno == pheno,] |> 
+    plot_data[plot_data$pheno == pheno, ] |>
       ggplot(aes(x = comp, y = value)) +
       geom_pointrange(aes(ymin = lower, ymax = upper),
                       size = 0.1) +
       labs(x = "Composition") +
       theme_cowplot()
   }
-  
+
   tbv_plot <- single_plot("tbv")
   gmv_plot <- single_plot("gmv")
   wmv_plot <- single_plot("wmv")
@@ -284,31 +284,31 @@ plot_mri <- function(){
   wmh_plot <- single_plot("log_wmh")
 
   plot_grid(
-    tbv_plot + 
+    tbv_plot +
       labs(y = expression(paste("Total brain volume ", (cm^{3})))) +
       labs(x = "") +
-      ylim(c(mean(mri_model_data$tbv,na.rm = T) - 0.5*sd(mri_model_data$tbv,na.rm = T),
-             mean(mri_model_data$tbv,na.rm = T) + 0.5*sd(mri_model_data$tbv,na.rm = T))),
-    gmv_plot + 
+      ylim(c(mean(mri_model_data$tbv, na.rm = T) - 0.5 * sd(mri_model_data$tbv, na.rm = T),
+             mean(mri_model_data$tbv, na.rm = T) + 0.5 * sd(mri_model_data$tbv, na.rm = T))),
+    gmv_plot +
       labs(y = expression(paste("Grey matter volume ", (cm^{3})))) +
       labs(x = "") +
-      ylim(c(mean(mri_model_data$gmv,na.rm = T) - 0.5*sd(mri_model_data$gmv,na.rm = T),
-             mean(mri_model_data$gmv,na.rm = T) + 0.5*sd(mri_model_data$gmv,na.rm = T))),
-    wmv_plot + 
+      ylim(c(mean(mri_model_data$gmv, na.rm = T) - 0.5 * sd(mri_model_data$gmv, na.rm = T),
+             mean(mri_model_data$gmv, na.rm = T) + 0.5 * sd(mri_model_data$gmv, na.rm = T))),
+    wmv_plot +
       labs(y = expression(paste("White matter volume ", (cm^{3}))),
            x = "") +
-      ylim(c(mean(mri_model_data$wmv,na.rm = T) - 0.5*sd(mri_model_data$wmv,na.rm = T),
-             mean(mri_model_data$wmv,na.rm = T) + 0.5*sd(mri_model_data$wmv,na.rm = T))),
-    hip_plot + 
+      ylim(c(mean(mri_model_data$wmv, na.rm = T) - 0.5 * sd(mri_model_data$wmv, na.rm = T),
+             mean(mri_model_data$wmv, na.rm = T) + 0.5 * sd(mri_model_data$wmv, na.rm = T))),
+    hip_plot +
       labs(y = expression(paste("Hippocampal volume ", (cm^{3})))) +
-      ylim(c(mean(mri_model_data$hip,na.rm = T) - 0.5*sd(mri_model_data$hip,na.rm = T),
-             mean(mri_model_data$hip,na.rm = T) + 0.5*sd(mri_model_data$hip,na.rm = T))),
-    wmh_plot + 
+      ylim(c(mean(mri_model_data$hip,na.rm = T) - 0.5 * sd(mri_model_data$hip, na.rm = T),
+             mean(mri_model_data$hip,na.rm = T) + 0.5 * sd(mri_model_data$hip, na.rm = T))),
+    wmh_plot +
       labs(y = "Log white matter hyperintensities") +
-      ylim(c(mean(mri_model_data$log_wmh,na.rm = T) - 0.5*sd(mri_model_data$log_wmh,na.rm = T),
-             mean(mri_model_data$log_wmh,na.rm = T) + 0.5*sd(mri_model_data$log_wmh,na.rm = T))),
+      ylim(c(mean(mri_model_data$log_wmh, na.rm = T) - 0.5 * sd(mri_model_data$log_wmh, na.rm = T),
+             mean(mri_model_data$log_wmh, na.rm = T) + 0.5 * sd(mri_model_data$log_wmh, na.rm = T))),
     nrow = 3
-  )  
+  )
 }
 
 #plot_mri()
@@ -327,22 +327,22 @@ plot_mri <- function(){
 #   dpi = 500
 # )
 
-### Estimated differences between compositions 
+### Estimated differences between compositions
 
 estimates <- result_list[[1]]
 boot_reps <- result_list[[2]]
 
 get_contrasts <- function(pheno){
-  
+
   # estimates
   estimates <- estimates[estimates$pheno == pheno,]
-  estimates <- estimates |> select(pheno, comp, value) |> 
+  estimates <- estimates |> select(pheno, comp, value) |>
     pivot_wider(names_from = comp, values_from = value)
-  
+
   # CIs
   boot_reps <- boot_reps |> select(ends_with(pheno))
   names(boot_reps) <- str_remove(names(boot_reps), "_(.*)")
-  
+
   out <-
     c(
       paste(
@@ -368,7 +368,7 @@ get_contrasts <- function(pheno){
         sep = ""
       )
     )
-  
+
   return(out)
 }
 

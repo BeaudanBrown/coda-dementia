@@ -44,9 +44,9 @@ run_s2_bootstrap <- function(boot_data) {
 ## Run bootstrap for sensitivity analysis model 3
 # excluding first four years of follow-up
 
-subset_data <- boot_data[boot_data$time_to_dem > (4*365),]
-
 run_s3_bootstrap <- function(boot_data) {
+  subset_data <- boot_data[boot_data$dem == 0 | boot_data$time_to_dem > (4 * 365), ]
+
   run_bootstrap(
     boot_data = subset_data,
     timegroup = 55,

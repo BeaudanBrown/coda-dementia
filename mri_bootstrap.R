@@ -123,6 +123,57 @@ mri_model_data <- select(
 
 options(datadist = datadist(mri_model_data))
 
+run_mri_subs_bootstrap <- function(boot_data, comp_df, create_formula_fn, output_name) {
+  # Matrix of variables to include in imputation model
+  predmat <- quickpred(boot_data,
+    mincor = 0,
+    exclude = c(
+      "date_acdem2",
+      "date_accel",
+      "date_of_death",
+      "avg_sleep",
+      "avg_inactivity",
+      "avg_light",
+      "avg_mvpa"
+    )
+  )
+
+  # method for each imputed variable
+  imp_methods <- make.method(boot_data)
+  # exclude dates from being imputed
+  imp_methods["date_acdem2"] <- ""
+  imp_methods["date_of_death"] <- ""
+
+  ## reference compositions
+  all_comp <- acomp(comp_df[, c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa")])
+  short_sleep_comp <-
+    all_comp[all_comp$avg_sleep < short_sleep_hours / hrs_in_day, ]
+  short_sleep_geo_mean <-
+    acomp(apply(short_sleep_comp, 2, function(x) exp(mean(log(x)))))
+  avg_sleep_comp <-
+    all_comp[all_comp$avg_sleep >= short_sleep_hours / hrs_in_day, ]
+  avg_sleep_geo_mean <-
+    acomp(apply(avg_sleep_comp, 2, function(x) exp(mean(log(x)))))
+
+  result <- boot(
+    data = boot_data,
+    statistic = bootstrap_mri_subs_fn,
+    create_formula_fn = create_formula_fn,
+    predmat = predmat,
+    imp_methods = imp_methods,
+    short_sleep_geo_mean = short_sleep_geo_mean,
+    avg_sleep_geo_mean = avg_sleep_geo_mean,
+    R = bootstrap_iterations,
+    parallel = "multicore",
+    ncpus = ncpus
+  )
+
+  # Prepend timestamp to avoid accidental data loss
+  timestamp <- format(Sys.time(), "%Y-%m-%d_%H:%M")
+  output_name_with_timestamp <- paste0(output_name, "_", timestamp, ".rds")
+  saveRDS(result, file.path(output_dir, output_name_with_timestamp))
+}
+
 run_mri_bootstrap <- function(boot_data, create_formula_fn, output_name) {
   # Matrix of variables to include in imputation model
   predmat <- quickpred(boot_data,
@@ -189,20 +240,40 @@ bootstrap_mri_fn <- function(
   return(as.matrix(result_df))
 }
 
+bootstrap_mri_subs_fn <- function(
+  data,
+  indices,
+  create_formula_fn,
+  predmat,
+  imp_methods,
+  short_sleep_geo_mean,
+  avg_sleep_geo_mean
+) {
+  this_sample <- data[indices, ]
+
+  imp <- mice(this_sample, m = 1, maxit = 1, predictorMatrix = predmat, methods = imp_methods)
+  imp <- complete(imp)
+
+  result_df <- predict_all_substitutions(imp, short_sleep_geo_mean, avg_sleep_geo_mean)
+
+  return(as.matrix(result_df))
+}
+
+
 process_boot_output <- function(directory, rds_path) {
 
   data <- readRDS(file.path(directory, rds_path))
-  
-  # tidy bootstrap output 
-  
-  col_names <- paste(comps, phenos, sep = "_")
-  boot_reps <- as_tibble(data$t)
-  colnames(boot_reps) <- col_names
 
-  ## prepare data for plotting 
+  # tidy bootstrap output
+
+  ## prepare data for plotting
   # Define the phenos and comps
   phenos <- rep(c("tbv", "wmv", "gmv", "hip", "log_wmh"), each = 3)
   comps <- rep(c("worst", "common", "best"), times = 5)
+
+  col_names <- paste(comps, phenos, sep = "_")
+  boot_reps <- as_tibble(data$t)
+  colnames(boot_reps) <- col_names
 
   # Combine the phenos, comps, and values into a new data frame
   plot_data <- data.frame(comp = comps, pheno = phenos, value = data$t0)
@@ -249,7 +320,6 @@ process_boot_output <- function(directory, rds_path) {
   return(list(plot_data, boot_reps))
 }
 
-
 # run_mri_bootstrap(
 #   boot_data = mri_model_data,
 #   create_formula_fn = get_mri_formula,
@@ -268,7 +338,7 @@ plot_mri <- function() {
   plot_data$comp <- ifelse(plot_data$comp == "Common", "Average", plot_data$comp)
   plot_data$comp <- factor(plot_data$comp, levels = c("Best", "Average", "Worst"))
 
-  single_plot <- function(pheno){
+  single_plot <- function(pheno) {
     plot_data[plot_data$pheno == pheno, ] |>
       ggplot(aes(x = comp, y = value)) +
       geom_pointrange(aes(ymin = lower, ymax = upper),
@@ -371,6 +441,4 @@ get_contrasts <- function(pheno){
 
   return(out)
 }
-
-get_contrasts("wmv")
 

@@ -326,7 +326,7 @@ process_boot_output <- function(directory, rds_path) {
 #   output_name = "boot_mri"
 # )
 
-result_list <- process_boot_output(data_dir, "boot_mri.rds")
+# result_list <- process_boot_output(data_dir, "boot_mri.rds")
 
 ### Plot
 
@@ -399,10 +399,10 @@ plot_mri <- function() {
 
 ### Estimated differences between compositions
 
-estimates <- result_list[[1]]
-boot_reps <- result_list[[2]]
+# estimates <- result_list[[1]]
+# boot_reps <- result_list[[2]]
 
-get_contrasts <- function(pheno){
+get_contrasts <- function(pheno) {
 
   # estimates
   estimates <- estimates[estimates$pheno == pheno,]

@@ -50,7 +50,7 @@ boot_data$date_of_death <- as.character(boot_data$date_of_death)
 # run imputation (or read from disc if already complete)
 
 if (file.exists(file.path(data_dir,"rc_imp.rds"))) {
-  imp <- read_rds("rc_imp.rds")
+  imp <- read_rds(file.path(data_dir,"rc_imp.rds"))
 } else {
   predmat <- quickpred(boot_data,
                        mincor = 0,
@@ -77,6 +77,8 @@ if (file.exists(file.path(data_dir,"rc_imp.rds"))) {
          methods = imp_methods)
   
   imp <- complete(imp)
+  
+  write_rds(imp, file.path(data_dir,"rc_imp.rds"))
 }
 
 
@@ -102,46 +104,85 @@ avg_sleep_geo_mean <-
 imp_long <- survSplit(Surv(time = time_to_dem, event = dem) ~ .,
                       data = imp,
                       cut = seq(
-                        from = min(imp$age_dem),
-                        to = max(imp$age_dem),
-                        length.out = 76
+                        from = 0,
+                        to = max(imp$time_to_dem),
+                        length.out = 10
                       ),
                       episode = "timegroup", end = "dem_time", event = "dem"
 )
 
-# fit model 
+## fit model 
 
 knots_timegroup <- quantile(imp_long[["timegroup"]], c(0.1, 0.5, 0.9))
 knots_deprivation <- quantile(imp_long[["townsend_deprivation_index"]], c(0.1, 0.5, 0.9))
 
-model <- lrm(
-  dem ~ rcs(timegroup, knots_timegroup) +
-    pol(R1, 2) +
-    pol(R2, 2) +
-    pol(R3, 2) +
-    rcs(timegroup, knots_timegroup)%ia%pol(R1, 2) +
-    rcs(timegroup, knots_timegroup)%ia%pol(R2, 2) +
-    rcs(timegroup, knots_timegroup)%ia%pol(R3, 2) +
-    sex +
-    retired +
-    shift +
-    apoe_e4 +
-    highest_qual +
-    rcs(townsend_deprivation_index, knots_deprivation) +
-    antidepressant_med +
-    antipsychotic_med +
-    insomnia_med +
-    ethnicity +
-    avg_total_household_income +
-    smok_status,
-  data = imp_long
-)
+# compare models with/without timegroup interaction
 
-model <- strip_glm(model)
+mod <- lrm(dem ~ 
+             rcs(timegroup, knots_timegroup)*pol(R1,2) +
+             rcs(timegroup, knots_timegroup)*pol(R2,2) +
+             rcs(timegroup, knots_timegroup)*pol(R3,2) +
+             sex +
+             retired +
+             shift +
+             apoe_e4 +
+             highest_qual +
+             rcs(townsend_deprivation_index, knots_deprivation) +
+             antidepressant_med +
+             antipsychotic_med +
+             insomnia_med +
+             ethnicity +
+             avg_total_household_income +
+             smok_status,
+           data = imp_long)
+
+mod2 <- lrm(dem ~ 
+              rcs(timegroup, knots_timegroup) +
+              pol(R1,2) +
+              pol(R2,2) +
+              pol(R3,2) +
+              sex +
+              retired +
+              shift +
+              apoe_e4 +
+              highest_qual +
+              rcs(townsend_deprivation_index, knots_deprivation) +
+              antidepressant_med +
+              antipsychotic_med +
+              insomnia_med +
+              ethnicity +
+              avg_total_household_income +
+              smok_status,
+            data = imp_long)
+
+lrtest(mod, mod2)
+
+
+# Model for risk ratios
+
+mod <- glm(dem ~ 
+             rcs(timegroup, knots_timegroup)*poly(R1,2) +
+             rcs(timegroup, knots_timegroup)*poly(R2,2) +
+             rcs(timegroup, knots_timegroup)*poly(R3,2) +
+             sex +
+             retired +
+             shift +
+             apoe_e4 +
+             highest_qual +
+             rcs(townsend_deprivation_index, knots_deprivation) +
+             antidepressant_med +
+             antipsychotic_med +
+             insomnia_med +
+             ethnicity +
+             avg_total_household_income +
+             smok_status,
+           data = imp_long,
+           family = "binomial")
+
 
 ## data for g-computation/standardisation
 
-timegroup <- 55
+timegroup <- 3
 
 setDT(imp)
 imp[, id := .I]
@@ -155,42 +196,42 @@ imp_long[, timegroup := rep(1:timegroup, imp_len)]
 short_sleep_inactive <-
   calc_substitution(short_sleep_geo_mean,
                     imp_long,
-                    model,
+                    mod,
                     c("avg_sleep", "avg_inactivity"),
                     timegroup = timegroup)
 
 short_sleep_light <-
   calc_substitution(short_sleep_geo_mean,
                     imp_long,
-                    model,
+                    mod,
                     c("avg_sleep", "avg_light"),
                     timegroup = timegroup)
 
 short_sleep_mvpa <-
   calc_substitution(short_sleep_geo_mean,
                     imp_long,
-                    model,
+                    mod,
                     c("avg_sleep", "avg_mvpa"),
                     timegroup = timegroup)
 
 avg_sleep_inactive <-
   calc_substitution(avg_sleep_geo_mean,
                     imp_long,
-                    model,
+                    mod,
                     c("avg_sleep", "avg_inactivity"),
                     timegroup = timegroup)
 
 avg_sleep_light <-
   calc_substitution(avg_sleep_geo_mean,
                     imp_long,
-                    model,
+                    mod,
                     c("avg_sleep", "avg_light"),
                     timegroup = timegroup)
 
 avg_sleep_mvpa <-
   calc_substitution(avg_sleep_geo_mean,
                     imp_long,
-                    model,
+                    mod,
                     c("avg_sleep", "avg_mvpa"),
                     timegroup = timegroup)
 
@@ -200,7 +241,6 @@ full_df <- full_join(short_sleep_inactive, short_sleep_light, by = "offset") |>
   full_join(avg_sleep_light, by = "offset") |>
   full_join(avg_sleep_mvpa, by = "offset")
 
-write_rds(full_df, "")
 
 ## Plot 
 
@@ -371,7 +411,7 @@ plot <- plot_grid(pnorm,
 ggsave(
   file.path(
     data_dir,
-    "../../Papers/Substitution Analysis/Appendix_figures/censoring_death_substitutions.png"
+    "../../Papers/Substitution Analysis/Appendix_figures/first_3years.png"
   ),
   device = "png",
   bg = "white",

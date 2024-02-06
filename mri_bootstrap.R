@@ -1,5 +1,7 @@
 source("mri_models.R")
 
+library(tidyverse)
+
 mri_df <-
   fread(file.path(data_dir, "../MRI/mri_full_trimmed_v3.csv"), stringsAsFactors = TRUE) |>
   as_tibble()
@@ -442,3 +444,127 @@ get_contrasts <- function(pheno) {
   return(out)
 }
 
+process_boot_subs_output <- function(directory, rds_path) {
+  # data <- readRDS(file.path(directory, rds_path))
+  data <- readRDS(file.path(data_dir, "boot_mri_subs.rds"))
+
+  # tidy bootstrap output
+
+  num_subs <- sub_steps * 2 + 1
+  sub_len <- num_subs * 5
+
+  sub_col_names <- data$t[1, 1:num_subs]
+
+  outcomes <- c("tbv", "wmv", "gmv", "hip", "log_wmh")
+  num_outcomes <- length(outcomes)
+
+# Initialize indices
+  t_ref_idx <- sub_len + 1
+  t0_sub_idx <- 2
+  sub_idx <- 1
+  t0_outcome_idx <- 1
+
+# Initialize a list to store the plot data for each outcome
+  get_plot_data <- function(t0_sub_idx, t_ref_idx, t0_outcome_idx, sub_idx) {
+    whole_sample_values <- data$t0[t0_outcome_idx:(t0_outcome_idx + num_subs - 1), t0_sub_idx]
+    ref_values <- data$t[, t_ref_idx:(t_ref_idx + sub_len - 1)]
+    sub_values <- ref_values[, sub_idx:(sub_idx + num_subs - 1)]
+
+    return(data.frame(
+      offset = sub_col_names,
+      value = whole_sample_values,
+      lower = apply(sub_values, 2, quantile, probs = 0.025),
+      upper = apply(sub_values, 2, quantile, probs = 0.975)
+    ))
+  }
+
+# Initialize empty lists
+  tbv_plot_list <- list()
+  gmv_plot_list <- list()
+  wmv_plot_list <- list()
+  hip_plot_list <- list()
+  log_wmh_plot_list <- list()
+
+# Loop over the outcomes
+  for (reference in c("avg", "short")) {
+    for (activity_level in c("inactive", "light", "mvpa")) {
+      for (i in 1:num_outcomes) {
+        # Construct the plot data
+        plot_data <- get_plot_data(t0_sub_idx, t_ref_idx, t0_outcome_idx, sub_idx)
+
+        # Store the plot data in the corresponding list
+        plot_name <- paste0(reference, "_", activity_level)
+        if (outcomes[i] == "tbv") tbv_plot_list[[plot_name]] <- plot_data
+        if (outcomes[i] == "gmv") gmv_plot_list[[plot_name]] <- plot_data
+        if (outcomes[i] == "wmv") wmv_plot_list[[plot_name]] <- plot_data
+        if (outcomes[i] == "hip") hip_plot_list[[plot_name]] <- plot_data
+        if (outcomes[i] == "log_wmh") log_wmh_plot_list[[plot_name]] <- plot_data
+
+        # Update the indices for the next iteration
+        t0_outcome_idx <- t0_outcome_idx + num_subs
+        sub_idx <- sub_idx + num_subs
+      }
+
+      t_ref_idx <- t_ref_idx + sub_len
+      t0_sub_idx <- t0_sub_idx + 1
+      sub_idx <- 1
+      t0_outcome_idx <- 1
+    }
+  }
+
+  tbv_plot_df <- bind_rows(tbv_plot_list, .id = "Type")
+  wmv_plot_df <- bind_rows(wmv_plot_list, .id = "Type")
+  gmv_plot_df <- bind_rows(gmv_plot_list, .id = "Type")
+  hip_plot_df <- bind_rows(hip_plot_list, .id = "Type")
+  log_wmh_plot_df <- bind_rows(log_wmh_plot_list, .id = "Type")
+
+  tbv_plot_df <- tbv_plot_df %>%
+    separate(Type, into = c("Reference", "Substitution"), sep = "_")
+  wmv_plot_df <- wmv_plot_df %>%
+    separate(Type, into = c("Reference", "Substitution"), sep = "_")
+  gmv_plot_df <- gmv_plot_df %>%
+    separate(Type, into = c("Reference", "Substitution"), sep = "_")
+  hip_plot_df <- hip_plot_df %>%
+    separate(Type, into = c("Reference", "Substitution"), sep = "_")
+  log_wmh_plot_df <- log_wmh_plot_df %>%
+    separate(Type, into = c("Reference", "Substitution"), sep = "_")
+
+  tbv_plot_df %>%
+    ggplot(aes(x = offset, y = value)) +
+    geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.1) +
+    geom_line() +
+    facet_grid(Substitution~Reference, scales = "free_y") +
+    theme_minimal()
+
+  wmv_plot_df %>%
+    ggplot(aes(x = offset, y = value)) +
+    geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.1) +
+    geom_line() +
+    facet_grid(Substitution~Reference, scales = "free_y") +
+    theme_minimal()
+
+  gmv_plot_df %>%
+    ggplot(aes(x = offset, y = value)) +
+    geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.1) +
+    geom_line() +
+    facet_grid(Substitution~Reference, scales = "free_y") +
+    theme_minimal()
+
+  hip_plot_df %>%
+    ggplot(aes(x = offset, y = value)) +
+    geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.1) +
+    geom_line() +
+    facet_grid(Substitution~Reference, scales = "free_y") +
+    theme_minimal()
+
+  log_wmh_plot_df %>%
+    ggplot(aes(x = offset, y = value)) +
+    geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.1) +
+    geom_line() +
+    facet_grid(Substitution~Reference, scales = "free_y") +
+    theme_minimal()
+}
+
+
+result_list <- process_boot_subs_output(data_dir, "boot_mri.rds")
+result_list <- process_boot_subs_output(data_dir, "boot_mri_subs.rds")

@@ -317,12 +317,15 @@ process_boot_output <- function(rds_path) {
   p3 <- rr_plot("MVPA", "Normal sleepers", "#011869")
 
   pnorm <-
-    plot_grid(p1 + labs(x = "",title = "Normal sleepers") +
-                theme(legend.position = "none", plot.title = element_text(hjust = 0.5)),
-              p2 + labs(x = "", ) + theme(legend.position = "none"),
-              p3 + labs(x = "") + theme(legend.position = "none"),
+    plot_grid(NULL,
+              p1 + labs(x = "",title = "A") + theme(legend.position = "none", plot.title.position = "plot", plot.title = element_text(size=16)),
+              p2 + labs(x = "", title = "C") + theme(legend.position = "none", plot.title.position = "plot", plot.title = element_text(size=16)),
+              p3 + labs(x = "", title = "E") + theme(legend.position = "none", plot.title.position = "plot", plot.title = element_text(size=16)),
               align = "vh",
-              nrow = 3)
+              rel_heights = c(0.05,1,1,1),
+              nrow = 4,
+              labels = "Normal sleepers",
+              hjust = -1)
 
   # short sleepers
   p4 <- rr_plot("inactivity", "Short sleepers", "#ff747b")
@@ -330,13 +333,15 @@ process_boot_output <- function(rds_path) {
   p6 <- rr_plot("MVPA", "Short sleepers", "#708ff9")
 
   pshort <-
-    plot_grid(p4 + labs(title = "Short sleepers", y = "") +
-                theme(legend.position="none", plot.title = element_text(hjust = 0.5)),
-              p5 + labs(y = "") +
-                theme(legend.position="none"),
-              p6 + labs(y = "") + theme(legend.position = "none"),
+    plot_grid(NULL, 
+              p4 + labs(title = "B", y = "") + theme(legend.position="none", plot.title.position = "plot",plot.title = element_text(size=16)),
+              p5 + labs(y = "", title = "D") + theme(legend.position="none", plot.title.position = "plot",plot.title = element_text(size=16)),
+              p6 + labs(y = "", title = "F") + theme(legend.position = "none", plot.title.position = "plot",plot.title = element_text(size=16)),
               align = "vh",
-              nrow = 3)
+              rel_heights = c(0.05,1,1,1),
+              nrow = 4,
+              labels = "Short sleepers",
+              hjust = -1)
 
   plot <- plot_grid(pnorm,
             pshort,
@@ -348,9 +353,9 @@ process_boot_output <- function(rds_path) {
 #### Results
 
 # ## Primary model
-#
+# 
 # process_boot_output("boot_primary.rds")[[1]]
-
+# 
 # # save
 # ggsave(
 #   file.path(
@@ -370,12 +375,12 @@ process_boot_output <- function(rds_path) {
 # process_boot_output("boot_primary.rds")[[2]] |>
 #   filter(abs(offset) == 60) |>
 #   filter(Reference == "Short sleepers")
-#
-#
-# ## Sensitivity 1
-#
+# #
+# #
+# # ## Sensitivity 1
+# #
 # process_boot_output("boot_s1.rds")[[1]]
-#
+# 
 # ggsave(
 #   file.path(
 #     data_dir,
@@ -386,12 +391,12 @@ process_boot_output <- function(rds_path) {
 #   width = 10,
 #   height = 12
 # )
-
-#
-# ## Sensitivity 2
-#
+# 
+# #
+# # ## Sensitivity 2
+# #
 # process_boot_output("boot_s2.rds")[[1]]
-
+# 
 # ggsave(
 #   file.path(
 #     data_dir,

@@ -374,15 +374,15 @@ p3 <- rr_plot("MVPA", "Normal sleepers", "#011869")
 
 pnorm <-
   plot_grid(
-    p1 + labs(x = "", title = "Normal sleepers") +
-      theme(
-        legend.position = "none",
-        plot.title = element_text(hjust = 0.5)
-      ),
-    p2 + labs(x = "", ) + theme(legend.position = "none"),
-    p3 + labs(x = "") + theme(legend.position = "none"),
+    NULL,
+    p1 + labs(x = "", title = "A") + theme(legend.position = "none",plot.title.position = "plot",plot.title = element_text(size=16)),
+    p2 + labs(x = "", title = "C") + theme(legend.position = "none",plot.title.position = "plot",plot.title = element_text(size=16)),
+    p3 + labs(x = "", title = "E") + theme(legend.position = "none",plot.title.position = "plot",plot.title = element_text(size=16)),
     align = "vh",
-    nrow = 3
+    rel_heights = c(0.05,1,1,1),
+    nrow = 4,
+    labels = "Normal sleepers",
+    hjust = -1
   )
 
 # short sleepers
@@ -392,16 +392,15 @@ p6 <- rr_plot("MVPA", "Short sleepers", "#708ff9")
 
 pshort <-
   plot_grid(
-    p4 + labs(title = "Short sleepers", y = "") +
-      theme(
-        legend.position = "none",
-        plot.title = element_text(hjust = 0.5)
-      ),
-    p5 + labs(y = "") +
-      theme(legend.position = "none"),
-    p6 + labs(y = "") + theme(legend.position = "none"),
+    NULL,
+    p4 + labs(x = "", title = "A") + theme(legend.position = "none",plot.title.position = "plot",plot.title = element_text(size=16)),
+    p5 + labs(x = "", title = "C") + theme(legend.position = "none",plot.title.position = "plot",plot.title = element_text(size=16)),
+    p6 + labs(x = "", title = "E") + theme(legend.position = "none",plot.title.position = "plot",plot.title = element_text(size=16)),
     align = "vh",
-    nrow = 3
+    rel_heights = c(0.05,1,1,1),
+    nrow = 4,
+    labels = "Normal sleepers",
+    hjust = -1
   )
 
 plot <- plot_grid(pnorm,
@@ -413,6 +412,7 @@ ggsave(
     data_dir,
     "../../Papers/Substitution Analysis/Appendix_figures/first_3years.png"
   ),
+  plot = plot,
   device = "png",
   bg = "white",
   width = 10,

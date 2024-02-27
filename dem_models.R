@@ -106,22 +106,77 @@ get_s2_formula <- function(data) {
   )
 }
 
-predict_composition_risk <- function(composition, stacked_data_table, model, timegroup) {
-  ilr <- ilr(composition, V = v)
-
-  stacked_data_table[, c("R1", "R2", "R3") := list(ilr[1], ilr[2], ilr[3])]
-
-  stacked_data_table[, haz := predict(model, newdata = .SD, type = "response")]
-
-  setkey(stacked_data_table, id, timegroup) # sort and set keys for efficient grouping and joining
-  stacked_data_table[, risk := 1 - cumprod(1 - haz), by = id]
-
-  risk <- stacked_data_table[timegroup == timegroup, .(mean = mean(risk))]
-
-  return(risk)
+get_s3_formula <- function(data) {
+  knots_timegroup <- quantile(data[["timegroup"]], c(0.05, 0.275, 0.5, 0.725, 0.95))
+  knots_deprivation <- quantile(data[["townsend_deprivation_index"]], c(0.1, 0.5, 0.9))
+  knots_bmi <- quantile(data[["BMI"]], c(0.1, 0.5, 0.9))
+  knots_bp <- quantile(data[["bp_syst_avg"]], c(0.1, 0.5, 0.9))
+  
+  s3_formula <- as.formula(dem ~ rcs(timegroup, knots_timegroup) +
+                             (sex + retired + avg_total_household_income + 
+                                smok_status)*poly(R1, 2) +
+                             (sex + retired + avg_total_household_income + 
+                                smok_status)*poly(R2, 2) +
+                             (sex + retired + avg_total_household_income + 
+                                smok_status)*poly(R3, 2) +
+                             shift +
+                             apoe_e4 +
+                             highest_qual +
+                             rcs(townsend_deprivation_index, knots_deprivation) +
+                             antidepressant_med +
+                             antipsychotic_med +
+                             insomnia_med +
+                             ethnicity
+  )
 }
 
-calc_substitution <- function(base_comp, imp_stacked_dt, model, substitution, timegroup) {
+predict_composition_risk <- 
+  function(composition, stacked_data_table, model, timegroup, empirical) {
+  
+  if(isTRUE(empirical)){
+    ilr <- ilr(composition, V = v)
+    
+    stacked_data_table[, c("R1", "R2", "R3") := list(ilr[1], ilr[2], ilr[3])]
+    
+    stacked_data_table[, haz := predict(model, newdata = .SD, type = "response")]
+    
+    setkey(stacked_data_table, id, timegroup) # sort and set keys for efficient grouping and joining
+    stacked_data_table[, risk := 1 - cumprod(1 - haz), by = id]
+    
+    risk <- stacked_data_table[timegroup == timegroup, .(mean = mean(risk))]
+    
+    return(risk)
+  } else {
+    
+    ilr <- ilr(composition, V = v)
+    
+    stacked_data_table[, c("R1", "R2", "R3") := list(ilr[1], ilr[2], ilr[3])]
+    
+    # shift covariates to match mean (continuous vars) or probability (categorical vars) 
+    # of Schoeler et al pseudo-pop (see paper)
+    
+    for(i in unique(stacked_data_table$id)){
+      stacked_data_table[id==i, sex := sample(c("female","male"), 1, prob = c(0.504,0.496))]
+      stacked_data_table[id==i, retired := rbinom(1, 1, prob = 0.193)]
+      stacked_data_table[id==i, avg_total_household_income := 
+                           sample(c("<18","18-30","31-50","52-100",">100"), 1, 
+                                  prob = c(0.264,0.141,0.205,0.145,0.435))]
+      stacked_data_table[id==i, smok_status := 
+                           sample(c("current","former","never"), 1, prob = c(0.208,0.359,0.433))]
+    }
+
+    stacked_data_table[, haz := predict(model, newdata = .SD, type = "response")]
+    
+    setkey(stacked_data_table, id, timegroup) # sort and set keys for efficient grouping and joining
+    stacked_data_table[, risk := 1 - cumprod(1 - haz), by = id]
+    
+    risk <- stacked_data_table[timegroup == timegroup, .(mean = mean(risk))]
+    
+    return(risk)
+  }
+}
+
+calc_substitution <- function(base_comp, imp_stacked_dt, model, substitution, timegroup, empirical) {
   # The list of substitutions to be calculated in minutes
   inc <- -sub_steps:sub_steps * (sub_step_mins / mins_in_day)
 

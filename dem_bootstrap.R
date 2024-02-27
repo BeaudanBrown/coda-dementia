@@ -42,21 +42,20 @@ run_s2_bootstrap <- function(boot_data) {
 }
 
 ## Run bootstrap for sensitivity analysis model 3
-# excluding first four years of follow-up
+# standardising to pseudo pop of Schoeler et al.
 
-run_s3_bootstrap <- function(boot_data) {
-  subset_data <- boot_data[boot_data$dem == 0 | boot_data$time_to_dem > (4 * 365), ]
-
+run_s3_bootstrap <- function(boot_data){  
   run_bootstrap(
-    boot_data = subset_data,
+    boot_data = boot_data,
     timegroup = 55,
-    create_formula_fn = get_primary_formula,
-    output_name = "boot_s3_excludefirst4.rds"
+    create_formula_fn = get_s3_formula,
+    output_name = "boot_s3.rds",
+    empirical = F
   )
 }
 
 # Run bootstrap for a particular model formula and timegroup target, outputting to a file
-run_bootstrap <- function(boot_data, timegroup, create_formula_fn, output_name) {
+run_bootstrap <- function(boot_data, timegroup, create_formula_fn, output_name, empirical = T) {
   # Matrix of variables to include in imputation model
   predmat <- quickpred(boot_data,
     mincor = 0,
@@ -119,7 +118,8 @@ bootstrap_substitutions_fn <- function(
   predmat,
   imp_methods,
   short_sleep_geo_mean,
-  avg_sleep_geo_mean
+  avg_sleep_geo_mean,
+  empirical
 ) {
   this_sample <- data[indices, ]
 

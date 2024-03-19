@@ -15,9 +15,19 @@ d <- fread(file.path(data_dir, "../core_ukb_data/core_ukb_trimmed_Sep2023.csv"))
 
 # Add in SNPs #
 
-snps <- read_csv(file.path(data_dir, "../Raw UKB data/SNPs (basket 2)/snp_data.csv"))
+snps <- fread(file.path(data_dir, "../Raw UKB data/SNPs (basket 2)/snp_data.csv"))
 
 d <- d |> left_join(snps, by = "eid")
+
+# Add in diet and alcohol variables #
+
+alc_diet <- fread(file.path(data_dir, "../Raw UKB data/basket 4/alcohol_diet_19_04_24.csv"))
+
+alc_diet <- 
+  alc_diet |> 
+  set_names(c("eid", "alc_freq", "veg_cooked", "veg_raw", "fruit_fresh", "fruit_dry"))
+
+d <- left_join(alc_diet, d, by = "eid")
 
 #### Clean confounder variables ####
 
@@ -231,7 +241,7 @@ d2 <- d2 |> filter(accel_calibrated_own_data == 1) # 94340
 
 # Read in accelerometry data
 
-a <- read_csv(file.path(data_dir, "Accelerometery/Processed_GGIR/part5_daysumMM_output.csv"))
+a <- read_csv(file.path(data_dir, "../Accelerometery/Processed_GGIR/part5_daysumMM_output.csv"))
 
 # filter to only those with GGIR data
 
@@ -468,5 +478,5 @@ d2 <- d2 |> filter(time_to_dem > 0) ## 88654
 
 #### Save created dataset ####
 
-write_csv(d2, file.path(data_dir, "24hr_behaviours.csv"))
+write_csv(d2, file.path(data_dir, "24hr_behaviours_19_04_24.csv"))
 

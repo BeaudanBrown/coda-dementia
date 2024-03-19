@@ -11,7 +11,7 @@ library(survival)
 # read main dataset
 
 dem_df <-
-  fread(file.path(data_dir, "24hr_behaviours.csv"),
+  fread(file.path(data_dir, "24hr_behaviours_19_04_24.csv"),
     stringsAsFactors = TRUE
   ) |>
   as_tibble()
@@ -46,6 +46,19 @@ dem_df <-
 ### Prepare confounding variables ###
 # set pack years to zero for non-smokers
 dem_df$smok_pckyrs <- ifelse(dem_df$smok_status == 0, 0, dem_df$smok_pckyrs)
+
+# set alcohol prefer not to answer to missing
+dem_df$alc_freq <- na_if(dem_df$alc_freq, -3)
+
+# set do not know and prefer not to answer as missing for diet variables
+dem_df <- dem_df |> mutate(across(c("veg_cooked","veg_raw","fruit_fresh","fruit_dry"), ~ na_if(., -1)))
+dem_df <- dem_df |> mutate(across(c("veg_cooked","veg_raw","fruit_fresh","fruit_dry"), ~ na_if(., -3)))
+
+# set "less than one" to 0 for diet variables
+dem_df <- dem_df |> mutate(across(c("veg_cooked","veg_raw","fruit_fresh","fruit_dry"), ~if_else(. == -10, 0, .)))
+
+# create total fruit and veg variable 
+dem_df$fruit_veg <- rowSums(dem_df[,c(c("veg_cooked","veg_raw","fruit_fresh","fruit_dry"))])
 
 # set reference categories for factors
 dem_df$diagnosed_diabetes <- as.factor(dem_df$diagnosed_diabetes)
@@ -97,7 +110,6 @@ dem_base_ilr <-
 
 ## Construct risk set
 # Death from other causes remain in risk set until end of FU
-# See Young et al (2019)
 
 dem_df <- dem_df |>
   mutate(competing = ifelse(!is.na(date_of_death) & is.na(date_acdem2), 1, 0)) |>
@@ -167,6 +179,8 @@ dem_df <- left_join(dem_df, prev, by = "eid")
 dem_model_data <- select(
   dem_df,
   eid,
+  fruit_veg,
+  alc_freq,
   avg_sleep, avg_inactivity, avg_light, avg_mvpa,
   dem, time_to_dem,
   avg_WASO, avg_sri,
@@ -194,6 +208,7 @@ dem_model_data <- select(
   BMI,
   smok_status,
   date_of_death,
+  age_at_death,
   date_acdem2,
   date_accel,
   age_dem,
@@ -210,4 +225,5 @@ dem_model_data <- select(
 
 ## Output RDS file ##
 
-write_rds(dem_model_data, file.path(data_dir, "bootstrap_data.rds"))
+write_rds(dem_model_data, file.path(data_dir, "bootstrap_data_19_04_24.rds"))
+

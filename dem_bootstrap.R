@@ -67,12 +67,14 @@ run_bootstrap <- function(boot_data, timegroup, create_formula_fn, output_name, 
   )
   predmat["date_acdem2", ] <- 0
   predmat["date_of_death", ] <- 0
-
+  predmat["age_at_death", ] <- 0
+  
   # method for each imputed variable
   imp_methods <- make.method(boot_data)
   # exclude dates from being imputed
   imp_methods["date_acdem2"] <- ""
   imp_methods["date_of_death"] <- ""
+  imp_methods["age_at_death"] <- ""
 
   ## reference compositions
   all_comp <- acomp(boot_data[, c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa")])
@@ -134,7 +136,7 @@ bootstrap_substitutions_fn <- function(
   print("Fitting model")
   print(format(Sys.time(), "%H:%M:%S"))
   print(gc())
-  model <- fit_model(imp, create_formula_fn)
+  models <- fit_model(imp, create_formula_fn)
 
   # data for g-computation/standardisation
   imp <- imp[rep(seq_len(imp_len), each = timegroup)]
@@ -145,42 +147,48 @@ bootstrap_substitutions_fn <- function(
   short_sleep_inactive <-
     calc_substitution(short_sleep_geo_mean,
                       imp,
-                      model,
+                      models[["model_dem"]],
+                      models[["model_death"]],
                       c("avg_sleep", "avg_inactivity"),
                       timegroup = timegroup)
 
   short_sleep_light <-
     calc_substitution(short_sleep_geo_mean,
                       imp,
-                      model,
+                      models[["model_dem"]],
+                      models[["model_death"]],
                       c("avg_sleep", "avg_light"),
                       timegroup = timegroup)
 
   short_sleep_mvpa <-
     calc_substitution(short_sleep_geo_mean,
                       imp,
-                      model,
+                      models[["model_dem"]],
+                      models[["model_death"]],
                       c("avg_sleep", "avg_mvpa"),
                       timegroup = timegroup)
 
   avg_sleep_inactive <-
     calc_substitution(avg_sleep_geo_mean,
                       imp,
-                      model,
+                      models[["model_dem"]],
+                      models[["model_death"]],
                       c("avg_sleep", "avg_inactivity"),
                       timegroup = timegroup)
 
   avg_sleep_light <-
     calc_substitution(avg_sleep_geo_mean,
                       imp,
-                      model,
+                      models[["model_dem"]],
+                      models[["model_death"]],
                       c("avg_sleep", "avg_light"),
                       timegroup = timegroup)
 
   avg_sleep_mvpa <-
     calc_substitution(avg_sleep_geo_mean,
                       imp,
-                      model,
+                      models[["model_dem"]],
+                      models[["model_death"]],
                       c("avg_sleep", "avg_mvpa"),
                       timegroup = timegroup)
 

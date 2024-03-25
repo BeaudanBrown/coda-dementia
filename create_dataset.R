@@ -12,6 +12,19 @@ library(here)
 # read UKB data
 
 d <- fread(file.path(data_dir, "../core_ukb_data/core_ukb_trimmed_Sep2023.csv"))
+latest <- fread(file.path(data_dir, "../core_ukb_data/latest_demdeath.csv"))
+latest <- latest |>
+  rename(
+    date_of_death = `40000-0.0`,
+    date_all_cause_dementia = `42018-0.0`
+  )
+d <- d %>%
+  select(
+         -date_of_death,
+         -date_all_cause_dementia
+  )
+d <- latest %>%
+  left_join(d, by = "eid")
 
 # Add in SNPs #
 
@@ -478,5 +491,5 @@ d2 <- d2 |> filter(time_to_dem > 0) ## 88654
 
 #### Save created dataset ####
 
-write_csv(d2, file.path(data_dir, "24hr_behaviours_19_04_24.csv"))
+write_csv(d2, file.path(data_dir, "24hr_behaviours_25_03_24.csv"))
 

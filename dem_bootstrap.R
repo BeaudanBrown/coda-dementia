@@ -122,7 +122,7 @@ bootstrap_substitutions_fn <- function(
   imp_methods,
   short_sleep_geo_mean,
   avg_sleep_geo_mean,
-  empirical
+  empirical = T
 ) {
   this_sample <- data[indices, ]
 

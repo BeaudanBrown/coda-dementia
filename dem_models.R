@@ -196,7 +196,7 @@ fit_model <- function(imp, create_formula_fn) {
 }
 
 predict_composition_risk <- 
-  function(composition, stacked_data_table, model_dem, model_death, timegroup, empirical) {
+  function(composition, stacked_data_table, model_dem, model_death, timegroup, empirical = T) {
   
   if(isTRUE(empirical)){
     ilr <- ilr(composition, V = v)
@@ -243,7 +243,7 @@ predict_composition_risk <-
   }
 }
 
-calc_substitution <- function(base_comp, imp_stacked_dt, model_dem, model_death, substitution, timegroup, empirical) {
+calc_substitution <- function(base_comp, imp_stacked_dt, model_dem, model_death, substitution, timegroup, empirical = T) {
   # The list of substitutions to be calculated in minutes
   inc <- -sub_steps:sub_steps * (sub_step_mins / mins_in_day)
 

@@ -275,7 +275,8 @@ calc_substitution <- function(base_comp, imp_stacked_dt, model_dem, model_death,
                          imp_stacked_dt,
                          model_dem,
                          model_death,
-                         timegroup
+                         timegroup,
+                         empirical
                        )))
 
   result <-

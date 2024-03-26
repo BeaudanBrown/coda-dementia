@@ -36,8 +36,8 @@ d <- d |> left_join(snps, by = "eid")
 
 alc_diet <- fread(file.path(data_dir, "../Raw UKB data/basket 4/alcohol_diet_19_04_24.csv"))
 
-alc_diet <- 
-  alc_diet |> 
+alc_diet <-
+  alc_diet |>
   set_names(c("eid", "alc_freq", "veg_cooked", "veg_raw", "fruit_fresh", "fruit_dry"))
 
 d <- left_join(alc_diet, d, by = "eid")

@@ -9,13 +9,12 @@ boot_data$date_acdem2 <- as.character(boot_data$date_acdem2)
 boot_data$date_of_death <- as.character(boot_data$date_of_death)
 
 ## UNCOMMENT FOR TEST RUNS
-# boot_data <- boot_data[1:1000, ]
+boot_data <- boot_data[1:10000, ]
 
 # Run bootstrap for primary model
 run_primary_bootstrap <- function(boot_data) {
   run_bootstrap(
     boot_data = boot_data,
-    timegroup = 55,
     create_formula_fn = get_primary_formula,
     output_name = "boot_primary.rds",
     empirical = T
@@ -26,7 +25,6 @@ run_primary_bootstrap <- function(boot_data) {
 run_s1_bootstrap <- function(boot_data) {
   run_bootstrap(
     boot_data = boot_data,
-    timegroup = 55,
     create_formula_fn = get_s1_formula,
     output_name = "boot_s1.rds"
   )
@@ -36,7 +34,6 @@ run_s1_bootstrap <- function(boot_data) {
 run_s2_bootstrap <- function(boot_data) {
   run_bootstrap(
     boot_data = boot_data,
-    timegroup = 55,
     create_formula_fn = get_s2_formula,
     output_name = "boot_s2.rds"
   )
@@ -48,7 +45,6 @@ run_s2_bootstrap <- function(boot_data) {
 run_s3_bootstrap <- function(boot_data){  
   run_bootstrap(
     boot_data = boot_data,
-    timegroup = 55,
     create_formula_fn = get_s3_formula,
     output_name = "boot_s3.rds",
     empirical = F
@@ -56,7 +52,8 @@ run_s3_bootstrap <- function(boot_data){
 }
 
 # Run bootstrap for a particular model formula and timegroup target, outputting to a file
-run_bootstrap <- function(boot_data, timegroup, create_formula_fn, output_name, empirical = T) {
+run_bootstrap <- function(boot_data, create_formula_fn, output_name, empirical = T) {
+
   # Matrix of variables to include in imputation model
   predmat <- quickpred(boot_data,
     mincor = 0,
@@ -69,7 +66,7 @@ run_bootstrap <- function(boot_data, timegroup, create_formula_fn, output_name, 
   predmat["date_acdem2", ] <- 0
   predmat["date_of_death", ] <- 0
   predmat["age_at_death", ] <- 0
-  
+
   # method for each imputed variable
   imp_methods <- make.method(boot_data)
   # exclude dates from being imputed
@@ -94,7 +91,6 @@ run_bootstrap <- function(boot_data, timegroup, create_formula_fn, output_name, 
     data = boot_data,
     statistic = bootstrap_substitutions_fn,
     create_formula_fn = create_formula_fn,
-    timegroup = timegroup,
     predmat = predmat,
     imp_methods = imp_methods,
     short_sleep_geo_mean = short_sleep_geo_mean,
@@ -117,7 +113,6 @@ bootstrap_substitutions_fn <- function(
   data,
   indices,
   create_formula_fn,
-  timegroup,
   predmat,
   imp_methods,
   short_sleep_geo_mean,
@@ -139,9 +134,24 @@ bootstrap_substitutions_fn <- function(
   print(gc())
   models <- fit_model(imp, create_formula_fn)
 
+  min_age_of_dem <- min(boot_data$age_dem)
+  max_age_of_dem <- max(boot_data$age_dem)
+  age_range <- max_age_of_dem - min_age_of_dem
+  timegroup_steps <- ceiling(age_range * 2)
+  median_age_of_dem <- median(boot_data[boot_data$dem == 1, ]$age_dem)
+
+  timegroup_cuts <-
+    seq(
+        from = min_age_of_dem,
+        to = max_age_of_dem,
+        length.out = timegroup_steps
+    )
+
+  median_age_of_dem_timegroup <- which(timegroup_cuts > median_age_of_dem)[1] - 1
+
   # data for g-computation/standardisation
-  imp <- imp[rep(seq_len(imp_len), each = timegroup)]
-  imp[, timegroup := rep(1:timegroup, imp_len)]
+  imp <- imp[rep(seq_len(imp_len), each = median_age_of_dem_timegroup)]
+  imp[, timegroup := rep(1:median_age_of_dem_timegroup, imp_len)]
 
   print("Generating predictions")
   print(format(Sys.time(), "%H:%M:%S"))
@@ -151,7 +161,7 @@ bootstrap_substitutions_fn <- function(
                       models[["model_dem"]],
                       models[["model_death"]],
                       c("avg_sleep", "avg_inactivity"),
-                      timegroup = timegroup)
+                      timegroup = median_age_of_dem_timegroup)
 
   short_sleep_light <-
     calc_substitution(short_sleep_geo_mean,
@@ -159,7 +169,7 @@ bootstrap_substitutions_fn <- function(
                       models[["model_dem"]],
                       models[["model_death"]],
                       c("avg_sleep", "avg_light"),
-                      timegroup = timegroup)
+                      timegroup = median_age_of_dem_timegroup)
 
   short_sleep_mvpa <-
     calc_substitution(short_sleep_geo_mean,
@@ -167,7 +177,7 @@ bootstrap_substitutions_fn <- function(
                       models[["model_dem"]],
                       models[["model_death"]],
                       c("avg_sleep", "avg_mvpa"),
-                      timegroup = timegroup)
+                      timegroup = median_age_of_dem_timegroup)
 
   avg_sleep_inactive <-
     calc_substitution(avg_sleep_geo_mean,
@@ -175,7 +185,7 @@ bootstrap_substitutions_fn <- function(
                       models[["model_dem"]],
                       models[["model_death"]],
                       c("avg_sleep", "avg_inactivity"),
-                      timegroup = timegroup)
+                      timegroup = median_age_of_dem_timegroup)
 
   avg_sleep_light <-
     calc_substitution(avg_sleep_geo_mean,
@@ -183,7 +193,7 @@ bootstrap_substitutions_fn <- function(
                       models[["model_dem"]],
                       models[["model_death"]],
                       c("avg_sleep", "avg_light"),
-                      timegroup = timegroup)
+                      timegroup = median_age_of_dem_timegroup)
 
   avg_sleep_mvpa <-
     calc_substitution(avg_sleep_geo_mean,
@@ -191,7 +201,7 @@ bootstrap_substitutions_fn <- function(
                       models[["model_dem"]],
                       models[["model_death"]],
                       c("avg_sleep", "avg_mvpa"),
-                      timegroup = timegroup)
+                      timegroup = median_age_of_dem_timegroup)
 
   full_df <- full_join(short_sleep_inactive, short_sleep_light, by = "offset") |>
     full_join(short_sleep_mvpa, by = "offset") |>

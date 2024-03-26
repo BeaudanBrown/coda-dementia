@@ -1,7 +1,7 @@
 source("dem_models.R")
 
 ## Load data
-boot_data <- read_rds(file.path(data_dir, "bootstrap_data.rds"))
+boot_data <- read_rds(file.path(data_dir, "bootstrap_data_25_03_24.rds"))
 
 # set date variables to strings to avoid errors
 boot_data$date_accel <- as.character(boot_data$date_accel)
@@ -17,7 +17,8 @@ run_primary_bootstrap <- function(boot_data) {
     boot_data = boot_data,
     timegroup = 55,
     create_formula_fn = get_primary_formula,
-    output_name = "boot_primary.rds"
+    output_name = "boot_primary.rds",
+    empirical = T
   )
 }
 
@@ -127,7 +128,7 @@ bootstrap_substitutions_fn <- function(
 
   print("Imputing")
   print(format(Sys.time(), "%H:%M:%S"))
-  imp <- mice(this_sample, m = 1, predictorMatrix = predmat, methods = imp_methods)
+  imp <- mice(this_sample, m = 1, predictorMatrix = predmat, methods = imp_methods, maxit = maxit)
   imp <- complete(imp)
   setDT(imp)
   imp[, id := .I]

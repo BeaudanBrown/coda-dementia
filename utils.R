@@ -13,6 +13,8 @@ sub_steps <- 12
 sub_step_mins <- 5
 ncpus <- as.integer(Sys.getenv("NCPUS"))
 bootstrap_iterations <- as.integer(Sys.getenv("BOOT_ITRS"))
+maxit <- as.integer(Sys.getenv("MAXIT"))
+
 
 ## Define SBP
 sbp <- matrix(

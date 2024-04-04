@@ -51,14 +51,14 @@ dem_df$smok_pckyrs <- ifelse(dem_df$smok_status == 0, 0, dem_df$smok_pckyrs)
 dem_df$alc_freq <- na_if(dem_df$alc_freq, -3)
 
 # set do not know and prefer not to answer as missing for diet variables
-dem_df <- dem_df |> mutate(across(c("veg_cooked","veg_raw","fruit_fresh","fruit_dry"), ~ na_if(., -1)))
-dem_df <- dem_df |> mutate(across(c("veg_cooked","veg_raw","fruit_fresh","fruit_dry"), ~ na_if(., -3)))
+dem_df <- dem_df |> mutate(across(c("veg_cooked", "veg_raw", "fruit_fresh", "fruit_dry"), ~ na_if(., -1)))
+dem_df <- dem_df |> mutate(across(c("veg_cooked", "veg_raw", "fruit_fresh", "fruit_dry"), ~ na_if(., -3)))
 
 # set "less than one" to 0 for diet variables
-dem_df <- dem_df |> mutate(across(c("veg_cooked","veg_raw","fruit_fresh","fruit_dry"), ~if_else(. == -10, 0, .)))
+dem_df <- dem_df |> mutate(across(c("veg_cooked", "veg_raw", "fruit_fresh", "fruit_dry"), ~ if_else(. == -10, 0, .)))
 
-# create total fruit and veg variable 
-dem_df$fruit_veg <- rowSums(dem_df[,c(c("veg_cooked","veg_raw","fruit_fresh","fruit_dry"))])
+# create total fruit and veg variable
+dem_df$fruit_veg <- rowSums(dem_df[, c(c("veg_cooked", "veg_raw", "fruit_fresh", "fruit_dry"))])
 
 # set reference categories for factors
 dem_df$diagnosed_diabetes <- as.factor(dem_df$diagnosed_diabetes)
@@ -115,14 +115,26 @@ dem_df <- dem_df |>
   mutate(competing = ifelse(!is.na(date_of_death) & is.na(date_acdem2), 1, 0)) |>
   mutate(time_to_dem = case_when(
     dem == 1 ~ difftime(date_acdem2, date_accel),
-    competing == 1 ~ difftime("2022-01-01", date_accel),
-    TRUE ~ difftime("2022-01-01", date_accel)
+    competing == 1 ~ difftime("2023-01-01", date_accel),
+    TRUE ~ difftime("2023-01-01", date_accel)
   )) |>
   mutate(time_to_dem = as.integer(time_to_dem))
 
-# Create age at dementia or censoring/end of follow-up variable
+# Create age at dementia or end of follow-up variable
 
 dem_df$age_dem <- dem_df$age_accel + (dem_df$time_to_dem / 365)
+
+# create death and age at death variable
+
+dem_df$death <- ifelse(is.na(dem_df$date_of_death), 0, 1)
+
+dem_df$time_to_death <- ifelse(dem_df$death == 1,
+  difftime(dem_df$date_of_death, dem_df$date_accel),
+  difftime("2023-01-01", dem_df$date_accel)
+)
+
+dem_df$age_at_death <- dem_df$age_accel + (dem_df$time_to_death / 365)
+
 
 ## Add WASO and SRI to dataset ##
 
@@ -137,7 +149,8 @@ dem_df <- left_join(dem_df, waso_dat, by = "eid")
 ### Add in prevalent illness data ###
 
 prev <- fread(file.path(data_dir, "../SRI/disease_dates.csv"),
-              stringsAsFactors = T)
+  stringsAsFactors = T
+)
 
 # add in date of actigraphy and number of cancers
 
@@ -149,26 +162,36 @@ prev <- as_tibble(prev)
 
 # create prevalent illness variables
 
-prev <- prev |> mutate(across(starts_with("sr_"), ~ifelse(is.na(.), 0, .)))
+prev <- prev |> mutate(across(starts_with("sr_"), ~ ifelse(is.na(.), 0, .)))
 
 prev$date_accel <- as_date(prev$date_accel)
 
 prev <- prev |>
-  mutate(prev_diabetes = case_when(sr_diabetes == 1 ~ 1,
-                                   sr_diabetes == 0 & date_diabetes < date_accel ~ 1,
-                                   TRUE ~ 0)) |>
-  mutate(prev_cancer = case_when(num_sr_cancers > 0 ~ 1,
-                                 num_sr_cancers == 0 & date_neoplasm < date_accel ~ 1,
-                                 TRUE ~ 0)) |>
-  mutate(prev_mental_disorder = case_when(sr_mental_disorder == 1 ~ 1,
-                                          sr_mental_disorder == 0 & date_mental_disorder < date_accel ~ 1,
-                                          TRUE ~ 0)) |>
-  mutate(prev_nervous_system = case_when(sr_nervous_system == 1 ~ 1,
-                                         sr_nervous_system == 0 & date_nervous_system_disorder < date_accel ~ 1,
-                                         TRUE ~ 0)) |>
-  mutate(prev_cvd = case_when(sr_cvd == 1 ~ 1,
-                              sr_cvd == 0 & date_CVD < date_accel ~ 1,
-                              TRUE ~ 0))
+  mutate(prev_diabetes = case_when(
+    sr_diabetes == 1 ~ 1,
+    sr_diabetes == 0 & date_diabetes < date_accel ~ 1,
+    TRUE ~ 0
+  )) |>
+  mutate(prev_cancer = case_when(
+    num_sr_cancers > 0 ~ 1,
+    num_sr_cancers == 0 & date_neoplasm < date_accel ~ 1,
+    TRUE ~ 0
+  )) |>
+  mutate(prev_mental_disorder = case_when(
+    sr_mental_disorder == 1 ~ 1,
+    sr_mental_disorder == 0 & date_mental_disorder < date_accel ~ 1,
+    TRUE ~ 0
+  )) |>
+  mutate(prev_nervous_system = case_when(
+    sr_nervous_system == 1 ~ 1,
+    sr_nervous_system == 0 & date_nervous_system_disorder < date_accel ~ 1,
+    TRUE ~ 0
+  )) |>
+  mutate(prev_cvd = case_when(
+    sr_cvd == 1 ~ 1,
+    sr_cvd == 0 & date_CVD < date_accel ~ 1,
+    TRUE ~ 0
+  ))
 
 prev <- prev |> select(eid, starts_with("prev_"))
 
@@ -183,7 +206,7 @@ dem_model_data <- select(
   alc_freq,
   avg_sleep, avg_inactivity, avg_light, avg_mvpa,
   dem, time_to_dem,
-  avg_WASO, avg_sri,
+  avg_WASO,
   bp_syst_avg,
   age_accel,
   retired,
@@ -207,10 +230,8 @@ dem_model_data <- select(
   diagnosed_diabetes,
   BMI,
   smok_status,
-  date_of_death,
+  death,
   age_at_death,
-  date_acdem2,
-  date_accel,
   age_dem,
   sick_disabled,
   prev_diabetes,
@@ -225,5 +246,4 @@ dem_model_data <- select(
 
 ## Output RDS file ##
 
-write_rds(dem_model_data, file.path(data_dir, "bootstrap_data_25_03_24.rds"))
-
+write_rds(dem_model_data, file.path(data_dir, "bootstrap_data_04_04_24.rds"))

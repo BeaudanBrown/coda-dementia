@@ -9,8 +9,9 @@ output_dir <- Sys.getenv("OUTPUT_DIR")
 short_sleep_hours <- 6
 hrs_in_day <- 24
 mins_in_day <- 1440
-sub_steps <- 12
-sub_step_mins <- 5
+mins_in_hour <- 60
+sub_steps <- 6
+sub_step_mins <- mins_in_hour / sub_steps
 ncpus <- as.integer(Sys.getenv("NCPUS"))
 bootstrap_iterations <- as.integer(Sys.getenv("BOOT_ITRS"))
 maxit <- as.integer(Sys.getenv("MAXIT"))

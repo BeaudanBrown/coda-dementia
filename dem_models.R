@@ -232,7 +232,7 @@ predict_composition_risk <-
       stacked_data_table[, haz_death := predict(model_death, newdata = .SD, type = "response")]
 
       setkey(stacked_data_table, id, timegroup) # sort and set keys for efficient grouping and joining
-      stacked_data_table[, risk := cumsum(haz_dem * cumprod((1 - haz_dem) * (1 - haz_death))), by = id]
+      stacked_data_table[, risk := cumsum(haz_dem * cumprod((1 - lag(haz_dem, default = 0)) * (1 - haz_death))), by = id]
 
       risk <- stacked_data_table[timegroup == timegroup, .(mean = mean(risk))]
 

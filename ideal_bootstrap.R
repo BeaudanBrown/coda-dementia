@@ -1,51 +1,32 @@
 source("ideal_comp.R")
 source("utils.R")
 
-ncpus <- as.integer(Sys.getenv("NCPUS"))
-bootstrap_iterations <- as.integer(Sys.getenv("BOOT_ITRS"))
-
-best_and_worst <- get_best_and_worst_comp()
-
 ## Load data
 boot_data <- read_rds(file.path(data_dir, "bootstrap_data.rds"))
+
+best_and_worst <- get_best_and_worst_comp(boot_data)
+
 boot_copy <- boot_data
 
-# set date variables to strings to avoid errors
-boot_data$date_accel <- as.character(boot_data$date_accel)
-boot_data$date_acdem2 <- as.character(boot_data$date_acdem2)
-boot_data$date_of_death <- as.character(boot_data$date_of_death)
 
 boot_data <- boot_data[1:5000, ]
 
-run_cum_bootstrap <- function(timegroup, output_name) {
+run_cum_bootstrap <- function(df, output_name) {
   # Matrix of variables to include in imputation model
-  predmat <- quickpred(boot_data,
+  predmat <- quickpred(df,
     mincor = 0,
     exclude = c(
-      "date_acdem2", "date_accel", "date_of_death",
       "avg_sleep", "avg_inactivity", "avg_light",
-      "avg_mvpa"
+      "avg_mvpa", "eid", "time_to_dem"
     )
   )
-  predmat["date_acdem2", ] <- 0
-  predmat["date_of_death", ] <- 0
-  predmat["date_accel", ] <- 0
-
-  # method for each imputed variable
-  imp_methods <- make.method(boot_data)
-  # exclude dates from being imputed
-  imp_methods["date_acdem2"] <- ""
-  imp_methods["date_of_death"] <- ""
-  imp_methods["date_accel"] <- ""
 
   result <- boot(
     data = boot_data,
     statistic = bootstrap_ideal_fn,
     create_formula_fn = get_primary_formula,
-    timegroup = timegroup,
     best_and_worst = best_and_worst,
     predmat = predmat,
-    imp_methods = imp_methods,
     R = bootstrap_iterations,
     parallel = "multicore",
     ncpus = ncpus
@@ -60,16 +41,14 @@ bootstrap_ideal_fn <- function(
   data,
   indices,
   create_formula_fn,
-  timegroup,
   predmat,
-  imp_methods,
   best_and_worst
 ) {
   this_sample <- data[indices, ]
 
   print("Imputing")
   print(format(Sys.time(), "%H:%M:%S"))
-  imp <- mice(this_sample, m = 1, predictorMatrix = predmat, methods = imp_methods)
+  imp <- mice(this_sample, m = 1, predictorMatrix = predmat, maxit = maxit)
   imp <- complete(imp)
   setDT(imp)
   imp[, id := .I]
@@ -78,38 +57,55 @@ bootstrap_ideal_fn <- function(
   print("Fitting model")
   print(format(Sys.time(), "%H:%M:%S"))
   print(gc())
-  model <- fit_model(imp, create_formula_fn)
+  models <- fit_model(imp, create_formula_fn)
+  dem_model <- models[["model_dem"]]
+  death_model <- models[["model_death"]]
 
-  # data for g-computation/standardisation
-  imp <- imp[rep(seq_len(imp_len), each = timegroup)]
-  imp[, timegroup := rep(1:timegroup, imp_len)]
-  setkey(imp, id, timegroup) # sort and set keys for efficient grouping and joining
+  min_age_of_dem <- min(boot_data$age_dem)
+  max_age_of_dem <- max(boot_data$age_dem)
+  age_range <- max_age_of_dem - min_age_of_dem
+  timegroup_steps <- ceiling(age_range * 2)
+  median_age_of_dem <- median(boot_data[boot_data$dem == 1, ]$age_dem)
+
+  timegroup_cuts <-
+    seq(
+      from = min_age_of_dem,
+      to = max_age_of_dem,
+      length.out = timegroup_steps
+    )
+
+  median_age_of_dem_timegroup <- which(timegroup_cuts > median_age_of_dem)[1] - 1
+  imp <- imp[rep(seq_len(imp_len), each = median_age_of_dem_timegroup)]
+  imp[, timegroup := rep(1:median_age_of_dem_timegroup, imp_len)]
 
   best_ilr = ilr(acomp(best_and_worst$best), V = v)
   worst_ilr = ilr(acomp(best_and_worst$worst), V = v)
   common_ilr = ilr(acomp(best_and_worst$most_common), V = v)
 
+
   ## Best composition risk
   imp[, c("R1", "R2", "R3") := list(best_ilr[1], best_ilr[2], best_ilr[3])]
-  imp[, haz := predict(model, newdata = .SD, type = "response")]
-  imp[, risk := 1 - cumprod(1 - haz), by = id]
+  imp[, haz_dem := predict(dem_model, newdata = .SD, type = "response")]
+  imp[, haz_death := predict(death_model, newdata = .SD, type = "response")]
+  imp[, risk := cumsum(haz_dem * cumprod((1 - lag(haz_dem, default = 0)) * (1 - haz_death))), by = id]
   best_risk <- imp %>%
     group_by(timegroup) %>%
     summarise(best_risk = mean(risk, na.rm = TRUE))
 
   ## Worst composition risk
   imp[, c("R1", "R2", "R3") := list(worst_ilr[1], worst_ilr[2], worst_ilr[3])]
-  imp[, haz := predict(model, newdata = .SD, type = "response")]
-  imp[, risk := 1 - cumprod(1 - haz), by = id]
+  imp[, haz_dem := predict(dem_model, newdata = .SD, type = "response")]
+  imp[, haz_death := predict(death_model, newdata = .SD, type = "response")]
+  imp[, risk := cumsum(haz_dem * cumprod((1 - lag(haz_dem, default = 0)) * (1 - haz_death))), by = id]
   worst_risk <- imp %>%
     group_by(timegroup) %>%
     summarise(worst_risk = mean(risk, na.rm = TRUE))
 
   ## Most common composition risk
   imp[, c("R1", "R2", "R3") := list(common_ilr[1], common_ilr[2], common_ilr[3])]
-  imp[, haz := predict(model, newdata = .SD, type = "response")]
-  setkey(imp, id, timegroup) # sort and set keys for efficient grouping and joining
-  imp[, risk := 1 - cumprod(1 - haz), by = id]
+  imp[, haz_dem := predict(dem_model, newdata = .SD, type = "response")]
+  imp[, haz_death := predict(death_model, newdata = .SD, type = "response")]
+  imp[, risk := cumsum(haz_dem * cumprod((1 - lag(haz_dem, default = 0)) * (1 - haz_death))), by = id]
   common_risk <- imp %>%
     group_by(timegroup) %>%
     summarise(common_risk = mean(risk, na.rm = TRUE))

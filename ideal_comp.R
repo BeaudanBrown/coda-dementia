@@ -48,9 +48,16 @@ generate_hazards <- function(comps, model, ref_row) {
   return(risks)
 }
 
-get_best_and_worst_comp <- function() {
+get_best_and_worst_comp <- function(df) {
   ## Load data
-  dem_df <- read_rds(file.path(data_dir, "full_imp.rds"))
+  predmat <- quickpred(df,
+    mincor = 0,
+    exclude = c(
+      "avg_sleep", "avg_inactivity", "avg_light",
+      "avg_mvpa", "eid", "time_to_dem"
+    )
+  )
+  dem_df <- mice(df, m = 1, predictorMatrix = predmat, maxit = maxit)
   dem_df <- complete(dem_df)
 
   dem_comp_df <- as.data.frame(acomp(dem_df[, c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa")]))
@@ -82,7 +89,7 @@ get_best_and_worst_comp <- function() {
   generated_comps <- generated_comps[generated_comps$dens > threshold, ]
 
   # fit model
-  dem_model <- fit_model(dem_df, get_primary_formula)
+  dem_model <- fit_model(dem_df, get_primary_formula)[["model_dem"]]
   ref_row <- as.data.frame(dem_df[1, ])
   ref_row$timegroup <- 55
 

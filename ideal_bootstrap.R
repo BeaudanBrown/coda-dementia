@@ -176,7 +176,4 @@ process_ideal_output <- function(rds_path) {
     theme(text = element_text(family = "serif"))
 }
 
-process_ideal_output("ideal.rds")
 
-ggsave(file.path(data_dir, "Ideal_composition.png"),
-       device = "png", width = 6, height = 6)

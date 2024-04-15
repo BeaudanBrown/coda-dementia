@@ -119,16 +119,13 @@ bootstrap_substitutions_fn <- function(
   if (isFALSE(empirical)) {
     # shift covariates to match mean (continuous vars) or probability (categorical vars)
     # of Schoeler et al pseudo-pop (see paper)
-    for (i in unique(imp$id)) {
-      imp[id == i, sex := sample(c("female", "male"), 1, prob = c(0.504, 0.496))]
-      imp[id == i, retired := rbinom(1, 1, prob = 0.193)]
-      imp[id == i, avg_total_household_income :=
-                         sample(c("<18", "18-30", "31-50", "52-100", ">100"), 1,
-                                prob = c(0.264, 0.141, 0.205, 0.145, 0.435)
-                                )]
-      imp[id == i, smok_status :=
-                         sample(c("current", "former", "never"), 1, prob = c(0.208, 0.359, 0.433))]
-    }
+    imp[sex := sample(c("female", "male"), 1, prob = c(0.504, 0.496))]
+    imp[retired := rbinom(1, 1, prob = 0.193)]
+    imp[avg_total_household_income :=
+                       sample(c("<18", "18-30", "31-50", "52-100", ">100"), 1,
+                              prob = c(0.264, 0.141, 0.205, 0.145, 0.435)
+                              )]
+    imp[smok_status := sample(c("current", "former", "never"), 1, prob = c(0.208, 0.359, 0.433))]
   }
 
   min_age_of_dem <- min(boot_data$age_dem)

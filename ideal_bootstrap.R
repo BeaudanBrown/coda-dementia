@@ -6,11 +6,6 @@ boot_data <- read_rds(file.path(data_dir, "bootstrap_data.rds"))
 
 best_and_worst <- get_best_and_worst_comp(boot_data)
 
-boot_copy <- boot_data
-
-
-boot_data <- boot_data[1:5000, ]
-
 run_cum_bootstrap <- function(df, output_name) {
   # Matrix of variables to include in imputation model
   predmat <- quickpred(df,

@@ -61,22 +61,13 @@ bootstrap_ideal_fn <- function(
   dem_model <- models[["model_dem"]]
   death_model <- models[["model_death"]]
 
-  min_age_of_dem <- min(boot_data$age_dem)
-  max_age_of_dem <- max(boot_data$age_dem)
+  min_age_of_dem <- min(data$age_dem)
+  max_age_of_dem <- max(data$age_dem)
   age_range <- max_age_of_dem - min_age_of_dem
   timegroup_steps <- ceiling(age_range * 2)
-  median_age_of_dem <- median(boot_data[boot_data$dem == 1, ]$age_dem)
 
-  timegroup_cuts <-
-    seq(
-      from = min_age_of_dem,
-      to = max_age_of_dem,
-      length.out = timegroup_steps
-    )
-
-  median_age_of_dem_timegroup <- which(timegroup_cuts > median_age_of_dem)[1] - 1
-  imp <- imp[rep(seq_len(imp_len), each = median_age_of_dem_timegroup)]
-  imp[, timegroup := rep(1:median_age_of_dem_timegroup, imp_len)]
+  imp <- imp[rep(seq_len(imp_len), each = timegroup_steps)]
+  imp[, timegroup := rep(1:timegroup_steps, imp_len)]
 
   best_ilr = ilr(acomp(best_and_worst$best), V = v)
   worst_ilr = ilr(acomp(best_and_worst$worst), V = v)
@@ -118,8 +109,8 @@ bootstrap_ideal_fn <- function(
 }
 
 process_ideal_output <- function(rds_path) {
-  data <- readRDS(file.path(data_dir, rds_path))
-  num_timegroups <- 76
+  data <- readRDS(file.path(output_dir, rds_path))
+  num_timegroups <- 78
 
   plot_data <- as.data.frame(data$t0) |>
     pivot_longer(

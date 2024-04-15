@@ -132,8 +132,6 @@ get_s2_formula <- function(data, outcome) {
 get_s3_formula <- function(data, outcome) {
   knots_timegroup <- quantile(data[["timegroup"]], c(0.05, 0.275, 0.5, 0.725, 0.95))
   knots_deprivation <- quantile(data[["townsend_deprivation_index"]], c(0.1, 0.5, 0.9))
-  knots_bmi <- quantile(data[["BMI"]], c(0.1, 0.5, 0.9))
-  knots_bp <- quantile(data[["bp_syst_avg"]], c(0.1, 0.5, 0.9))
   knots_fruit_veg <- quantile(data[["fruit_veg"]], c(0.1, 0.5, 0.9))
 
   s3_formula <- as.formula(dem ~ rcs(timegroup, knots_timegroup) +
@@ -194,53 +192,23 @@ fit_model <- function(imp, create_formula_fn) {
 }
 
 predict_composition_risk <-
-  function(composition, stacked_data_table, model_dem, model_death, timegroup, empirical = T) {
-    if (isTRUE(empirical)) {
-      ilr <- ilr(composition, V = v)
+  function(composition, stacked_data_table, model_dem, model_death, timegroup) {
+    ilr <- ilr(composition, V = v)
 
-      stacked_data_table[, c("R1", "R2", "R3") := list(ilr[1], ilr[2], ilr[3])]
+    stacked_data_table[, c("R1", "R2", "R3") := list(ilr[1], ilr[2], ilr[3])]
 
-      stacked_data_table[, haz_dem := predict(model_dem, newdata = .SD, type = "response")]
-      stacked_data_table[, haz_death := predict(model_death, newdata = .SD, type = "response")]
+    stacked_data_table[, haz_dem := predict(model_dem, newdata = .SD, type = "response")]
+    stacked_data_table[, haz_death := predict(model_death, newdata = .SD, type = "response")]
 
-      setkey(stacked_data_table, id, timegroup) # sort and set keys for efficient grouping and joining
-      stacked_data_table[, risk := cumsum(haz_dem * cumprod((1 - lag(haz_dem, default = 0)) * (1 - haz_death))), by = id]
+    setkey(stacked_data_table, id, timegroup) # sort and set keys for efficient grouping and joining
+    stacked_data_table[, risk := cumsum(haz_dem * cumprod((1 - lag(haz_dem, default = 0)) * (1 - haz_death))), by = id]
 
-      risk <- stacked_data_table[timegroup == timegroup, .(mean = mean(risk))]
+    risk <- stacked_data_table[timegroup == timegroup, .(mean = mean(risk))]
 
-      return(risk)
-    } else {
-      ilr <- ilr(composition, V = v)
-
-      stacked_data_table[, c("R1", "R2", "R3") := list(ilr[1], ilr[2], ilr[3])]
-
-      # shift covariates to match mean (continuous vars) or probability (categorical vars)
-      # of Schoeler et al pseudo-pop (see paper)
-
-      for (i in unique(stacked_data_table$id)) {
-        stacked_data_table[id == i, sex := sample(c("female", "male"), 1, prob = c(0.504, 0.496))]
-        stacked_data_table[id == i, retired := rbinom(1, 1, prob = 0.193)]
-        stacked_data_table[id == i, avg_total_household_income :=
-          sample(c("<18", "18-30", "31-50", "52-100", ">100"), 1,
-            prob = c(0.264, 0.141, 0.205, 0.145, 0.435)
-          )]
-        stacked_data_table[id == i, smok_status :=
-          sample(c("current", "former", "never"), 1, prob = c(0.208, 0.359, 0.433))]
-      }
-
-      stacked_data_table[, haz_dem := predict(model_dem, newdata = .SD, type = "response")]
-      stacked_data_table[, haz_death := predict(model_death, newdata = .SD, type = "response")]
-
-      setkey(stacked_data_table, id, timegroup) # sort and set keys for efficient grouping and joining
-      stacked_data_table[, risk := cumsum(haz_dem * cumprod((1 - lag(haz_dem, default = 0)) * (1 - haz_death))), by = id]
-
-      risk <- stacked_data_table[timegroup == timegroup, .(mean = mean(risk))]
-
-      return(risk)
-    }
+    return(risk)
   }
 
-calc_substitution <- function(base_comp, imp_stacked_dt, model_dem, model_death, substitution, timegroup, empirical = T) {
+calc_substitution <- function(base_comp, imp_stacked_dt, model_dem, model_death, substitution, timegroup) {
   # The list of substitutions to be calculated in minutes
   inc <- -sub_steps:sub_steps * (sub_step_mins / mins_in_day)
 
@@ -273,8 +241,7 @@ calc_substitution <- function(base_comp, imp_stacked_dt, model_dem, model_death,
           imp_stacked_dt,
           model_dem,
           model_death,
-          timegroup,
-          empirical
+          timegroup
         )
       }
     ))

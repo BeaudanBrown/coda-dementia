@@ -1,7 +1,7 @@
 source("dem_models.R")
 
 ## Load data
-boot_data <- read_rds(file.path(data_dir, "bootstrap_data_04_04_24.rds"))
+boot_data <- read_rds(file.path(data_dir, "bootstrap_data.rds"))
 
 ## UNCOMMENT FOR TEST RUNS
 # boot_data <- boot_data[1:10000, ]
@@ -11,7 +11,7 @@ run_primary_bootstrap <- function(boot_data) {
   run_bootstrap(
     boot_data = boot_data,
     create_formula_fn = get_primary_formula,
-    output_name = "boot_primary.rds",
+    output_name = "boot_primary",
     empirical = T
   )
 }
@@ -21,7 +21,7 @@ run_s1_bootstrap <- function(boot_data) {
   run_bootstrap(
     boot_data = boot_data,
     create_formula_fn = get_s1_formula,
-    output_name = "boot_s1.rds"
+    output_name = "boot_s1"
   )
 }
 
@@ -30,7 +30,7 @@ run_s2_bootstrap <- function(boot_data) {
   run_bootstrap(
     boot_data = boot_data,
     create_formula_fn = get_s2_formula,
-    output_name = "boot_s2.rds"
+    output_name = "boot_s2"
   )
 }
 
@@ -41,7 +41,7 @@ run_s3_bootstrap <- function(boot_data) {
   run_bootstrap(
     boot_data = boot_data,
     create_formula_fn = get_s3_formula,
-    output_name = "boot_s3.rds",
+    output_name = "boot_s3",
     empirical = F
   )
 }
@@ -76,6 +76,7 @@ run_bootstrap <- function(boot_data, create_formula_fn, output_name, empirical =
     statistic = bootstrap_substitutions_fn,
     create_formula_fn = create_formula_fn,
     predmat = predmat,
+    empirical = empirical,
     short_sleep_geo_mean = short_sleep_geo_mean,
     avg_sleep_geo_mean = avg_sleep_geo_mean,
     R = bootstrap_iterations,
@@ -115,6 +116,21 @@ bootstrap_substitutions_fn <- function(
   print(gc())
   models <- fit_model(imp, create_formula_fn)
 
+  if (isFALSE(empirical)) {
+    # shift covariates to match mean (continuous vars) or probability (categorical vars)
+    # of Schoeler et al pseudo-pop (see paper)
+    for (i in unique(imp$id)) {
+      imp[id == i, sex := sample(c("female", "male"), 1, prob = c(0.504, 0.496))]
+      imp[id == i, retired := rbinom(1, 1, prob = 0.193)]
+      imp[id == i, avg_total_household_income :=
+                         sample(c("<18", "18-30", "31-50", "52-100", ">100"), 1,
+                                prob = c(0.264, 0.141, 0.205, 0.145, 0.435)
+                                )]
+      imp[id == i, smok_status :=
+                         sample(c("current", "former", "never"), 1, prob = c(0.208, 0.359, 0.433))]
+    }
+  }
+
   min_age_of_dem <- min(boot_data$age_dem)
   max_age_of_dem <- max(boot_data$age_dem)
   age_range <- max_age_of_dem - min_age_of_dem
@@ -151,7 +167,7 @@ bootstrap_substitutions_fn <- function(
       models[["model_dem"]],
       models[["model_death"]],
       c("avg_sleep", "avg_light"),
-      timegroup = median_age_of_dem_timegroup
+      timegroup = median_age_of_dem_timegroup,
     )
 
   short_sleep_mvpa <-

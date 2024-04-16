@@ -242,7 +242,7 @@ bootstrap_substitutions_fn <- function(
 }
 
 process_boot_output <- function(rds_path) {
-  data <- readRDS(file.path(data_dir, "boot_primary_final.rds"))
+  data <- readRDS(file.path(data_dir, rds_path))
   num_subs <- sub_steps * 2 + 1
   sub_col_names <- data$t[1, 1:num_subs]
 
@@ -512,17 +512,21 @@ process_boot_output <- function(rds_path) {
 # )
 #
 # #
-# # ## Sensitivity 2
-# #
-# process_boot_output("boot_s2.rds")[[1]]
+# ## Sensitivity 2
 #
-# ggsave(
-#   file.path(
-#     data_dir,
-#     "../../Papers/Substitution Analysis/Appendix_figures/Sensitivity_2.png"
-#   ),
-#   device = "png",
-#   bg = "white",
-#   width = 10,
-#   height = 12
-# )
+plot <- process_boot_output("boot_s2_final.rds")[[1]]
+
+ggsave(
+  file.path(
+    data_dir,
+    "../../Papers/Substitution Analysis/Appendix_figures/Sensitivity_2_test.png"
+  ),
+  plot,
+  device = "png",
+  bg = "white",
+  width = 10,
+  height = 12
+)
+
+process_boot_output("boot_s2_final.rds")[[2]] |>
+  filter(offset == 60)

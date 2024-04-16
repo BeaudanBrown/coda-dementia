@@ -46,53 +46,60 @@ run_s3_bootstrap <- function(boot_data) {
   )
 }
 
-# Run bootstrap for a particular model formula and timegroup target, outputting to a file
-run_bootstrap <- function(boot_data, create_formula_fn, output_name, empirical = T) {
-  # Matrix of variables to include in imputation model
-  predmat <- quickpred(boot_data,
-    mincor = 0,
-    exclude = c(
-      "avg_sleep", "avg_inactivity", "avg_light",
-      "avg_mvpa", "eid"
+# Run bootstrap for a particular model formula and
+# timegroup target, outputting to a file
+run_bootstrap <-
+  function(boot_data, create_formula_fn,
+           output_name, empirical = T) {
+    # Matrix of variables to include in imputation model
+    predmat <- quickpred(boot_data,
+      mincor = 0,
+      exclude = c(
+        "avg_sleep", "avg_inactivity", "avg_light",
+        "avg_mvpa", "eid"
+      )
     )
-  )
 
 
-  ## reference compositions
-  all_comp <- acomp(boot_data[, c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa")])
+    ## reference compositions
+    all_comp <-
+      acomp(boot_data[
+        ,
+        c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa")
+      ])
 
-  short_sleep_comp <-
-    all_comp[all_comp$avg_sleep < short_sleep_hours / hrs_in_day, ]
-  short_sleep_geo_mean <-
-    acomp(apply(short_sleep_comp, 2, function(x) exp(mean(log(x)))))
+    short_sleep_comp <-
+      all_comp[all_comp$avg_sleep < short_sleep_hours / hrs_in_day, ]
+    short_sleep_geo_mean <-
+      acomp(apply(short_sleep_comp, 2, function(x) exp(mean(log(x)))))
 
-  avg_sleep_comp <-
-    all_comp[all_comp$avg_sleep >= short_sleep_hours / hrs_in_day, ]
-  avg_sleep_geo_mean <-
-    acomp(apply(avg_sleep_comp, 2, function(x) exp(mean(log(x)))))
+    avg_sleep_comp <-
+      all_comp[all_comp$avg_sleep >= short_sleep_hours / hrs_in_day, ]
+    avg_sleep_geo_mean <-
+      acomp(apply(avg_sleep_comp, 2, function(x) exp(mean(log(x)))))
 
-  result <- boot(
-    data = boot_data,
-    statistic = bootstrap_substitutions_fn,
-    create_formula_fn = create_formula_fn,
-    predmat = predmat,
-    empirical = empirical,
-    short_sleep_geo_mean = short_sleep_geo_mean,
-    avg_sleep_geo_mean = avg_sleep_geo_mean,
-    R = bootstrap_iterations,
-    parallel = "multicore",
-    ncpus = ncpus
-  )
+    result <- boot(
+      data = boot_data,
+      statistic = bootstrap_substitutions_fn,
+      create_formula_fn = create_formula_fn,
+      predmat = predmat,
+      empirical = empirical,
+      short_sleep_geo_mean = short_sleep_geo_mean,
+      avg_sleep_geo_mean = avg_sleep_geo_mean,
+      R = bootstrap_iterations,
+      parallel = "multicore",
+      ncpus = ncpus
+    )
 
-  # Prepend timestamp to avoid accidental data loss
-  timestamp <- format(Sys.time(), "%Y-%m-%d_%H:%M")
-  output_name_with_timestamp <- paste0(output_name, "_", timestamp, ".rds")
-  saveRDS(result, file.path(output_dir, output_name_with_timestamp))
-}
+    # Prepend timestamp to avoid accidental data loss
+    timestamp <- format(Sys.time(), "%Y-%m-%d_%H:%M")
+    output_name_with_timestamp <- paste0(output_name, "_", timestamp, ".rds")
+    saveRDS(result, file.path(output_dir, output_name_with_timestamp))
+  }
 
 # Ran each bootstrap iteration
-# Imputes the data, fits the model for the given formula and predicts the risks for a
-# variety of substitutions and cohorts
+# Imputes the data, fits the model for the given formula and
+# predicts the risks for a variety of substitutions and cohorts
 bootstrap_substitutions_fn <- function(
     data,
     indices,
@@ -105,7 +112,10 @@ bootstrap_substitutions_fn <- function(
 
   print("Imputing")
   print(format(Sys.time(), "%H:%M:%S"))
-  imp <- mice(this_sample, m = 1, predictorMatrix = predmat, maxit = maxit)
+  imp <- mice(this_sample,
+    m = 1,
+    predictorMatrix = predmat, maxit = maxit
+  )
   imp <- complete(imp)
   setDT(imp)
   imp[, id := .I]
@@ -117,14 +127,28 @@ bootstrap_substitutions_fn <- function(
   models <- fit_model(imp, create_formula_fn)
 
   if (isFALSE(empirical)) {
-    # shift covariates to match mean (continuous vars) or probability (categorical vars)
+    # shift covariates to match mean (continuous vars) or
+    # probability (categorical vars)
     # of Schoeler et al pseudo-pop (see paper)
-    imp <- imp %>%
+    imp <-
+      imp %>%
       mutate(
-        sex = sample(c("female", "male"), n(), replace = TRUE, prob = c(0.504, 0.496)),
+        sex = sample(
+          c("female", "male"), n(),
+          replace = TRUE,
+          prob = c(0.504, 0.496)
+        ),
         retired = rbinom(n(), 1, prob = 0.193),
-        avg_total_household_income = sample(c("<18", "18-30", "31-50", "52-100", ">100"), n(), replace = TRUE, prob = c(0.264, 0.141, 0.205, 0.145, 0.245)),
-        smok_status = sample(c("current", "former", "never"), n(), replace = TRUE, prob = c(0.208, 0.359, 0.433))
+        avg_total_household_income = sample(
+          c("<18", "18-30", "31-50", "52-100", ">100"), n(),
+          replace = TRUE,
+          prob = c(0.264, 0.141, 0.205, 0.145, 0.245)
+        ),
+        smok_status = sample(
+          c("current", "former", "never"), n(),
+          replace = TRUE,
+          prob = c(0.208, 0.359, 0.433)
+        )
       )
   }
 
@@ -141,7 +165,8 @@ bootstrap_substitutions_fn <- function(
       length.out = timegroup_steps
     )
 
-  median_age_of_dem_timegroup <- which(timegroup_cuts > median_age_of_dem)[1] - 1
+  median_age_of_dem_timegroup <-
+    which(timegroup_cuts > median_age_of_dem)[1] - 1
 
   # data for g-computation/standardisation
   imp <- imp[rep(seq_len(imp_len), each = median_age_of_dem_timegroup)]
@@ -203,7 +228,9 @@ bootstrap_substitutions_fn <- function(
       timegroup = median_age_of_dem_timegroup
     )
 
-  full_df <- full_join(short_sleep_inactive, short_sleep_light, by = "offset") |>
+  full_df <- full_join(short_sleep_inactive, short_sleep_light,
+    by = "offset"
+  ) |>
     full_join(short_sleep_mvpa, by = "offset") |>
     full_join(avg_sleep_inactive, by = "offset") |>
     full_join(avg_sleep_light, by = "offset") |>
@@ -215,11 +242,15 @@ bootstrap_substitutions_fn <- function(
 }
 
 process_boot_output <- function(rds_path) {
-  data <- readRDS(file.path(data_dir, rds_path))
+  data <- readRDS(file.path(data_dir, "boot_primary_final.rds"))
   num_subs <- sub_steps * 2 + 1
   sub_col_names <- data$t[1, 1:num_subs]
 
-  plot_data <- pivot_longer(as.data.frame(data$t0), -offset, values_to = "risk", names_to = "Substitution") |>
+  plot_data <-
+    pivot_longer(as.data.frame(data$t0),
+      -offset,
+      values_to = "risk", names_to = "Substitution"
+    ) |>
     group_by(Substitution) |>
     mutate(ref_risk = ifelse(offset == 0, risk, NA_real_)) |>
     fill(ref_risk, .direction = "downup") |>
@@ -246,7 +277,10 @@ process_boot_output <- function(rds_path) {
     }, idx = middle_col))
 
     quantiles <-
-      as.data.frame(t(apply(slice, 2, function(column) quantile(column, probs = c(0.025, 0.975)))))
+      as.data.frame(t(apply(
+        slice, 2,
+        function(column) quantile(column, probs = c(0.025, 0.975))
+      )))
     colnames(quantiles) <- c("lower", "upper")
     quantiles$Substitution <- substitution
     quantiles$Reference <- reference
@@ -256,22 +290,28 @@ process_boot_output <- function(rds_path) {
 
   sub_start <- num_subs + 1
 
-  inactivity_short_sleep <- get_quantiles(sub_start, "Inactivity", "Short sleepers")
+  inactivity_short_sleep <-
+    get_quantiles(sub_start, "Inactivity", "Short sleepers")
   sub_start <- sub_start + num_subs
 
-  light_short_sleep <- get_quantiles(sub_start, "Light activity", "Short sleepers")
+  light_short_sleep <-
+    get_quantiles(sub_start, "Light activity", "Short sleepers")
   sub_start <- sub_start + num_subs
 
-  mvpa_short_sleep <- get_quantiles(sub_start, "MVPA", "Short sleepers")
+  mvpa_short_sleep <-
+    get_quantiles(sub_start, "MVPA", "Short sleepers")
   sub_start <- sub_start + num_subs
 
-  inactivity_avg_sleep <- get_quantiles(sub_start, "Inactivity", "Normal sleepers")
+  inactivity_avg_sleep <-
+    get_quantiles(sub_start, "Inactivity", "Normal sleepers")
   sub_start <- sub_start + num_subs
 
-  light_avg_sleep <- get_quantiles(sub_start, "Light activity", "Normal sleepers")
+  light_avg_sleep <-
+    get_quantiles(sub_start, "Light activity", "Normal sleepers")
   sub_start <- sub_start + num_subs
 
-  mvpa_avg_sleep <- get_quantiles(sub_start, "MVPA", "Normal sleepers")
+  mvpa_avg_sleep <-
+    get_quantiles(sub_start, "MVPA", "Normal sleepers")
 
   all_quantiles <- rbind(
     inactivity_short_sleep,
@@ -283,7 +323,10 @@ process_boot_output <- function(rds_path) {
   )
 
 
-  plot_data <- full_join(plot_data, all_quantiles, by = c("offset", "Substitution", "Reference"))
+  plot_data <-
+    full_join(plot_data, all_quantiles,
+      by = c("offset", "Substitution", "Reference")
+    )
 
   rr_plot <- function(sub, refcomp, colour) {
     plot_data$Substitution <-
@@ -293,8 +336,9 @@ process_boot_output <- function(rds_path) {
         )
       )
 
-    plot_data2 <- plot_data[plot_data$Substitution == sub &
-      plot_data$Reference == refcomp, ]
+    plot_data2 <-
+      plot_data[plot_data$Substitution == sub &
+        plot_data$Reference == refcomp, ]
 
 
     plot_data2 |>
@@ -365,9 +409,21 @@ process_boot_output <- function(rds_path) {
 
   pnorm <-
     plot_grid(NULL,
-      p1 + labs(x = "", title = "A") + theme(legend.position = "none", plot.title.position = "plot", plot.title = element_text(size = 16)),
-      p2 + labs(x = "", title = "C") + theme(legend.position = "none", plot.title.position = "plot", plot.title = element_text(size = 16)),
-      p3 + labs(x = "", title = "E") + theme(legend.position = "none", plot.title.position = "plot", plot.title = element_text(size = 16)),
+      p1 + labs(x = "", title = "A") +
+        theme(
+          legend.position = "none", plot.title.position = "plot",
+          plot.title = element_text(size = 16)
+        ),
+      p2 + labs(x = "", title = "C") +
+        theme(
+          legend.position = "none", plot.title.position = "plot",
+          plot.title = element_text(size = 16)
+        ),
+      p3 + labs(x = "", title = "E") +
+        theme(
+          legend.position = "none", plot.title.position = "plot",
+          plot.title = element_text(size = 16)
+        ),
       align = "vh",
       rel_heights = c(0.05, 1, 1, 1),
       nrow = 4,
@@ -382,9 +438,21 @@ process_boot_output <- function(rds_path) {
 
   pshort <-
     plot_grid(NULL,
-      p4 + labs(title = "B", y = "") + theme(legend.position = "none", plot.title.position = "plot", plot.title = element_text(size = 16)),
-      p5 + labs(y = "", title = "D") + theme(legend.position = "none", plot.title.position = "plot", plot.title = element_text(size = 16)),
-      p6 + labs(y = "", title = "F") + theme(legend.position = "none", plot.title.position = "plot", plot.title = element_text(size = 16)),
+      p4 + labs(title = "B", y = "") +
+        theme(
+          legend.position = "none", plot.title.position = "plot",
+          plot.title = element_text(size = 16)
+        ),
+      p5 + labs(y = "", title = "D") +
+        theme(
+          legend.position = "none", plot.title.position = "plot",
+          plot.title = element_text(size = 16)
+        ),
+      p6 + labs(y = "", title = "F") +
+        theme(
+          legend.position = "none", plot.title.position = "plot",
+          plot.title = element_text(size = 16)
+        ),
       align = "vh",
       rel_heights = c(0.05, 1, 1, 1),
       nrow = 4,
@@ -402,10 +470,10 @@ process_boot_output <- function(rds_path) {
 
 #### Results
 
-# ## Primary model
-#
-# process_boot_output("boot_primary.rds")[[1]]
-#
+## Primary model
+
+# process_boot_output("boot_primary_final.rds")[[1]]
+
 # # save
 # ggsave(
 #   file.path(
@@ -419,12 +487,13 @@ process_boot_output <- function(rds_path) {
 #   dpi = 500
 # )
 
-#
-# # risk ratios
-#
-# process_boot_output("boot_primary.rds")[[2]] |>
+# #
+# # # risk ratios
+# #
+# process_boot_output("boot_primary_final.rds")[[2]] |>
 #   filter(abs(offset) == 60) |>
 #   filter(Reference == "Short sleepers")
+
 # #
 # #
 # # ## Sensitivity 1

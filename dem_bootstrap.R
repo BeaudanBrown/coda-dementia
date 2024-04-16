@@ -3,8 +3,6 @@ source("dem_models.R")
 ## Load data
 boot_data <- read_rds(file.path(data_dir, "bootstrap_data.rds"))
 
-## UNCOMMENT FOR TEST RUNS
-# boot_data <- boot_data[1:10000, ]
 
 # Run bootstrap for primary model
 run_primary_bootstrap <- function(boot_data) {
@@ -130,26 +128,22 @@ bootstrap_substitutions_fn <- function(
     # shift covariates to match mean (continuous vars) or
     # probability (categorical vars)
     # of Schoeler et al pseudo-pop (see paper)
-    imp <-
-      imp %>%
-      mutate(
-        sex = sample(
-          c("female", "male"), n(),
-          replace = TRUE,
-          prob = c(0.504, 0.496)
-        ),
-        retired = rbinom(n(), 1, prob = 0.193),
-        avg_total_household_income = sample(
-          c("<18", "18-30", "31-50", "52-100", ">100"), n(),
-          replace = TRUE,
-          prob = c(0.264, 0.141, 0.205, 0.145, 0.245)
-        ),
-        smok_status = sample(
-          c("current", "former", "never"), n(),
-          replace = TRUE,
-          prob = c(0.208, 0.359, 0.433)
-        )
-      )
+    imp[, sex := sample(
+        c("female", "male"),
+        n(),
+        replace = TRUE,
+        prob = c(0.504, 0.496))]
+    imp[, retired := rbinom(n(), 1, prob = 0.193)]
+    imp[, avg_total_household_income := sample(
+        c("<18", "18-30", "31-50", "52-100", ">100"), n(),
+        replace = TRUE,
+        prob = c(0.264, 0.141, 0.205, 0.145, 0.435)
+        )]
+    imp[, smok_status := sample(
+        c("current", "former", "never"), n(),
+        replace = TRUE,
+        prob = c(0.208, 0.359, 0.433)
+        )]
   }
 
   min_age_of_dem <- min(boot_data$age_dem)

@@ -35,7 +35,7 @@ v <- gsi.buildilrBase(t(sbp))
 strip_glm <- function(cm) {
   cm$y <- c()
   cm$model <- c()
-  
+
   cm$residuals <- c()
   cm$fitted.values <- c()
   cm$effects <- c()
@@ -44,13 +44,12 @@ strip_glm <- function(cm) {
   cm$weights <- c()
   cm$prior.weights <- c()
   cm$data <- c()
-  
+
   cm$family$variance <- c()
   cm$family$dev.resids <- c()
   cm$family$aic <- c()
   cm$family$validmu <- c()
   cm$family$simulate <- c()
-  
+
   return(cm)
 }
-

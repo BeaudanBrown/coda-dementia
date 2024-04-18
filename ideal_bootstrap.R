@@ -6,9 +6,9 @@ boot_data <- read_rds(file.path(data_dir, "bootstrap_data.rds"))
 
 best_and_worst <- get_best_and_worst_comp(boot_data)
 
-run_cum_bootstrap <- function(df, output_name) {
+run_cum_bootstrap <- function(data, output_name) {
   # Matrix of variables to include in imputation model
-  predmat <- quickpred(df,
+  predmat <- quickpred(data,
     mincor = 0,
     exclude = c(
       "avg_sleep", "avg_inactivity", "avg_light",
@@ -16,12 +16,18 @@ run_cum_bootstrap <- function(df, output_name) {
     )
   )
 
+  min_age_of_dem <- min(data$age_dem)
+  max_age_of_dem <- max(data$age_dem)
+  age_range <- max_age_of_dem - min_age_of_dem
+  num_timegroups <- ceiling(age_range * 2)
+
   result <- boot(
     data = boot_data,
     statistic = bootstrap_ideal_fn,
     create_formula_fn = get_primary_formula,
     best_and_worst = best_and_worst,
     predmat = predmat,
+    num_timegroups = num_timegroups,
     R = bootstrap_iterations,
     parallel = "multicore",
     ncpus = ncpus
@@ -37,7 +43,8 @@ bootstrap_ideal_fn <- function(
   indices,
   create_formula_fn,
   predmat,
-  best_and_worst
+  best_and_worst,
+  num_timegroups
 ) {
   this_sample <- data[indices, ]
 
@@ -56,13 +63,8 @@ bootstrap_ideal_fn <- function(
   dem_model <- models[["model_dem"]]
   death_model <- models[["model_death"]]
 
-  min_age_of_dem <- min(data$age_dem)
-  max_age_of_dem <- max(data$age_dem)
-  age_range <- max_age_of_dem - min_age_of_dem
-  timegroup_steps <- ceiling(age_range * 2)
-
-  imp <- imp[rep(seq_len(imp_len), each = timegroup_steps)]
-  imp[, timegroup := rep(1:timegroup_steps, imp_len)]
+  imp <- imp[rep(seq_len(imp_len), each = num_timegroups)]
+  imp[, timegroup := rep(1:num_timegroups, imp_len)]
 
   best_ilr = ilr(acomp(best_and_worst$best), V = v)
   worst_ilr = ilr(acomp(best_and_worst$worst), V = v)

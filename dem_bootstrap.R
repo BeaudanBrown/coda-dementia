@@ -110,10 +110,40 @@ bootstrap_substitutions_fn <- function(
 
   print("Imputing")
   print(format(Sys.time(), "%H:%M:%S"))
+  if (isFALSE(empirical)) {
+    # shift covariates to match mean (continuous vars) or
+    # probability (categorical vars)
+    # of Schoeler et al pseudo-pop (see paper)
+    this_sample <-
+      this_sample %>%
+      mutate(
+             sex = sample(
+                          c("female", "male"), n(),
+                          replace = TRUE,
+                          prob = c(0.504, 0.496)
+                          ),
+             retired = rbinom(n(), 1, prob = 0.193),
+             avg_total_household_income = sample(
+                                                 c("<18", "18-30", "31-50", "52-100", ">100"), n(),
+                                                 replace = TRUE,
+                                                 prob = c(0.264, 0.141, 0.205, 0.145, 0.245)
+                                                 ),
+             smok_status = sample(
+                                  c("current", "former", "never"), n(),
+                                  replace = TRUE,
+                                  prob = c(0.208, 0.359, 0.433)
+             )
+      )
+  }
+
+
+
+
   imp <- mice(this_sample,
     m = 1,
     predictorMatrix = predmat, maxit = maxit
   )
+
   imp <- complete(imp)
   setDT(imp)
   imp[, id := .I]
@@ -123,28 +153,6 @@ bootstrap_substitutions_fn <- function(
   print(format(Sys.time(), "%H:%M:%S"))
   print(gc())
   models <- fit_model(imp, create_formula_fn)
-
-  if (isFALSE(empirical)) {
-    # shift covariates to match mean (continuous vars) or
-    # probability (categorical vars)
-    # of Schoeler et al pseudo-pop (see paper)
-    imp[, sex := sample(
-        c("female", "male"),
-        n(),
-        replace = TRUE,
-        prob = c(0.504, 0.496))]
-    imp[, retired := rbinom(n(), 1, prob = 0.193)]
-    imp[, avg_total_household_income := sample(
-        c("<18", "18-30", "31-50", "52-100", ">100"), n(),
-        replace = TRUE,
-        prob = c(0.264, 0.141, 0.205, 0.145, 0.435)
-        )]
-    imp[, smok_status := sample(
-        c("current", "former", "never"), n(),
-        replace = TRUE,
-        prob = c(0.208, 0.359, 0.433)
-        )]
-  }
 
   min_age_of_dem <- min(boot_data$age_dem)
   max_age_of_dem <- max(boot_data$age_dem)

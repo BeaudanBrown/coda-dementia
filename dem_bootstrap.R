@@ -191,7 +191,7 @@ bootstrap_substitutions_fn <- function(
       models[["model_dem"]],
       models[["model_death"]],
       c("avg_sleep", "avg_light"),
-      timegroup = median_age_of_dem_timegroup,
+      timegroup = median_age_of_dem_timegroup
     )
 
   short_sleep_mvpa <-
@@ -516,19 +516,3 @@ process_boot_output <- function(rds_path) {
 # #
 # ## Sensitivity 2
 #
-plot <- process_boot_output("boot_s2_final.rds")[[1]]
-
-ggsave(
-  file.path(
-    data_dir,
-    "../../Papers/Substitution Analysis/Appendix_figures/Sensitivity_2_test.png"
-  ),
-  plot,
-  device = "png",
-  bg = "white",
-  width = 10,
-  height = 12
-)
-
-process_boot_output("boot_s2_final.rds")[[2]] |>
-  filter(offset == 60)

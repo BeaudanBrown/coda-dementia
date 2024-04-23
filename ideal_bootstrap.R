@@ -66,37 +66,23 @@ bootstrap_ideal_fn <- function(
   imp <- imp[rep(seq_len(imp_len), each = num_timegroups)]
   imp[, timegroup := rep(1:num_timegroups, imp_len)]
 
-  best_ilr = ilr(acomp(best_and_worst$best), V = v)
-  worst_ilr = ilr(acomp(best_and_worst$worst), V = v)
-  common_ilr = ilr(acomp(best_and_worst$most_common), V = v)
+  best_ilr <- ilr(acomp(best_and_worst$best), V = v)
+  worst_ilr <- ilr(acomp(best_and_worst$worst), V = v)
+  common_ilr <- ilr(acomp(best_and_worst$most_common), V = v)
 
+  calculate_risk <- function(risk_data, ilr_values, risk_name) {
+    risk_data[, c("R1", "R2", "R3") := ilr_values]
+    risk_data[, haz_dem := predict(dem_model, newdata = .SD, type = "response")]
+    risk_data[, haz_death := predict(death_model, newdata = .SD, type = "response")]
+    risk_data[, risk := cumsum(haz_dem * cumprod(1 - lag(haz_dem, default = 0) * (1 - haz_death))), by = id]
+    summarised_risk <- risk_data[, .(avg_risk = mean(risk, na.rm = TRUE)), by = .(timegroup)]
+    setnames(summarised_risk, c("avg_risk"), c(risk_name))
+    return(summarised_risk)
+  }
 
-  ## Best composition risk
-  imp[, c("R1", "R2", "R3") := list(best_ilr[1], best_ilr[2], best_ilr[3])]
-  imp[, haz_dem := predict(dem_model, newdata = .SD, type = "response")]
-  imp[, haz_death := predict(death_model, newdata = .SD, type = "response")]
-  imp[, risk := cumsum(haz_dem * cumprod((1 - lag(haz_dem, default = 0)) * (1 - haz_death))), by = id]
-  best_risk <- imp %>%
-    group_by(timegroup) %>%
-    summarise(best_risk = mean(risk, na.rm = TRUE))
-
-  ## Worst composition risk
-  imp[, c("R1", "R2", "R3") := list(worst_ilr[1], worst_ilr[2], worst_ilr[3])]
-  imp[, haz_dem := predict(dem_model, newdata = .SD, type = "response")]
-  imp[, haz_death := predict(death_model, newdata = .SD, type = "response")]
-  imp[, risk := cumsum(haz_dem * cumprod((1 - lag(haz_dem, default = 0)) * (1 - haz_death))), by = id]
-  worst_risk <- imp %>%
-    group_by(timegroup) %>%
-    summarise(worst_risk = mean(risk, na.rm = TRUE))
-
-  ## Most common composition risk
-  imp[, c("R1", "R2", "R3") := list(common_ilr[1], common_ilr[2], common_ilr[3])]
-  imp[, haz_dem := predict(dem_model, newdata = .SD, type = "response")]
-  imp[, haz_death := predict(death_model, newdata = .SD, type = "response")]
-  imp[, risk := cumsum(haz_dem * cumprod((1 - lag(haz_dem, default = 0)) * (1 - haz_death))), by = id]
-  common_risk <- imp %>%
-    group_by(timegroup) %>%
-    summarise(common_risk = mean(risk, na.rm = TRUE))
+  best_risk <- calculate_risk(imp, list(best_ilr[1], best_ilr[2], best_ilr[3]), "best")
+  worst_risk <- calculate_risk(imp, list(worst_ilr[1], worst_ilr[2], worst_ilr[3]), "worst")
+  common_risk <- calculate_risk(imp, list(common_ilr[1], common_ilr[2], common_ilr[3]), "common")
 
   print("Returning results")
   print(format(Sys.time(), "%H:%M:%S"))
@@ -113,15 +99,7 @@ process_ideal_output <- function(rds_path) {
     pivot_longer(
       cols = -timegroup,
       names_to = "Reference",
-      values_to = "Risk",
-      names_pattern = "(.*)_risk"
-    ) |>
-    mutate(
-      Reference = case_when(
-        Reference == "best"   ~ "best",
-        Reference == "worst"  ~ "worst",
-        Reference == "common" ~ "common"
-      )
+      values_to = "Risk"
     )
 
   get_quantiles <- function(start, reference) {

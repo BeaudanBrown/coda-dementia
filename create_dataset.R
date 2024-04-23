@@ -11,8 +11,14 @@ library(here)
 
 # read UKB data
 
-d <- fread(file.path(data_dir, "../core_ukb_data/core_ukb_trimmed_Sep2023.csv"))
-latest <- fread(file.path(data_dir, "../core_ukb_data/latest_demdeath.csv"))
+d <- fread(file.path(
+  data_dir, "../core_ukb_data/core_ukb_trimmed_Sep2023.csv"
+))
+
+latest <- fread(file.path(
+  data_dir, "../core_ukb_data/latest_demdeath.csv"
+))
+
 latest <- latest |>
   rename(
     date_of_death = `40000-0.0`,
@@ -20,27 +26,36 @@ latest <- latest |>
   )
 d <- d %>%
   select(
-         -date_of_death,
-         -date_all_cause_dementia
+    -date_of_death,
+    -date_all_cause_dementia
   )
 d <- latest %>%
   left_join(d, by = "eid")
 
 # Add in SNPs #
 
-snps <- fread(file.path(data_dir, "../Raw UKB data/SNPs (basket 2)/snp_data.csv"))
+snps <- fread(file.path(
+  data_dir, "../Raw UKB data/SNPs (basket 2)/snp_data.csv"
+))
 
 d <- d |> left_join(snps, by = "eid")
 
 # Add in diet and alcohol variables #
 
-alc_diet <- fread(file.path(data_dir, "../Raw UKB data/basket 4/alcohol_diet_19_04_24.csv"))
+alc_diet <- fread(file.path(
+  data_dir, "../Raw UKB data/basket 4/alcohol_diet_19_04_24.csv"
+))
 
 alc_diet <-
   alc_diet |>
-  set_names(c("eid", "alc_freq", "veg_cooked", "veg_raw", "fruit_fresh", "fruit_dry"))
+  set_names(
+    c(
+      "eid", "alc_freq", "veg_cooked", "veg_raw", "fruit_fresh",
+      "fruit_dry"
+    )
+  )
 
-d <- left_join(alc_diet, d, by = "eid")
+d <- left_join(d, alc_diet, by = "eid")
 
 #### Clean confounder variables ####
 
@@ -52,13 +67,15 @@ d |>
     BMI, num_non_cancer_illness, townsend_deprivation_index, sleep_duration_sr,
     neuroticism_score, bp_syst_avg, num_treatments_medications
   ) |>
-  psych::multi.hist(global = F)
+  psych::multi.hist(global = FALSE)
 
 # remove negative values from sleep duration
 
 d <-
   d |>
-  mutate(sleep_duration_sr = ifelse(sleep_duration_sr < 0, NA_integer_, sleep_duration_sr))
+  mutate(sleep_duration_sr = ifelse(
+    sleep_duration_sr < 0, NA_integer_, sleep_duration_sr
+  ))
 
 ### Categorical
 
@@ -84,15 +101,20 @@ quals <- d |>
   )) |>
   group_by(eid) |>
   summarise(highest_qual = max(highest_qual, na.rm = T)) |>
-  mutate(highest_qual = ifelse(highest_qual == -Inf, NA_real_, highest_qual))
+  mutate(highest_qual = ifelse(
+    highest_qual == -Inf, NA_real_, highest_qual
+  ))
 
 d <- left_join(d, quals, by = "eid")
 
 d$highest_qual <- as.factor(d$highest_qual)
 
-d$highest_qual <- relevel(d$highest_qual, "4") # grad qualification as reference
+d$highest_qual <- relevel(d$highest_qual, "4")
 
-levels(d$highest_qual) <- c("Grad", "Other", "prefer not answer", "O", "A", "NVQ")
+levels(d$highest_qual) <- c(
+  "Grad", "Other", "prefer not answer",
+  "O", "A", "NVQ"
+)
 
 summary(d$highest_qual)
 
@@ -149,7 +171,7 @@ d$ethnicity <- fct_recode(d$ethnicity,
   "other" = "6"
 )
 
-d$ethnicity <- fct_relevel(d$ethnicity, "white") # white as reference
+d$ethnicity <- fct_relevel(d$ethnicity, "white")
 
 summary(d$ethnicity)
 
@@ -165,9 +187,12 @@ summary(d$sex)
 
 d$insomnia_sr <- as.factor(d$insomnia_sr)
 
-levels(d$insomnia_sr) <- c("prefer not answer", "never", "sometimes", "usually")
+levels(d$insomnia_sr) <- c(
+  "prefer not answer", "never",
+  "sometimes", "usually"
+)
 
-d$insomnia_sr <- fct_relevel(d$insomnia_sr, "never") # never as reference category
+d$insomnia_sr <- fct_relevel(d$insomnia_sr, "never")
 
 ## chronotype
 
@@ -178,8 +203,7 @@ levels(d$chronotype) <- c(
   "more_morning", "more_evening", "evening"
 )
 
-d$chronotype <- fct_relevel(d$chronotype, "morning") # morning as reference
-
+d$chronotype <- fct_relevel(d$chronotype, "morning")
 summary(d$chronotype)
 
 ## depression
@@ -201,7 +225,9 @@ summary(d$freq_depressed_twoweeks)
 
 ## Income
 
-d$avg_total_household_income <- as.factor(d$avg_total_household_income)
+d$avg_total_household_income <- as.factor(
+  d$avg_total_household_income
+)
 
 levels(d$avg_total_household_income) <- c(
   "prefer not answer", "dont know",
@@ -238,27 +264,30 @@ d <- d |> select(-c(employment_1:employment_7))
 
 # Accelerometry data available
 
-d2 <- d |> filter(!is.na(accel_data_available)) # 502359 -> 103661
+d2 <- d |> filter(!is.na(accel_data_available))
 
 # apply UKB data cleaning thresholds to accelerometry data
 
-d2 <- d2 |> filter(is.na(d2$accel_data_problem)) # 98967
+d2 <- d2 |> filter(is.na(d2$accel_data_problem))
 
-d2 <- d2 |> filter(accel_good_wear_time == 1) # 94497
+d2 <- d2 |> filter(accel_good_wear_time == 1)
 
-d2 <- d2 |> filter(accel_good_calibration == 1) # 94494
+d2 <- d2 |> filter(accel_good_calibration == 1)
 
-d2 <- d2 |> filter(accel_calibrated_own_data == 1) # 94340
+d2 <- d2 |> filter(accel_calibrated_own_data == 1)
 
 ## must have GGIR data available
 
 # Read in accelerometry data
 
-a <- read_csv(file.path(data_dir, "../Accelerometery/Processed_GGIR/part5_daysumMM_output.csv"))
+a <- fread(file.path(
+  data_dir,
+  "../Accelerometery/Processed_GGIR/part5_daysumMM_output.csv"
+))
 
 # filter to only those with GGIR data
 
-d2 <- d2 |> filter(eid %in% a$eid) # 89626
+d2 <- d2 |> filter(eid %in% a$eid)
 
 ### Merge in actigraphy data
 
@@ -298,38 +327,46 @@ d3$sleep_n <-
   (d3$dur_spt_sleep_min / d3$mins_worn) * mins_in_day
 
 d3$inactive_n <-
-  ((d3$dur_day_total_IN_min + d3$dur_spt_wake_IN_min) / d3$mins_worn) * mins_in_day
+  ((d3$dur_day_total_IN_min + d3$dur_spt_wake_IN_min) /
+    d3$mins_worn) * mins_in_day
 
 d3$light_n <-
-  ((d3$dur_day_total_LIG_min + d3$dur_spt_wake_LIG_min) / d3$mins_worn) * mins_in_day
+  ((d3$dur_day_total_LIG_min + d3$dur_spt_wake_LIG_min) /
+    d3$mins_worn) * mins_in_day
 
 d3$moderate_n <-
-  ((d3$dur_day_total_MOD_min + d3$dur_spt_wake_MOD_min) / d3$mins_worn) * mins_in_day
+  ((d3$dur_day_total_MOD_min + d3$dur_spt_wake_MOD_min) /
+    d3$mins_worn) * mins_in_day
 
 d3$vigorous_n <-
-  ((d3$dur_day_total_VIG_min + d3$dur_spt_wake_VIG_min) / d3$mins_worn) * mins_in_day
+  ((d3$dur_day_total_VIG_min + d3$dur_spt_wake_VIG_min) /
+    d3$mins_worn) * mins_in_day
 
 d3$mvpa_n <- d3$moderate_n + d3$vigorous_n
 
-### Estimate average time spent in each of sleep, inactivity, moderate to vigorous activity,
-### and light physical activity
+### Estimate average time spent in each of sleep, inactivity,
+### moderate to vigorous activity and light physical activity
 
-##
-
-# fit mixed model accounting for difference between days and also daylight savings
-# crossover
+# fit mixed model accounting for difference between days
+# and daylight savings crossover
 
 d3$weekday <-
   factor(d3$weekday,
-    levels = c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
+    levels = c(
+      "Sunday", "Monday", "Tuesday", "Wednesday",
+      "Thursday", "Friday", "Saturday"
+    )
   )
 
 m1 <-
-  lmer(sleep_n ~ weekday + accel_daylight_savings_crossover + (1 | eid), data = d3)
+  lmer(
+    sleep_n ~ weekday + accel_daylight_savings_crossover + (1 | eid),
+    data = d3
+  )
 
 summary(m1)
 
-# Estimate average SRI for each participant, standardising for/marginalising over
+# Estimate average SRI for each participant, standardising over
 # day of week.
 
 nd <- expand_grid(
@@ -346,7 +383,10 @@ nd <- nd |>
 
 ## Repeat for inactivity
 
-m2 <- lmer(inactive_n ~ weekday + accel_daylight_savings_crossover + (1 | eid), data = d3)
+m2 <- lmer(
+  inactive_n ~ weekday + accel_daylight_savings_crossover + (1 | eid),
+  data = d3
+)
 
 summary(m2)
 
@@ -366,7 +406,10 @@ nd2 <- nd2 |>
 
 ## Repeat for light activity
 
-m3 <- lmer(light_n ~ weekday + accel_daylight_savings_crossover + (1 | eid), data = d3)
+m3 <- lmer(
+  light_n ~ weekday + accel_daylight_savings_crossover + (1 | eid),
+  data = d3
+)
 
 summary(m3)
 
@@ -386,7 +429,10 @@ nd3 <- nd3 |>
 
 ## Repeat for MVPA
 
-m4 <- lmer(mvpa_n ~ weekday + accel_daylight_savings_crossover + (1 | eid), data = d3)
+m4 <- lmer(
+  mvpa_n ~ weekday + accel_daylight_savings_crossover + (1 | eid),
+  data = d3
+)
 
 summary(m4)
 
@@ -414,11 +460,11 @@ d2 <- left_join(d2, nd, by = "eid")
 
 # remove those with fewer than 2 sleep values
 
-d2 <- d2 |> filter(!is.na(avg_sleep)) # 89545
+d2 <- d2 |> filter(!is.na(avg_sleep))
 
 ## remove exclusionary neurological conditions
 
-d2 <- d2 |> filter(neurological_exclude_bl == 0) # 88660
+d2 <- d2 |> filter(neurological_exclude_bl == 0)
 
 ### Calculate time to dementia
 
@@ -432,7 +478,10 @@ d2 <- d2 |> left_join(date, by = "eid")
 
 d2 <-
   d2 |>
-  mutate(calendar_date = lubridate::parse_date_time(calendar_date, orders = "ymd"))
+  mutate(calendar_date = lubridate::parse_date_time(
+    calendar_date,
+    orders = "ymd"
+  ))
 
 # Date of first dementia diagnosis
 
@@ -487,9 +536,8 @@ d2 <- d2 |>
 
 ## remove those with prevalent dementia
 
-d2 <- d2 |> filter(time_to_dem > 0) ## 88654
+d2 <- d2 |> filter(time_to_dem > 0)
 
 #### Save created dataset ####
 
 write_csv(d2, file.path(data_dir, "24hr_behaviours_25_03_24.csv"))
-

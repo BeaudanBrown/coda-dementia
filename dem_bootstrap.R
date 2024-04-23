@@ -10,7 +10,7 @@ run_primary_bootstrap <- function(boot_data) {
     boot_data = boot_data,
     create_formula_fn = get_primary_formula,
     output_name = "boot_primary",
-    empirical = T
+    empirical = TRUE
   )
 }
 
@@ -48,7 +48,7 @@ run_s3_bootstrap <- function(boot_data) {
 # timegroup target, outputting to a file
 run_bootstrap <-
   function(boot_data, create_formula_fn,
-           output_name, empirical = T) {
+           output_name, empirical = TRUE) {
     # Matrix of variables to include in imputation model
     predmat <- quickpred(boot_data,
       mincor = 0,
@@ -105,39 +105,11 @@ bootstrap_substitutions_fn <- function(
     predmat,
     short_sleep_geo_mean,
     avg_sleep_geo_mean,
-    empirical = T) {
+    empirical = TRUE) {
   this_sample <- data[indices, ]
 
   print("Imputing")
   print(format(Sys.time(), "%H:%M:%S"))
-  if (isFALSE(empirical)) {
-    # shift covariates to match mean (continuous vars) or
-    # probability (categorical vars)
-    # of Schoeler et al pseudo-pop (see paper)
-    this_sample <-
-      this_sample %>%
-      mutate(
-             sex = sample(
-                          c("female", "male"), n(),
-                          replace = TRUE,
-                          prob = c(0.504, 0.496)
-                          ),
-             retired = rbinom(n(), 1, prob = 0.193),
-             avg_total_household_income = sample(
-                                                 c("<18", "18-30", "31-50", "52-100", ">100"), n(),
-                                                 replace = TRUE,
-                                                 prob = c(0.264, 0.141, 0.205, 0.145, 0.245)
-                                                 ),
-             smok_status = sample(
-                                  c("current", "former", "never"), n(),
-                                  replace = TRUE,
-                                  prob = c(0.208, 0.359, 0.433)
-             )
-      )
-  }
-
-
-
 
   imp <- mice(this_sample,
     m = 1,
@@ -169,6 +141,32 @@ bootstrap_substitutions_fn <- function(
 
   median_age_of_dem_timegroup <-
     which(timegroup_cuts > median_age_of_dem)[1] - 1
+
+  if (isFALSE(empirical)) {
+    # shift covariates to match mean (continuous vars) or
+    # probability (categorical vars)
+    # of Schoeler et al pseudo-pop (see paper)
+    imp <-
+      imp %>%
+      mutate(
+        sex = sample(
+          c("female", "male"), n(),
+          replace = TRUE,
+          prob = c(0.504, 0.496)
+        ),
+        retired = rbinom(n(), 1, prob = 0.193),
+        avg_total_household_income = sample(
+          c("<18", "18-30", "31-50", "52-100", ">100"), n(),
+          replace = TRUE,
+          prob = c(0.264, 0.141, 0.205, 0.145, 0.245)
+        ),
+        smok_status = sample(
+          c("current", "former", "never"), n(),
+          replace = TRUE,
+          prob = c(0.208, 0.359, 0.433)
+        )
+      )
+  }
 
   # data for g-computation/standardisation
   imp <- imp[rep(seq_len(imp_len), each = median_age_of_dem_timegroup)]
@@ -265,8 +263,11 @@ process_boot_output <- function(rds_path) {
     )) |>
     mutate(Substitution = str_remove(Substitution, "_short_sleep_geo_mean")) |>
     mutate(Substitution = str_remove(Substitution, "_avg_sleep_geo_mean")) |>
-    mutate(Substitution = ifelse(Substitution == "avg_inactivity", "Inactivity",
-      ifelse(Substitution == "avg_light", "Light activity", "MVPA")
+    mutate(Substitution = ifelse(
+      Substitution == "avg_inactivity", "Inactivity",
+      ifelse(
+        Substitution == "avg_light", "Light activity", "MVPA"
+      )
     ))
 
   get_quantiles <- function(start, substitution, reference) {
@@ -339,8 +340,9 @@ process_boot_output <- function(rds_path) {
       )
 
     plot_data2 <-
-      plot_data[plot_data$Substitution == sub &
-        plot_data$Reference == refcomp, ]
+      plot_data[
+        plot_data$Substitution == sub & plot_data$Reference == refcomp,
+      ]
 
 
     plot_data2 |>
@@ -516,3 +518,19 @@ process_boot_output <- function(rds_path) {
 # #
 # ## Sensitivity 2
 #
+# plot <- process_boot_output("boot_s2_final.rds")[[1]]
+
+# ggsave(
+#   file.path(
+#     data_dir,
+#     "../../Papers/Substitution Analysis/Appendix_figures/Sensitivity_2_test.png"
+#   ),
+#   plot,
+#   device = "png",
+#   bg = "white",
+#   width = 10,
+#   height = 12
+# )
+
+# process_boot_output("boot_s2_final.rds")[[2]] |>
+#   filter(offset == 60)

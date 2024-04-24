@@ -25,9 +25,16 @@ mri_df <- mri_df |>
   ) / 365) + age_accel)
 
 # create datadist
-options(datadist = datadist(mri_model_data))
+options(datadist = datadist(mri_df))
 
 ## function for bootstrapping substitution effects
+
+make_ilr <- function(comp) {
+  return(ilr(acomp(comp), V = v))
+}
+
+best_and_worst <- get_best_and_worst_comp(boot_df)
+best_and_worst <- as.data.frame(apply(best_and_worst, 2, make_ilr))
 
 run_mri_subs_bootstrap <- function(
     boot_data, comp_df, create_formula_fn, output_name) {
@@ -35,6 +42,7 @@ run_mri_subs_bootstrap <- function(
   predmat <- quickpred(boot_data,
     mincor = 0,
     exclude = c(
+      "eid",
       "calendar_date",
       "avg_sleep",
       "avg_inactivity",
@@ -61,7 +69,6 @@ run_mri_subs_bootstrap <- function(
     statistic = bootstrap_mri_subs_fn,
     create_formula_fn = create_formula_fn,
     predmat = predmat,
-    imp_methods = imp_methods,
     short_sleep_geo_mean = short_sleep_geo_mean,
     avg_sleep_geo_mean = avg_sleep_geo_mean,
     R = bootstrap_iterations,
@@ -80,6 +87,7 @@ run_mri_bootstrap <- function(boot_data, create_formula_fn, output_name) {
   predmat <- quickpred(boot_data,
     mincor = 0,
     exclude = c(
+      "eid",
       "calendar_date",
       "avg_sleep",
       "avg_inactivity",
@@ -88,21 +96,11 @@ run_mri_bootstrap <- function(boot_data, create_formula_fn, output_name) {
     )
   )
 
-  make_ilr <- function(comp) {
-    return(ilr(acomp(comp), V = v))
-  }
-
-  print("Calculating best and worst")
-  print(format(Sys.time(), "%H:%M:%S"))
-  best_and_worst <- get_best_and_worst_comp()
-  best_and_worst <- as.data.frame(apply(best_and_worst, 2, make_ilr))
-
   result <- boot(
     data = boot_data,
     statistic = bootstrap_mri_fn,
     create_formula_fn = create_formula_fn,
     predmat = predmat,
-    imp_methods = imp_methods,
     best_and_worst = best_and_worst,
     R = bootstrap_iterations,
     parallel = "multicore",
@@ -120,13 +118,12 @@ bootstrap_mri_fn <- function(
     indices,
     create_formula_fn,
     predmat,
-    imp_methods,
     best_and_worst) {
   this_sample <- data[indices, ]
 
   imp <- mice(
     this_sample,
-    m = 1, maxit = 1, predictorMatrix = predmat, methods = imp_methods
+    m = 1, maxit = maxit, predictorMatrix = predmat
   )
   imp <- complete(imp)
 
@@ -140,14 +137,13 @@ bootstrap_mri_subs_fn <- function(
     indices,
     create_formula_fn,
     predmat,
-    imp_methods,
     short_sleep_geo_mean,
     avg_sleep_geo_mean) {
   this_sample <- data[indices, ]
 
   imp <- mice(
     this_sample,
-    m = 1, maxit = 1, predictorMatrix = predmat, methods = imp_methods
+    m = 1, maxit = maxit, predictorMatrix = predmat
   )
   imp <- complete(imp)
 
@@ -222,13 +218,6 @@ process_boot_output <- function(directory, rds_path) {
   return(list(plot_data, boot_reps))
 }
 
-# run_mri_bootstrap(
-#   boot_data = mri_model_data,
-#   create_formula_fn = get_mri_formula,
-#   output_name = "boot_mri"
-# )
-
-# result_list <- process_boot_output(data_dir, "boot_mri.rds")
 
 ### Plot
 
@@ -380,7 +369,7 @@ get_contrasts <- function(pheno) {
 }
 
 process_boot_subs_output <- function(directory, rds_path) {
-  data <- readRDS(file.path(data_dir, "boot_mri_subs.rds"))
+  data <- readRDS(file.path(directory, rds_path))
 
   # tidy bootstrap output
 

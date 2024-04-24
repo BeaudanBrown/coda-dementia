@@ -169,28 +169,19 @@ predict_mri_outcome <- function(outcome_var, model_data, best_and_worst) {
   model_formula <- get_mri_formula(outcome_var, model_data)
 
   model <- ols(model_formula, data = model_data)
-  print(summary(model))
 
-  # Update the local copy with 'best' values and predict outcomes
-  model_data[, "R1"] <- best_and_worst$best[[1]]
-  model_data[, "R2"] <- best_and_worst$best[[2]]
-  model_data[, "R3"] <- best_and_worst$best[[3]]
-  predictions_best <- predict(model, newdata = model_data)
-  best <- mean(predictions_best)
+  do_prediction <- function(data, comp) {
+    data[, "R1"] <- comp[[1]]
+    data[, "R2"] <- comp[[2]]
+    data[, "R3"] <- comp[[3]]
+    predictions <- predict(model, newdata = data)
+    mean_pred <- mean(predictions)
+    return(mean_pred)
+  }
 
-  # Update the local copy with 'worst' values and predict outcomes
-  model_data[, "R1"] <- best_and_worst$worst[[1]]
-  model_data[, "R2"] <- best_and_worst$worst[[2]]
-  model_data[, "R3"] <- best_and_worst$worst[[3]]
-  predictions_worst <- predict(model, newdata = model_data)
-  worst <- mean(predictions_worst)
-
-  # Update the local copy with 'most_common' values and predict outcomes
-  model_data[, "R1"] <- best_and_worst$most_common[[1]]
-  model_data[, "R2"] <- best_and_worst$most_common[[2]]
-  model_data[, "R3"] <- best_and_worst$most_common[[3]]
-  predictions_common <- predict(model, newdata = model_data)
-  common <- mean(predictions_common)
+  best <- do_prediction(model_data, best_and_worst$best)
+  worst <- do_prediction(model_data, best_and_worst$worst)
+  common <- do_prediction(model_data, best_and_worst$most_common)
 
   return(data.frame(
     value = c(worst, common, best)

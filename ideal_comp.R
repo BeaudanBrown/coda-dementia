@@ -5,7 +5,9 @@ list_of_packages <- c(
   "mvtnorm"
 )
 
-new_packages <- list_of_packages[!(list_of_packages %in% installed.packages()[, "Package"])]
+new_packages <- list_of_packages[
+  !(list_of_packages %in% installed.packages()[, "Package"])
+]
 
 if (length(new_packages)) install.packages(new_packages)
 
@@ -38,7 +40,9 @@ generate_compositions <- function(lower, upper) {
 }
 
 generate_hazards <- function(comps, model, ref_row) {
-  ilrs <- t(apply(comps[, c(1, 2, 3, 4)], 1, function(comp) ilr(acomp(comp), V = v)))
+  ilrs <- t(apply(
+    comps[, c(1, 2, 3, 4)], 1, function(comp) ilr(acomp(comp), V = v)
+  ))
 
   # Convert contrasts into a data frame
   risks <- apply(ilrs, 1, function(new_ilr) {
@@ -48,7 +52,7 @@ generate_hazards <- function(comps, model, ref_row) {
   return(risks)
 }
 
-get_best_and_worst_comp <- function(df) {
+get_best_and_worst_comp <- function(df, timegroup_cuts) {
   ## Load data
   predmat <- quickpred(df,
     mincor = 0,
@@ -60,11 +64,19 @@ get_best_and_worst_comp <- function(df) {
   dem_df <- mice(df, m = 1, predictorMatrix = predmat, maxit = maxit)
   dem_df <- complete(dem_df)
 
-  dem_comp_df <- as.data.frame(acomp(dem_df[, c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa")]))
+  dem_comp_df <- as.data.frame(acomp(
+    dem_df[, c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa")]
+  ))
   dem_comp_model <-
-    lm(cbind(dem_comp_df$avg_sleep, dem_comp_df$avg_inactivity, dem_comp_df$avg_light) ~ 1, data = dem_comp_df)
+    lm(cbind(
+      dem_comp_df$avg_sleep, dem_comp_df$avg_inactivity,
+      dem_comp_df$avg_light
+    ) ~ 1, data = dem_comp_df)
   vcv_mat <- vcov(dem_comp_model)
-  dem_comp_df$dens <- apply(dem_comp_df[, -4], 1, dmvnorm, mean = coef(dem_comp_model), sigma = vcv_mat, log = TRUE)
+  dem_comp_df$dens <- apply(
+    dem_comp_df[, -4], 1, dmvnorm,
+    mean = coef(dem_comp_model), sigma = vcv_mat, log = TRUE
+  )
   sorted_df <- dem_comp_df[order(dem_comp_df$dens, decreasing = TRUE), ]
   sorted_df[, 1:4] <- sorted_df[, 1:4] * 24
   most_common_comp <- acomp(sorted_df[1, 1:4])
@@ -85,11 +97,15 @@ get_best_and_worst_comp <- function(df) {
   generated_comps <- generate_compositions(lower, upper)
   generated_comps <- generated_comps / mins_in_day
   generated_comps$dens <-
-    apply(generated_comps[, -c(4, 5)], 1, dmvnorm, mean = coef(dem_comp_model), sigma = vcv_mat, log = TRUE)
+    apply(generated_comps[, -c(4, 5)], 1, dmvnorm,
+      mean = coef(dem_comp_model), sigma = vcv_mat, log = TRUE
+    )
   generated_comps <- generated_comps[generated_comps$dens > threshold, ]
 
   # fit model
-  dem_model <- fit_model(dem_df, get_primary_formula)[["model_dem"]]
+  dem_model <- fit_model(
+    dem_df, timegroup_cuts, get_primary_formula
+  )[["model_dem"]]
   ref_row <- as.data.frame(dem_df[1, ])
   ref_row$timegroup <- 55
 

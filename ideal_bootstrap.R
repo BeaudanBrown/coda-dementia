@@ -2,9 +2,7 @@ source("ideal_comp.R")
 source("utils.R")
 
 ## Load data
-boot_data <- read_rds(file.path(data_dir, "bootstrap_data.rds"))
-
-best_and_worst <- get_best_and_worst_comp(boot_data)
+boot_data <- read_rds(file.path(data_dir, "bootstrap_data_26_04_24.rds"))
 
 run_cum_bootstrap <- function(data, output_name) {
   # Matrix of variables to include in imputation model
@@ -21,6 +19,15 @@ run_cum_bootstrap <- function(data, output_name) {
   age_range <- max_age_of_dem - min_age_of_dem
   num_timegroups <- ceiling(age_range * 2)
 
+  timegroup_cuts <-
+    seq(
+      from = min_age_of_dem,
+      to = max_age_of_dem,
+      length.out = num_timegroups
+    )
+
+  best_and_worst <- get_best_and_worst_comp(boot_data, timegroup_cuts)
+
   result <- boot(
     data = boot_data,
     statistic = bootstrap_ideal_fn,
@@ -29,7 +36,6 @@ run_cum_bootstrap <- function(data, output_name) {
     predmat = predmat,
     num_timegroups = num_timegroups,
     R = bootstrap_iterations,
-    parallel = "multicore",
     ncpus = ncpus
   )
 
@@ -69,8 +75,8 @@ bootstrap_ideal_fn <- function(
   worst_ilr <- ilr(acomp(best_and_worst$worst), V = v)
   common_ilr <- ilr(acomp(best_and_worst$most_common), V = v)
 
-  calculate_risk <- function(risk_data, ilr_values, risk_name) {
-    newx <- model.matrix(create_formula_fn(risk_data), risk_data)
+  calculate_risk <- function(model_formula, risk_data, ilr_values, risk_name) {
+    newx <- model.matrix(model_formula, risk_data)
 
     newx[, "R1"] <- ilr_values[[1]]
     newx[, "I(R1^2)"] <- ilr_values[[1]]^2
@@ -99,13 +105,16 @@ bootstrap_ideal_fn <- function(
   }
 
   best_risk <- calculate_risk(
-    imp, list(best_ilr[1], best_ilr[2], best_ilr[3]), "best"
+    models[["model_formula"]], imp,
+    ist(best_ilr[1], best_ilr[2], best_ilr[3]), "best"
   )
   worst_risk <- calculate_risk(
-    imp, list(worst_ilr[1], worst_ilr[2], worst_ilr[3]), "worst"
+    models[["model_formula"]], imp,
+    list(worst_ilr[1], worst_ilr[2], worst_ilr[3]), "worst"
   )
   common_risk <- calculate_risk(
-    imp, list(common_ilr[1], common_ilr[2], common_ilr[3]), "common"
+    models[["model_formula"]], imp,
+    list(common_ilr[1], common_ilr[2], common_ilr[3]), "common"
   )
 
   print("Returning results")

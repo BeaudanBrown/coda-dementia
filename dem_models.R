@@ -39,9 +39,7 @@ get_primary_formula <- function(data, outcome) {
     apoe_e4 +
     highest_qual +
     rcs(townsend_deprivation_index, knots_deprivation) +
-    antidepressant_med +
-    antipsychotic_med +
-    insomnia_med +
+    psych_meds +
     ethnicity +
     avg_total_household_income +
     smok_status)
@@ -159,14 +157,10 @@ get_s3_formula <- function(data, outcome) {
   }
 }
 
-fit_model <- function(imp, create_formula_fn) {
+fit_model <- function(imp, timegroup_cuts, create_formula_fn) {
   imp_long <- survSplit(Surv(time = age_accel, event = dem, time2 = age_dem) ~ .,
     data = imp,
-    cut = seq(
-      from = min(imp$age_dem),
-      to = max(imp$age_dem),
-      length.out = round((max(imp$age_dem) - min(imp$age_dem)) * 2)
-    ),
+    cut = timegroup_cuts,
     episode = "timegroup", end = "age_end", event = "dem",
     start = "age_start"
   )
@@ -191,22 +185,21 @@ fit_model <- function(imp, create_formula_fn) {
   ))
 }
 
-predict_composition_risk <-
-  function(composition, stacked_data_table, model_dem, model_death, timegroup) {
-    ilr <- ilr(composition, V = v)
+predict_composition_risk <- function(composition, stacked_data_table, model_dem, model_death, timegroup) {
+  ilr <- ilr(composition, V = v)
 
-    stacked_data_table[, c("R1", "R2", "R3") := list(ilr[1], ilr[2], ilr[3])]
+  stacked_data_table[, c("R1", "R2", "R3") := list(ilr[1], ilr[2], ilr[3])]
 
-    stacked_data_table[, haz_dem := predict(model_dem, newdata = .SD, type = "response")]
-    stacked_data_table[, haz_death := predict(model_death, newdata = .SD, type = "response")]
+  stacked_data_table[, haz_dem := predict(model_dem, newdata = .SD, type = "response")]
+  stacked_data_table[, haz_death := predict(model_death, newdata = .SD, type = "response")]
 
-    setkey(stacked_data_table, id, timegroup) # sort and set keys for efficient grouping and joining
-    stacked_data_table[, risk := cumsum(haz_dem * cumprod((1 - lag(haz_dem, default = 0)) * (1 - haz_death))), by = id]
+  setkey(stacked_data_table, id, timegroup) # sort and set keys for efficient grouping and joining
+  stacked_data_table[, risk := cumsum(haz_dem * cumprod((1 - lag(haz_dem, default = 0)) * (1 - haz_death))), by = id]
 
-    risk <- stacked_data_table[timegroup == timegroup, .(mean = mean(risk))]
+  risk <- stacked_data_table[timegroup == timegroup, .(mean = mean(risk))]
 
-    return(risk)
-  }
+  return(risk)
+}
 
 calc_substitution <- function(base_comp, imp_stacked_dt, model_dem, model_death, substitution, timegroup) {
   # The list of substitutions to be calculated in minutes

@@ -122,21 +122,10 @@ summary(d$highest_qual)
 
 d <- d |> select(-starts_with("qualification"))
 
-## antidepressant medication
-
-d$antidepressant_med <- as.factor(d$antidepressant_med)
-
-summary(d$antidepressant_med)
-
-## antipsychotic medication
-
-d$antipsychotic_med <- as.factor(d$antipsychotic_med)
-
-summary(d$antipsychotic_med)
-
-## sleep medication
-
-d$insomnia_med <- as.factor(d$insomnia_med)
+d$antidepressant_med <- as.numeric(d$antidepressant_med)
+d$antipsychotic_med <- as.numeric(d$antipsychotic_med)
+d$insomnia_med <- as.numeric(d$insomnia_med)
+d$psych_meds <- with(d, as.factor((antidepressant_med == 1 | antipsychotic_med == 1 | insomnia_med == 1) * 1))
 
 summary(d$insomnia_med)
 
@@ -154,20 +143,20 @@ d$ethnicity <- fct_recode(d$ethnicity,
   "white" = "2001",
   "white" = "3001",
   "white" = "4001",
-  "mixed" = "2",
-  "mixed" = "1002",
-  "mixed" = "2002",
-  "mixed" = "3002",
-  "mixed" = "4002",
-  "asian" = "3",
-  "asian" = "1003",
-  "asian" = "2003",
-  "asian" = "3003",
-  "black" = "4",
-  "black" = "2004",
-  "black" = "3004",
-  "black" = "4003",
-  "asian" = "5",
+  "other" = "2",
+  "other" = "1002",
+  "other" = "2002",
+  "other" = "3002",
+  "other" = "4002",
+  "other" = "3",
+  "other" = "1003",
+  "other" = "2003",
+  "other" = "3003",
+  "other" = "4",
+  "other" = "2004",
+  "other" = "3004",
+  "other" = "4003",
+  "other" = "5",
   "other" = "6"
 )
 
@@ -540,4 +529,4 @@ d2 <- d2 |> filter(time_to_dem > 0)
 
 #### Save created dataset ####
 
-write_csv(d2, file.path(data_dir, "24hr_behaviours_25_03_24.csv"))
+write_csv(d2, file.path(data_dir, "24hr_behaviours_26_04_24.csv"))

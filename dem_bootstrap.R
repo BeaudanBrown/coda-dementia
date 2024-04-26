@@ -7,7 +7,7 @@ boot_data <- read_rds(file.path(data_dir, "bootstrap_data.rds"))
 # Run bootstrap for primary model
 run_primary_bootstrap <- function(boot_data) {
   run_bootstrap(
-    boot_data = boot_data,
+    data = boot_data,
     create_formula_fn = get_primary_formula,
     output_name = "boot_primary",
     empirical = TRUE
@@ -47,10 +47,10 @@ run_s3_bootstrap <- function(boot_data) {
 # Run bootstrap for a particular model formula and
 # timegroup target, outputting to a file
 run_bootstrap <-
-  function(boot_data, create_formula_fn,
+  function(data, create_formula_fn,
            output_name, empirical = TRUE) {
     # Matrix of variables to include in imputation model
-    predmat <- quickpred(boot_data,
+    predmat <- quickpred(data,
       mincor = 0,
       exclude = c(
         "avg_sleep", "avg_inactivity", "avg_light",
@@ -61,7 +61,7 @@ run_bootstrap <-
 
     ## reference compositions
     all_comp <-
-      acomp(boot_data[
+      acomp(data[
         ,
         c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa")
       ])
@@ -76,12 +76,30 @@ run_bootstrap <-
     avg_sleep_geo_mean <-
       acomp(apply(avg_sleep_comp, 2, function(x) exp(mean(log(x)))))
 
+    min_age_of_dem <- min(data$age_dem)
+    max_age_of_dem <- max(data$age_dem)
+    age_range <- max_age_of_dem - min_age_of_dem
+    timegroup_steps <- ceiling(age_range * 2)
+    median_age_of_dem <- median(data[data$dem == 1, ]$age_dem)
+
+    timegroup_cuts <-
+      seq(
+        from = min_age_of_dem,
+        to = max_age_of_dem,
+        length.out = timegroup_steps
+      )
+
+    median_age_of_dem_timegroup <-
+      which(timegroup_cuts > median_age_of_dem)[1] - 1
+
     result <- boot(
-      data = boot_data,
+      data = data,
       statistic = bootstrap_substitutions_fn,
       create_formula_fn = create_formula_fn,
       predmat = predmat,
       empirical = empirical,
+      timegroup_cuts = timegroup_cuts,
+      median_age_of_dem = median_age_of_dem,
       short_sleep_geo_mean = short_sleep_geo_mean,
       avg_sleep_geo_mean = avg_sleep_geo_mean,
       R = bootstrap_iterations,
@@ -103,6 +121,8 @@ bootstrap_substitutions_fn <- function(
     indices,
     create_formula_fn,
     predmat,
+    timegroup_cuts,
+    median_age_of_dem_timegroup,
     short_sleep_geo_mean,
     avg_sleep_geo_mean,
     empirical = TRUE) {
@@ -124,23 +144,7 @@ bootstrap_substitutions_fn <- function(
   print("Fitting model")
   print(format(Sys.time(), "%H:%M:%S"))
   print(gc())
-  models <- fit_model(imp, create_formula_fn)
-
-  min_age_of_dem <- min(boot_data$age_dem)
-  max_age_of_dem <- max(boot_data$age_dem)
-  age_range <- max_age_of_dem - min_age_of_dem
-  timegroup_steps <- ceiling(age_range * 2)
-  median_age_of_dem <- median(boot_data[boot_data$dem == 1, ]$age_dem)
-
-  timegroup_cuts <-
-    seq(
-      from = min_age_of_dem,
-      to = max_age_of_dem,
-      length.out = timegroup_steps
-    )
-
-  median_age_of_dem_timegroup <-
-    which(timegroup_cuts > median_age_of_dem)[1] - 1
+  models <- fit_model(imp, timegroup_cuts, create_formula_fn)
 
   if (isFALSE(empirical)) {
     # shift covariates to match mean (continuous vars) or
@@ -172,8 +176,9 @@ bootstrap_substitutions_fn <- function(
   imp <- imp[rep(seq_len(imp_len), each = median_age_of_dem_timegroup)]
   imp[, timegroup := rep(1:median_age_of_dem_timegroup, imp_len)]
 
-  print("Generating predictions")
+  print("short_sleep_inactive")
   print(format(Sys.time(), "%H:%M:%S"))
+  print(gc())
   short_sleep_inactive <-
     calc_substitution(short_sleep_geo_mean,
       imp,
@@ -183,6 +188,9 @@ bootstrap_substitutions_fn <- function(
       timegroup = median_age_of_dem_timegroup
     )
 
+  print("short_sleep_light")
+  print(format(Sys.time(), "%H:%M:%S"))
+  print(gc())
   short_sleep_light <-
     calc_substitution(short_sleep_geo_mean,
       imp,
@@ -192,6 +200,9 @@ bootstrap_substitutions_fn <- function(
       timegroup = median_age_of_dem_timegroup
     )
 
+  print("short_sleep_mvpa")
+  print(format(Sys.time(), "%H:%M:%S"))
+  print(gc())
   short_sleep_mvpa <-
     calc_substitution(short_sleep_geo_mean,
       imp,
@@ -201,6 +212,9 @@ bootstrap_substitutions_fn <- function(
       timegroup = median_age_of_dem_timegroup
     )
 
+  print("avg_sleep_inactive")
+  print(format(Sys.time(), "%H:%M:%S"))
+  print(gc())
   avg_sleep_inactive <-
     calc_substitution(avg_sleep_geo_mean,
       imp,
@@ -210,6 +224,9 @@ bootstrap_substitutions_fn <- function(
       timegroup = median_age_of_dem_timegroup
     )
 
+  print("avg_sleep_light")
+  print(format(Sys.time(), "%H:%M:%S"))
+  print(gc())
   avg_sleep_light <-
     calc_substitution(avg_sleep_geo_mean,
       imp,
@@ -219,6 +236,9 @@ bootstrap_substitutions_fn <- function(
       timegroup = median_age_of_dem_timegroup
     )
 
+  print("avg_sleep_mvpa")
+  print(format(Sys.time(), "%H:%M:%S"))
+  print(gc())
   avg_sleep_mvpa <-
     calc_substitution(avg_sleep_geo_mean,
       imp,

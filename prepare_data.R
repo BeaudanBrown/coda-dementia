@@ -11,7 +11,7 @@ library(survival)
 # read main dataset
 
 dem_df <-
-  fread(file.path(data_dir, "24hr_behaviours_25_03_24.csv"),
+  fread(file.path(data_dir, "24hr_behaviours_26_04_24.csv"),
     stringsAsFactors = TRUE
   ) |>
   as_tibble()
@@ -250,9 +250,7 @@ dem_model_data <- select(
   shift,
   townsend_deprivation_index,
   sex,
-  antidepressant_med,
-  antipsychotic_med,
-  insomnia_med,
+  psych_meds,
   ethnicity,
   avg_total_household_income,
   bp_med,
@@ -283,4 +281,4 @@ dem_model_data <- select(
 
 ## Output RDS file ##
 
-write_rds(dem_model_data, file.path(data_dir, "bootstrap_data_04_04_24.rds"))
+write_rds(dem_model_data, file.path(data_dir, "bootstrap_data_26_04_24.rds"))

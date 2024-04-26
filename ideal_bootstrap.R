@@ -39,13 +39,12 @@ run_cum_bootstrap <- function(data, output_name) {
 }
 
 bootstrap_ideal_fn <- function(
-  data,
-  indices,
-  create_formula_fn,
-  predmat,
-  best_and_worst,
-  num_timegroups
-) {
+    data,
+    indices,
+    create_formula_fn,
+    predmat,
+    best_and_worst,
+    num_timegroups) {
   this_sample <- data[indices, ]
 
   print("Imputing")
@@ -71,18 +70,43 @@ bootstrap_ideal_fn <- function(
   common_ilr <- ilr(acomp(best_and_worst$most_common), V = v)
 
   calculate_risk <- function(risk_data, ilr_values, risk_name) {
-    risk_data[, c("R1", "R2", "R3") := ilr_values]
-    risk_data[, haz_dem := predict(dem_model, newdata = .SD, type = "response")]
-    risk_data[, haz_death := predict(death_model, newdata = .SD, type = "response")]
-    risk_data[, risk := cumsum(haz_dem * cumprod(1 - lag(haz_dem, default = 0) * (1 - haz_death))), by = id]
-    summarised_risk <- risk_data[, .(avg_risk = mean(risk, na.rm = TRUE)), by = .(timegroup)]
+    newx <- model.matrix(create_formula_fn(risk_data), risk_data)
+
+    newx[, "R1"] <- ilr_values[[1]]
+    newx[, "I(R1^2)"] <- ilr_values[[1]]^2
+    newx[, "R2"] <- ilr_values[[2]]
+    newx[, "I(R2^2)"] <- ilr_values[[2]]^2
+    newx[, "R3"] <- ilr_values[[3]]
+    newx[, "I(R3^2)"] <- ilr_values[[3]]^2
+
+    risk_data[, haz_dem := predict(
+      dem_model,
+      newdata = newx, type = "response"
+    )]
+    risk_data[, haz_death := predict(
+      death_model,
+      newdata = newx, type = "response"
+    )]
+    risk_data[, risk := cumsum(
+      haz_dem * cumprod(1 - lag(haz_dem, default = 0) * (1 - haz_death))
+    ), by = id]
+    summarised_risk <- risk_data[
+      , .(avg_risk = mean(risk, na.rm = TRUE)),
+      by = .(timegroup)
+    ]
     setnames(summarised_risk, c("avg_risk"), c(risk_name))
     return(summarised_risk)
   }
 
-  best_risk <- calculate_risk(imp, list(best_ilr[1], best_ilr[2], best_ilr[3]), "best")
-  worst_risk <- calculate_risk(imp, list(worst_ilr[1], worst_ilr[2], worst_ilr[3]), "worst")
-  common_risk <- calculate_risk(imp, list(common_ilr[1], common_ilr[2], common_ilr[3]), "common")
+  best_risk <- calculate_risk(
+    imp, list(best_ilr[1], best_ilr[2], best_ilr[3]), "best"
+  )
+  worst_risk <- calculate_risk(
+    imp, list(worst_ilr[1], worst_ilr[2], worst_ilr[3]), "worst"
+  )
+  common_risk <- calculate_risk(
+    imp, list(common_ilr[1], common_ilr[2], common_ilr[3]), "common"
+  )
 
   print("Returning results")
   print(format(Sys.time(), "%H:%M:%S"))
@@ -124,9 +148,11 @@ process_ideal_output <- function(rds_path) {
   common_quantiles <- get_quantiles(reference_start, "common")
   reference_start <- reference_start + num_timegroups
 
-  all_quantiles <- rbind(best_quantiles,
-                         worst_quantiles,
-                         common_quantiles)
+  all_quantiles <- rbind(
+    best_quantiles,
+    worst_quantiles,
+    common_quantiles
+  )
 
 
   plot_data <- full_join(plot_data, all_quantiles, by = c("timegroup", "Reference"))
@@ -141,14 +167,17 @@ process_ideal_output <- function(rds_path) {
     ggplot(aes(x = age, y = Risk)) +
     geom_line(aes(colour = Composition)) +
     geom_ribbon(aes(ymin = lower, ymax = upper, fill = Composition),
-                alpha = 0.25) +
+      alpha = 0.25
+    ) +
     labs(x = "Age", y = "Cumulative all-cause dementia incidence") +
     cowplot::theme_cowplot() +
-    scale_color_manual(labels = c("Ideal", "Typical", "Worst"),
-                       values = c("#7AC36A", "#56B4E9", "#DC3912")) +
-    scale_fill_manual(labels = c("Ideal", "Typical", "Worst"),
-                      values = c("#7AC36A", "#56B4E9", "#DC3912")) +
+    scale_color_manual(
+      labels = c("Ideal", "Typical", "Worst"),
+      values = c("#7AC36A", "#56B4E9", "#DC3912")
+    ) +
+    scale_fill_manual(
+      labels = c("Ideal", "Typical", "Worst"),
+      values = c("#7AC36A", "#56B4E9", "#DC3912")
+    ) +
     theme(text = element_text(family = "serif"))
 }
-
-

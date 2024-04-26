@@ -186,17 +186,18 @@ fit_model <- function(imp, timegroup_cuts, create_formula_fn) {
   # remove rows after death
   imp_long[, sumdeath := cumsum(death), by = "eid"]
   imp_long <- imp_long[sumdeath < 2, ]
+  model_formula <- create_formula_fn(imp_long)
 
   # predictor and outcome matrices for fastglm
   Xdem <- model.matrix(
-    create_formula_fn(imp_long), imp_long[death == 0, ]
-  )[, -1]
-  Ydem <- as.matrix(imp_long$dem)
+    model_formula, imp_long[death == 0, ]
+  )
+  Ydem <- as.matrix(imp_long[death == 0, ]$dem)
 
   Xdeath <- model.matrix(
-    create_formula_fn(imp_long), imp_long[dem == 0, ]
-  )[, -1]
-  Ydeath <- as.matrix(imp_long$death)
+    model_formula, imp_long[dem == 0, ]
+  )
+  Ydeath <- as.matrix(imp_long[dem == 0, ]$death)
 
   # fit models
   model_dem <- fastglm(
@@ -206,23 +207,21 @@ fit_model <- function(imp, timegroup_cuts, create_formula_fn) {
     x = Xdeath, y = Ydeath, family = binomial, method = 3
   )
 
-  return(list(model_dem = model_dem, model_death = model_death))
+  return(list(model_dem = model_dem, model_death = model_death, model_formula = model_formula))
 }
 
 predict_composition_risk <- function(
-    composition, stacked_data_table, model_dem, model_death, timegroup) {
+    composition, stacked_data_table, model_dem, model_death, model_formula, timegroup) {
   ilr <- ilr(composition, V = v)
 
-  newx <- model.matrix(
-    create_formula_fn(stacked_data_table), stacked_data_table
-  )
+  newx <- model.matrix(model_formula, stacked_data_table)
 
-  newx[, "R1"] <- ilr_values[1]
-  newx[, "I(R1^2)"] <- ilr_values[1]^2
-  newx[, "R2"] <- ilr_values[2]
-  newx[, "I(R2^2)"] <- ilr_values[2]^2
-  newx[, "R3"] <- ilr_values[3]
-  newx[, "I(R3^2)"] <- ilr_values[3]^2
+  newx[, "R1"] <- ilr[1]
+  newx[, "I(R1^2)"] <- ilr[1]^2
+  newx[, "R2"] <- ilr[2]
+  newx[, "I(R2^2)"] <- ilr[2]^2
+  newx[, "R3"] <- ilr[3]
+  newx[, "I(R3^2)"] <- ilr[3]^2
 
   stacked_data_table[, haz_dem := predict(
     model_dem,
@@ -243,7 +242,8 @@ predict_composition_risk <- function(
   return(risk)
 }
 
-calc_substitution <- function(base_comp, imp_stacked_dt, model_dem, model_death, substitution, timegroup) {
+calc_substitution <-
+  function(base_comp, imp_stacked_dt, model_dem, model_death, model_formula, substitution, timegroup) {
   # The list of substitutions to be calculated in minutes
   inc <- -sub_steps:sub_steps * (sub_step_mins / mins_in_day)
 
@@ -276,6 +276,7 @@ calc_substitution <- function(base_comp, imp_stacked_dt, model_dem, model_death,
           imp_stacked_dt,
           model_dem,
           model_death,
+          model_formula,
           timegroup
         )
       }

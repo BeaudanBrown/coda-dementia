@@ -1,7 +1,7 @@
 source("dem_models.R")
 
 ## Load data
-boot_data <- read_rds(file.path(data_dir, "bootstrap_data.rds"))
+boot_data <- read_rds(file.path(data_dir, "bootstrap_data_26_04_24.rds"))
 
 
 # Run bootstrap for primary model
@@ -184,6 +184,7 @@ bootstrap_substitutions_fn <- function(
       imp,
       models[["model_dem"]],
       models[["model_death"]],
+      models[["model_formula"]],
       c("avg_sleep", "avg_inactivity"),
       timegroup = median_age_of_dem_timegroup
     )
@@ -196,6 +197,7 @@ bootstrap_substitutions_fn <- function(
       imp,
       models[["model_dem"]],
       models[["model_death"]],
+      models[["model_formula"]],
       c("avg_sleep", "avg_light"),
       timegroup = median_age_of_dem_timegroup
     )
@@ -208,6 +210,7 @@ bootstrap_substitutions_fn <- function(
       imp,
       models[["model_dem"]],
       models[["model_death"]],
+      models[["model_formula"]],
       c("avg_sleep", "avg_mvpa"),
       timegroup = median_age_of_dem_timegroup
     )
@@ -220,6 +223,7 @@ bootstrap_substitutions_fn <- function(
       imp,
       models[["model_dem"]],
       models[["model_death"]],
+      models[["model_formula"]],
       c("avg_sleep", "avg_inactivity"),
       timegroup = median_age_of_dem_timegroup
     )
@@ -232,6 +236,7 @@ bootstrap_substitutions_fn <- function(
       imp,
       models[["model_dem"]],
       models[["model_death"]],
+      models[["model_formula"]],
       c("avg_sleep", "avg_light"),
       timegroup = median_age_of_dem_timegroup
     )
@@ -244,6 +249,7 @@ bootstrap_substitutions_fn <- function(
       imp,
       models[["model_dem"]],
       models[["model_death"]],
+      models[["model_formula"]],
       c("avg_sleep", "avg_mvpa"),
       timegroup = median_age_of_dem_timegroup
     )

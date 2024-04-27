@@ -1,5 +1,7 @@
 library(compositions)
 
+boot_data_file <- file.path(data_dir, "bootstrap_data_26_04_24.rds")
+
 # Load environment variables from the .env file
 dotenv::load_dot_env()
 data_dir <- Sys.getenv("DATA_DIR")

@@ -1,13 +1,9 @@
 source("dem_models.R")
 
-## Load data
-boot_data <- read_rds(file.path(data_dir, "bootstrap_data_26_04_24.rds"))
-
-
 # Run bootstrap for primary model
-run_primary_bootstrap <- function(boot_data) {
+run_primary_bootstrap <- function() {
   run_bootstrap(
-    data = boot_data,
+    data = read_rds(boot_data_file),
     create_formula_fn = get_primary_formula,
     output_name = "boot_primary",
     empirical = TRUE
@@ -15,18 +11,18 @@ run_primary_bootstrap <- function(boot_data) {
 }
 
 # Run bootstrap for sensitivity analysis model 1
-run_s1_bootstrap <- function(boot_data) {
+run_s1_bootstrap <- function() {
   run_bootstrap(
-    boot_data = boot_data,
+    data = read_rds(boot_data_file),
     create_formula_fn = get_s1_formula,
     output_name = "boot_s1"
   )
 }
 
 # Run bootstrap for sensitivity analysis model 2
-run_s2_bootstrap <- function(boot_data) {
+run_s2_bootstrap <- function() {
   run_bootstrap(
-    boot_data = boot_data,
+    data = read_rds(boot_data_file),
     create_formula_fn = get_s2_formula,
     output_name = "boot_s2"
   )
@@ -35,9 +31,9 @@ run_s2_bootstrap <- function(boot_data) {
 ## Run bootstrap for sensitivity analysis model 3
 # standardising to pseudo pop of Schoeler et al.
 
-run_s3_bootstrap <- function(boot_data) {
+run_s3_bootstrap <- function() {
   run_bootstrap(
-    boot_data = boot_data,
+    data = read_rds(boot_data_file),
     create_formula_fn = get_s3_formula,
     output_name = "boot_s3",
     empirical = F

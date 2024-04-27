@@ -1,10 +1,8 @@
 source("ideal_comp.R")
 source("utils.R")
 
-## Load data
-boot_data <- read_rds(file.path(data_dir, "bootstrap_data_26_04_24.rds"))
-
-run_cum_bootstrap <- function(data, output_name) {
+run_cum_bootstrap <- function(output_name) {
+  data <- read_rds(boot_data_file)
   # Matrix of variables to include in imputation model
   predmat <- quickpred(data,
     mincor = 0,

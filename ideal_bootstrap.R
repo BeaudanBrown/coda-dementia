@@ -33,9 +33,11 @@ run_cum_bootstrap <- function(data, output_name) {
     statistic = bootstrap_ideal_fn,
     create_formula_fn = get_primary_formula,
     best_and_worst = best_and_worst,
+    timegroup_cuts = timegroup_cuts,
     predmat = predmat,
     num_timegroups = num_timegroups,
     R = bootstrap_iterations,
+    parallel = "multicore",
     ncpus = ncpus
   )
 
@@ -50,6 +52,7 @@ bootstrap_ideal_fn <- function(
     create_formula_fn,
     predmat,
     best_and_worst,
+    timegroup_cuts,
     num_timegroups) {
   this_sample <- data[indices, ]
 
@@ -64,7 +67,7 @@ bootstrap_ideal_fn <- function(
   print("Fitting model")
   print(format(Sys.time(), "%H:%M:%S"))
   print(gc())
-  models <- fit_model(imp, create_formula_fn)
+  models <- fit_model(imp, timegroup_cuts, create_formula_fn)
   dem_model <- models[["model_dem"]]
   death_model <- models[["model_death"]]
 
@@ -104,21 +107,26 @@ bootstrap_ideal_fn <- function(
     return(summarised_risk)
   }
 
+  print(paste(format(Sys.time(), "%H:%M:%S"), "Calculating best risk"))
+  print(gc())
   best_risk <- calculate_risk(
     models[["model_formula"]], imp,
-    ist(best_ilr[1], best_ilr[2], best_ilr[3]), "best"
+    list(best_ilr[1], best_ilr[2], best_ilr[3]), "best"
   )
+  print(paste(format(Sys.time(), "%H:%M:%S"), "Calculating worst risk"))
+  print(gc())
   worst_risk <- calculate_risk(
     models[["model_formula"]], imp,
     list(worst_ilr[1], worst_ilr[2], worst_ilr[3]), "worst"
   )
+  print(paste(format(Sys.time(), "%H:%M:%S"), "Calculating common risk"))
+  print(gc())
   common_risk <- calculate_risk(
     models[["model_formula"]], imp,
     list(common_ilr[1], common_ilr[2], common_ilr[3]), "common"
   )
 
-  print("Returning results")
-  print(format(Sys.time(), "%H:%M:%S"))
+  print(paste(format(Sys.time(), "%H:%M:%S"), "Returning results"))
   full_df <- full_join(best_risk, worst_risk, by = "timegroup") |>
     full_join(common_risk, by = "timegroup")
   return(as.matrix(full_df))

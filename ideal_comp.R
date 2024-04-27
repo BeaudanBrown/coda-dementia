@@ -39,7 +39,7 @@ generate_compositions <- function(lower, upper) {
   return(df)
 }
 
-generate_hazards <- function(comps, model, ref_row) {
+generate_hazards <- function(comps, model, model_formula, ref_row) {
   ilrs <- t(apply(
     comps[, c(1, 2, 3, 4)], 1, function(comp) ilr(acomp(comp), V = v)
   ))
@@ -47,7 +47,8 @@ generate_hazards <- function(comps, model, ref_row) {
   # Convert contrasts into a data frame
   risks <- apply(ilrs, 1, function(new_ilr) {
     ref_row[c("R1", "R2", "R3")] <- new_ilr
-    predict(model, newdata = ref_row, type = "response")
+    newx <- model.matrix(model_formula, ref_row)
+    predict(model, newdata = newx, type = "response")
   })
   return(risks)
 }
@@ -103,13 +104,15 @@ get_best_and_worst_comp <- function(df, timegroup_cuts) {
   generated_comps <- generated_comps[generated_comps$dens > threshold, ]
 
   # fit model
-  dem_model <- fit_model(
+  models <- fit_model(
     dem_df, timegroup_cuts, get_primary_formula
-  )[["model_dem"]]
+  )
+  dem_model <- models[["model_dem"]]
+  model_formula <- models[["model_formula"]]
   ref_row <- as.data.frame(dem_df[1, ])
   ref_row$timegroup <- 55
 
-  generated_comps$haz <- generate_hazards(generated_comps, dem_model, ref_row)
+  generated_comps$haz <- generate_hazards(generated_comps, dem_model, model_formula, ref_row)
   generated_comps <- generated_comps[order(generated_comps$haz), ]
   best_comp <- acomp(generated_comps[1, c(1, 2, 3, 4)])
   worst_comp <- acomp(generated_comps[nrow(generated_comps), c(1, 2, 3, 4)])

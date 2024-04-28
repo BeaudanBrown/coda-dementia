@@ -81,9 +81,7 @@ get_s1_formula <- function(data) {
       apoe_e4 +
       highest_qual +
       rcs(townsend_deprivation_index, knots_deprivation) +
-      antidepressant_med +
-      antipsychotic_med +
-      insomnia_med +
+      psych_meds +
       ethnicity +
       avg_total_household_income +
       smok_status +
@@ -116,9 +114,7 @@ get_s2_formula <- function(data) {
       apoe_e4 +
       highest_qual +
       rcs(townsend_deprivation_index, knots_deprivation) +
-      antidepressant_med +
-      antipsychotic_med +
-      insomnia_med +
+      psych_meds +
       ethnicity +
       avg_total_household_income +
       smok_status +
@@ -160,9 +156,7 @@ get_s3_formula <- function(data) {
       apoe_e4 +
       highest_qual +
       rcs(townsend_deprivation_index, knots_deprivation) +
-      antidepressant_med +
-      antipsychotic_med +
-      insomnia_med +
+      psych_meds +
       ethnicity
   )
   return(s3_formula)

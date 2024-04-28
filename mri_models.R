@@ -54,9 +54,7 @@ get_mri_formula <- function(outcome_var, model_data) {
       retired +
       rcs(townsend_deprivation_index, c(", knots_deprivation_str, ")) +
       sex +
-      antidepressant_med +
-      antipsychotic_med +
-      insomnia_med +
+      psych_meds +
       ethnicity +
       avg_total_household_income +
       highest_qual +

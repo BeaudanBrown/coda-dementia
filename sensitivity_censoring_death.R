@@ -114,9 +114,7 @@ model <- glm(
     apoe_e4 +
     highest_qual +
     rcs(townsend_deprivation_index, knots_deprivation) +
-    antidepressant_med +
-    antipsychotic_med +
-    insomnia_med +
+    psych_meds +
     ethnicity +
     avg_total_household_income +
     smok_status,

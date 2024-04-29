@@ -1,45 +1,40 @@
 source("mri_models.R")
 library(tidyverse)
 
-## Read MRI data
+result_list <- process_boot_subs_output(output_dir, "boot_mri_subs_2024-04-29_13:18.rds")
+res <- process_boot_output(output_dir, "boot_mri_2024-04-29_13:25.rds")
+plot_mri(res)
 
-mri_df <-
-  fread(file.path(data_dir, "mri_data.csv"),
-    stringsAsFactors = TRUE
-  ) |>
-  as_tibble()
+run_mri_subs_bootstrap(get_mri_formula, "boot_mri_subs")
+run_mri_bootstrap(get_mri_formula, "boot_mri")
 
-mri_df$assessment_centre_mri1 <- as.factor(mri_df$assessment_centre_mri1)
+make_mri_df <- function(boot_df) {
+  ## Read MRI data
+  mri_df <-
+    fread(mri_data_file, stringsAsFactors = TRUE) |>
+    as_tibble()
 
-## Read main data
-boot_df <- read_rds(file.path(data_dir, "bootstrap_data.rds"))
+  mri_df$assessment_centre_mri1 <- as.factor(mri_df$assessment_centre_mri1)
 
-## Merge
+  ## Read main data
+  mri_df <- left_join(mri_df, boot_df, by = "eid")
 
-mri_df <- left_join(mri_df, boot_df, by = "eid")
+  # Age at MRI scan
+  mri_df <- mri_df |>
+    mutate(age_mri = (as.numeric(
+      as.Date(date_mri1) - as.Date(calendar_date)
+    ) / 365) + age_accel)
 
-# Age at MRI scan
-mri_df <- mri_df |>
-  mutate(age_mri = (as.numeric(
-    as.Date(date_mri1) - as.Date(calendar_date)
-  ) / 365) + age_accel)
-
-# create datadist
-options(datadist = datadist(mri_df))
-
-## function for bootstrapping substitution effects
-
-make_ilr <- function(comp) {
-  return(ilr(acomp(comp), V = v))
+  return(mri_df)
 }
 
-best_and_worst <- get_best_and_worst_comp(boot_df)
-best_and_worst <- as.data.frame(apply(best_and_worst, 2, make_ilr))
+run_mri_subs_bootstrap <- function(create_formula_fn, output_name) {
+  boot_df <- read_rds(boot_data_file)
+  mri_df <- make_mri_df(boot_df)
+  options(datadist = datadist(mri_df))
 
-run_mri_subs_bootstrap <- function(
-    boot_data, comp_df, create_formula_fn, output_name) {
   # Matrix of variables to include in imputation model
-  predmat <- quickpred(boot_data,
+  predmat <- quickpred(mri_df,
     mincor = 0,
     exclude = c(
       "eid",
@@ -52,7 +47,7 @@ run_mri_subs_bootstrap <- function(
   )
 
   ## reference compositions
-  all_comp <- acomp(comp_df[
+  all_comp <- acomp(boot_df[
     , c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa")
   ])
   short_sleep_comp <-
@@ -65,7 +60,7 @@ run_mri_subs_bootstrap <- function(
     acomp(apply(avg_sleep_comp, 2, function(x) exp(mean(log(x)))))
 
   result <- boot(
-    data = boot_data,
+    data = mri_df,
     statistic = bootstrap_mri_subs_fn,
     create_formula_fn = create_formula_fn,
     predmat = predmat,
@@ -82,9 +77,12 @@ run_mri_subs_bootstrap <- function(
   saveRDS(result, file.path(output_dir, output_name_with_timestamp))
 }
 
-run_mri_bootstrap <- function(boot_data, create_formula_fn, output_name) {
+run_mri_bootstrap <- function(create_formula_fn, output_name) {
+  boot_df <- read_rds(boot_data_file)
+  mri_df <- make_mri_df(boot_df)
+  options(datadist = datadist(mri_df))
   # Matrix of variables to include in imputation model
-  predmat <- quickpred(boot_data,
+  predmat <- quickpred(mri_df,
     mincor = 0,
     exclude = c(
       "eid",
@@ -95,9 +93,28 @@ run_mri_bootstrap <- function(boot_data, create_formula_fn, output_name) {
       "avg_mvpa"
     )
   )
+  min_age_of_dem <- min(mri_df$age_dem)
+  max_age_of_dem <- max(mri_df$age_dem)
+  age_range <- max_age_of_dem - min_age_of_dem
+  timegroup_steps <- ceiling(age_range * 2)
+  median_age_of_dem <- median(mri_df[mri_df$dem == 1, ]$age_dem)
+
+  timegroup_cuts <-
+    seq(
+      from = min_age_of_dem,
+      to = max_age_of_dem,
+      length.out = timegroup_steps
+    )
+
+  make_ilr <- function(comp) {
+    return(ilr(acomp(comp), V = v))
+  }
+
+  best_and_worst <- get_best_and_worst_comp(boot_df, timegroup_cuts)
+  best_and_worst <- as.data.frame(apply(best_and_worst, 2, make_ilr))
 
   result <- boot(
-    data = boot_data,
+    data = mri_df,
     statistic = bootstrap_mri_fn,
     create_formula_fn = create_formula_fn,
     predmat = predmat,
@@ -153,7 +170,6 @@ bootstrap_mri_subs_fn <- function(
 
   return(as.matrix(result_df))
 }
-
 
 process_boot_output <- function(directory, rds_path) {
   data <- readRDS(file.path(directory, rds_path))
@@ -221,7 +237,7 @@ process_boot_output <- function(directory, rds_path) {
 
 ### Plot
 
-plot_mri <- function() {
+plot_mri <- function(result_list) {
   plot_data <- result_list[[1]]
 
   plot_data$comp <- str_to_title(plot_data$comp)
@@ -306,27 +322,6 @@ plot_mri <- function() {
     nrow = 3
   )
 }
-
-# plot_mri()
-
-# save plot
-
-# ggsave(
-#   file.path(
-#     data_dir,
-#     "../../Papers/Substitution Analysis/Main_figures/MRI_compositions.png"
-#   ),
-#   device = "png",
-#   bg = "white",
-#   width = 8,
-#   height = 12,
-#   dpi = 500
-# )
-
-### Estimated differences between compositions
-
-# estimates <- result_list[[1]]
-# boot_reps <- result_list[[2]]
 
 get_contrasts <- function(pheno) {
   # estimates
@@ -668,29 +663,6 @@ process_boot_subs_output <- function(directory, rds_path) {
 }
 
 
-result_list <- process_boot_subs_output(data_dir, "boot_mri_subs.rds")
-
-# save plots
-
-for (i in names(result_list)) {
-  ggsave(
-    file.path(
-      data_dir,
-      paste("../../Papers/Substitution Analysis/Main_figures/Substitutions_",
-        str_to_upper(i), ".png",
-        sep = ""
-      )
-    ),
-    plot = result_list[[i]],
-    device = "png",
-    bg = "white",
-    width = 10,
-    height = 12,
-    dpi = 500
-  )
-}
-
-
 #### Boot contrasts
 
 get_boot_contrasts <- function(offset) {
@@ -799,9 +771,46 @@ get_boot_contrasts <- function(offset) {
   ), .id = "outcome"))
 }
 
+# plot_mri()
 
-# dataframe of contrasts
+# save plot
 
-map(c(-60, 60), get_boot_contrasts) |>
-  bind_rows() |>
-  filter(outcome == "hip" & str_detect(Type, "light"))
+# ggsave(
+#   file.path(
+#     data_dir,
+#     "../../Papers/Substitution Analysis/Main_figures/MRI_compositions.png"
+#   ),
+#   device = "png",
+#   bg = "white",
+#   width = 8,
+#   height = 12,
+#   dpi = 500
+# )
+
+### Estimated differences between compositions
+
+# estimates <- result_list[[1]]
+# boot_reps <- result_list[[2]]
+
+
+# result_list <- process_boot_subs_output(output_dir, "boot_mri_subs_2024-04-29_13:18.rds")
+
+# # save plots
+
+# for (i in names(result_list)) {
+#   ggsave(
+#     file.path(
+#       data_dir,
+#       paste("../../Papers/Substitution Analysis/Main_figures/Substitutions_",
+#         str_to_upper(i), ".png",
+#         sep = ""
+#       )
+#     ),
+#     plot = result_list[[i]],
+#     device = "png",
+#     bg = "white",
+#     width = 10,
+#     height = 12,
+#     dpi = 500
+#   )
+# }

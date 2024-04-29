@@ -24,10 +24,10 @@ run_cum_bootstrap <- function(output_name) {
       length.out = num_timegroups
     )
 
-  best_and_worst <- get_best_and_worst_comp(boot_data, timegroup_cuts)
+  best_and_worst <- get_best_and_worst_comp(data, timegroup_cuts)
 
   result <- boot(
-    data = boot_data,
+    data = data,
     statistic = bootstrap_ideal_fn,
     create_formula_fn = get_primary_formula,
     best_and_worst = best_and_worst,

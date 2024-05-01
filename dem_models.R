@@ -14,7 +14,8 @@ list_of_packages <- c(
   "rlang",
   "cowplot",
   "extrafont",
-  "fastglm"
+  "fastglm",
+  "dotenv"
 )
 
 new_packages <- list_of_packages[

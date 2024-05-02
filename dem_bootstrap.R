@@ -10,6 +10,23 @@ run_primary_bootstrap <- function() {
   )
 }
 
+produce_plots <- function() {
+  primary_rds <- file.path(data_dir, "boot_primary.rds")
+  s1_rds <- file.path(data_dir, "boot_s1.rds")
+  s2_rds <- file.path(output_dir, "boot_s2.rds")
+  s3_rds <- file.path(data_dir, "boot_s3.rds")
+
+  primary_plot <- process_dem_output(primary_rds)
+  s1_plot <- process_dem_output(s1_rds)
+  s2_plot <- process_dem_output(s2_rds)
+  s3_plot <- process_dem_output(s3_rds, intervals = FALSE)
+
+  save_plot(primary_plot[[1]], file.path(data_dir, "../../Papers/Substitution Analysis/Main_figures/Substitutions.svg"))
+  save_plot(s1_plot[[1]], file.path(data_dir, "../../Papers/Substitution Analysis/Appendix_figures/Substitutions_s1.svg"))
+  save_plot(s2_plot[[1]], file.path(data_dir, "../../Papers/Substitution Analysis/Appendix_figures/Substitutions_s2.svg"))
+  save_plot(s3_plot[[1]], file.path(data_dir, "../../Papers/Substitution Analysis/Appendix_figures/Substitutions_s2.svg"))
+}
+
 # Run bootstrap for sensitivity analysis model 1
 run_s1_bootstrap <- function() {
   run_bootstrap(
@@ -44,7 +61,7 @@ run_s3_bootstrap <- function() {
 # timegroup target, outputting to a file
 run_bootstrap <-
   function(data, create_formula_fn,
-           output_name, empirical = TRUE) {
+           output_name, empirical = TRUE, intervals = TRUE) {
     # Matrix of variables to include in imputation model
     predmat <- quickpred(data,
       mincor = 0,
@@ -88,20 +105,34 @@ run_bootstrap <-
     median_age_of_dem_timegroup <-
       which(timegroup_cuts > median_age_of_dem)[1] - 1
 
-    result <- boot(
-      data = data,
-      statistic = bootstrap_substitutions_fn,
-      create_formula_fn = create_formula_fn,
-      predmat = predmat,
-      empirical = empirical,
-      timegroup_cuts = timegroup_cuts,
-      median_age_of_dem = median_age_of_dem,
-      short_sleep_geo_mean = short_sleep_geo_mean,
-      avg_sleep_geo_mean = avg_sleep_geo_mean,
-      R = bootstrap_iterations,
-      parallel = "multicore",
-      ncpus = ncpus
-    )
+    if (isTRUE(intervals)) {
+      result <- boot(
+        data = data,
+        statistic = bootstrap_substitutions_fn,
+        create_formula_fn = create_formula_fn,
+        predmat = predmat,
+        empirical = empirical,
+        timegroup_cuts = timegroup_cuts,
+        median_age_of_dem = median_age_of_dem,
+        short_sleep_geo_mean = short_sleep_geo_mean,
+        avg_sleep_geo_mean = avg_sleep_geo_mean,
+        R = bootstrap_iterations,
+        parallel = "multicore",
+        ncpus = ncpus
+      )
+    } else {
+      result <- bootstrap_substitutions_fn(
+        data = data,
+        indices = seq(1, nrow(data)),
+        create_formula_fn = create_formula_fn,
+        predmat = predmat,
+        timegroup_cuts = timegroup_cuts,
+        median_age_of_dem = median_age_of_dem,
+        short_sleep_geo_mean = short_sleep_geo_mean,
+        avg_sleep_geo_mean = avg_sleep_geo_mean,
+        empirical = empirical
+      )
+    }
 
     # Prepend timestamp to avoid accidental data loss
     timestamp <- format(Sys.time(), "%Y-%m-%d_%H:%M")
@@ -263,13 +294,16 @@ bootstrap_substitutions_fn <- function(
   return(as.matrix(full_df))
 }
 
-process_boot_output <- function(rds_path) {
-  data <- readRDS(file.path(data_dir, rds_path))
-  num_subs <- sub_steps * 2 + 1
-  sub_col_names <- data$t[1, 1:num_subs]
+process_dem_output <- function(rds_path, intervals = TRUE) {
+  data <- readRDS(rds_path)
+  if (isTRUE(intervals)) {
+    full_sample_results <- data$t0
+  } else {
+    full_sample_results <- data
+  }
 
   plot_data <-
-    pivot_longer(as.data.frame(data$t0),
+    pivot_longer(as.data.frame(full_sample_results),
       -offset,
       values_to = "risk", names_to = "Substitution"
     ) |>
@@ -292,66 +326,70 @@ process_boot_output <- function(rds_path) {
       )
     ))
 
-  get_quantiles <- function(start, substitution, reference) {
-    slice <- data$t[, start:(start + num_subs - 1)]
-    middle_col <- ceiling(ncol(slice) / 2)
+  if (isTRUE(intervals)) {
+    num_subs <- sub_steps * 2 + 1
+    sub_col_names <- data$t[1, 1:num_subs]
+    get_quantiles <- function(start, substitution, reference) {
+      slice <- data$t[, start:(start + num_subs - 1)]
+      middle_col <- ceiling(ncol(slice) / 2)
 
-    slice <- t(apply(slice, 1, function(row, idx) {
-      zero_offset <- row[middle_col]
-      return(row / zero_offset)
-    }, idx = middle_col))
+      slice <- t(apply(slice, 1, function(row, idx) {
+        zero_offset <- row[middle_col]
+        return(row / zero_offset)
+      }, idx = middle_col))
 
-    quantiles <-
-      as.data.frame(t(apply(
-        slice, 2,
-        function(column) quantile(column, probs = c(0.025, 0.975))
-      )))
-    colnames(quantiles) <- c("lower", "upper")
-    quantiles$Substitution <- substitution
-    quantiles$Reference <- reference
-    quantiles$offset <- sub_col_names
-    return(quantiles)
+      quantiles <-
+        as.data.frame(t(apply(
+          slice, 2,
+          function(column) quantile(column, probs = c(0.025, 0.975))
+        )))
+      colnames(quantiles) <- c("lower", "upper")
+      quantiles$Substitution <- substitution
+      quantiles$Reference <- reference
+      quantiles$offset <- sub_col_names
+      return(quantiles)
+    }
+
+    sub_start <- num_subs + 1
+
+    inactivity_short_sleep <-
+      get_quantiles(sub_start, "Inactivity", "Short sleepers")
+    sub_start <- sub_start + num_subs
+
+    light_short_sleep <-
+      get_quantiles(sub_start, "Light activity", "Short sleepers")
+    sub_start <- sub_start + num_subs
+
+    mvpa_short_sleep <-
+      get_quantiles(sub_start, "MVPA", "Short sleepers")
+    sub_start <- sub_start + num_subs
+
+    inactivity_avg_sleep <-
+      get_quantiles(sub_start, "Inactivity", "Normal sleepers")
+    sub_start <- sub_start + num_subs
+
+    light_avg_sleep <-
+      get_quantiles(sub_start, "Light activity", "Normal sleepers")
+    sub_start <- sub_start + num_subs
+
+    mvpa_avg_sleep <-
+      get_quantiles(sub_start, "MVPA", "Normal sleepers")
+
+    all_quantiles <- rbind(
+      inactivity_short_sleep,
+      light_short_sleep,
+      mvpa_short_sleep,
+      inactivity_avg_sleep,
+      light_avg_sleep,
+      mvpa_avg_sleep
+    )
+
+    plot_data <-
+      full_join(plot_data, all_quantiles,
+        by = c("offset", "Substitution", "Reference")
+      )
   }
 
-  sub_start <- num_subs + 1
-
-  inactivity_short_sleep <-
-    get_quantiles(sub_start, "Inactivity", "Short sleepers")
-  sub_start <- sub_start + num_subs
-
-  light_short_sleep <-
-    get_quantiles(sub_start, "Light activity", "Short sleepers")
-  sub_start <- sub_start + num_subs
-
-  mvpa_short_sleep <-
-    get_quantiles(sub_start, "MVPA", "Short sleepers")
-  sub_start <- sub_start + num_subs
-
-  inactivity_avg_sleep <-
-    get_quantiles(sub_start, "Inactivity", "Normal sleepers")
-  sub_start <- sub_start + num_subs
-
-  light_avg_sleep <-
-    get_quantiles(sub_start, "Light activity", "Normal sleepers")
-  sub_start <- sub_start + num_subs
-
-  mvpa_avg_sleep <-
-    get_quantiles(sub_start, "MVPA", "Normal sleepers")
-
-  all_quantiles <- rbind(
-    inactivity_short_sleep,
-    light_short_sleep,
-    mvpa_short_sleep,
-    inactivity_avg_sleep,
-    light_avg_sleep,
-    mvpa_avg_sleep
-  )
-
-
-  plot_data <-
-    full_join(plot_data, all_quantiles,
-      by = c("offset", "Substitution", "Reference")
-    )
 
   rr_plot <- function(sub, refcomp, colour) {
     plot_data$Substitution <-
@@ -367,12 +405,9 @@ process_boot_output <- function(rds_path) {
       ]
 
 
-    plot_data2 |>
+    p <- plot_data2 |>
       ggplot(aes(x = offset, y = risk_ratio)) +
       geom_line(colour = colour) +
-      geom_ribbon(aes(ymin = lower, ymax = upper),
-        alpha = 0.25, fill = colour
-      ) +
       facet_wrap(~Substitution, nrow = 2) +
       geom_hline(yintercept = 1, linetype = "dotted") +
       xlab("") +
@@ -426,6 +461,13 @@ process_boot_output <- function(rds_path) {
         strip.background = element_blank(),
         strip.text.x = element_blank()
       )
+    if (isTRUE(intervals)) {
+      p <- p +
+        geom_ribbon(aes(ymin = lower, ymax = upper),
+          alpha = 0.25, fill = colour
+          )
+    }
+    return(p)
   }
 
   # normal sleepers
@@ -493,66 +535,3 @@ process_boot_output <- function(rds_path) {
 
   return(list(plot, plot_data))
 }
-
-#### Results
-
-## Primary model
-
-# process_boot_output("boot_primary_final.rds")[[1]]
-
-# # save
-# ggsave(
-#   file.path(
-#     data_dir,
-#     "../../Papers/Substitution Analysis/Main_figures/Substitutions.png"
-#   ),
-#   device = "png",
-#   bg = "white",
-#   width = 10,
-#   height = 12,
-#   dpi = 500
-# )
-
-# #
-# # # risk ratios
-# #
-# process_boot_output("boot_primary_final.rds")[[2]] |>
-#   filter(abs(offset) == 60) |>
-#   filter(Reference == "Short sleepers")
-
-# #
-# #
-# # ## Sensitivity 1
-# #
-# process_boot_output("boot_s1.rds")[[1]]
-#
-# ggsave(
-#   file.path(
-#     data_dir,
-#     "../../Papers/Substitution Analysis/Appendix_figures/Sensitivity_1.png"
-#   ),
-#   device = "png",
-#   bg = "white",
-#   width = 10,
-#   height = 12
-# )
-#
-# #
-# ## Sensitivity 2
-#
-# plot <- process_boot_output("boot_s2_final.rds")[[1]]
-
-# ggsave(
-#   file.path(
-#     data_dir,
-#     "../../Papers/Substitution Analysis/Appendix_figures/Sensitivity_2_test.png"
-#   ),
-#   plot,
-#   device = "png",
-#   bg = "white",
-#   width = 10,
-#   height = 12
-# )
-
-# process_boot_output("boot_s2_final.rds")[[2]] |>
-#   filter(offset == 60)

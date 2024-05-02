@@ -56,3 +56,13 @@ strip_glm <- function(cm) {
 
   return(cm)
 }
+
+save_plot <- function(plot, file_path) {
+  ggsave(
+    file_path,
+    plot = plot,
+    device = "svg",
+    width = 10,
+    height = 12
+  )
+}

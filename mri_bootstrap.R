@@ -1,12 +1,21 @@
 source("mri_models.R")
 library(tidyverse)
 
-result_list <- process_boot_subs_output(output_dir, "boot_mri_subs_2024-04-29_13:18.rds")
-res <- process_boot_output(output_dir, "boot_mri_2024-04-29_13:25.rds")
-plot_mri(res)
+produce_mri_plots <- function() {
+  mri_rds <- file.path(data_dir, "boot_mri.rds")
+  mri_subs_rds <- file.path(data_dir, "boot_mri_subs.rds")
 
-run_mri_subs_bootstrap(get_mri_formula, "boot_mri_subs")
-run_mri_bootstrap(get_mri_formula, "boot_mri")
+  mri_output <- process_mri_output(mri_rds)
+  mri_df <- make_mri_df(read_rds(boot_data_file))
+
+  mri_plot <- plot_mri(mri_output, mri_df)
+  mri_subs_plots <- process_mri_subs_output(mri_subs_rds, make_mri_df(read_rds(boot_data_file)))
+
+  for (i in names(mri_subs_plots)) {
+    save_plot(mri_subs_plots[[i]], file.path( data_dir, "../../Papers/Substitution Analysis/Main_figures/Substitutions_", str_to_upper(i), ".svg"))
+  }
+  save_plot(mri_plot, file.path(data_dir, "../../Papers/Substitution Analysis/Main_figures/MRI_compositions.svg"))
+}
 
 make_mri_df <- function(boot_df) {
   ## Read MRI data
@@ -171,11 +180,10 @@ bootstrap_mri_subs_fn <- function(
   return(as.matrix(result_df))
 }
 
-process_boot_output <- function(directory, rds_path) {
-  data <- readRDS(file.path(directory, rds_path))
+process_mri_output <- function(rds_path) {
+  data <- readRDS(rds_path)
 
   # tidy bootstrap output
-
   ## prepare data for plotting
   # Define the phenos and comps
   phenos <- rep(c("tbv", "wmv", "gmv", "hip", "log_wmh"), each = 3)
@@ -237,7 +245,7 @@ process_boot_output <- function(directory, rds_path) {
 
 ### Plot
 
-plot_mri <- function(result_list) {
+plot_mri <- function(result_list, mri_model_data) {
   plot_data <- result_list[[1]]
 
   plot_data$comp <- str_to_title(plot_data$comp)
@@ -363,8 +371,8 @@ get_contrasts <- function(pheno) {
   return(out)
 }
 
-process_boot_subs_output <- function(directory, rds_path) {
-  data <- readRDS(file.path(directory, rds_path))
+process_mri_subs_output <- function(rds_path, mri_model_data) {
+  data <- readRDS(rds_path)
 
   # tidy bootstrap output
 
@@ -770,47 +778,3 @@ get_boot_contrasts <- function(offset) {
     hip = hip_df, wmh = log_wmh_df
   ), .id = "outcome"))
 }
-
-# plot_mri()
-
-# save plot
-
-# ggsave(
-#   file.path(
-#     data_dir,
-#     "../../Papers/Substitution Analysis/Main_figures/MRI_compositions.png"
-#   ),
-#   device = "png",
-#   bg = "white",
-#   width = 8,
-#   height = 12,
-#   dpi = 500
-# )
-
-### Estimated differences between compositions
-
-# estimates <- result_list[[1]]
-# boot_reps <- result_list[[2]]
-
-
-# result_list <- process_boot_subs_output(output_dir, "boot_mri_subs_2024-04-29_13:18.rds")
-
-# # save plots
-
-# for (i in names(result_list)) {
-#   ggsave(
-#     file.path(
-#       data_dir,
-#       paste("../../Papers/Substitution Analysis/Main_figures/Substitutions_",
-#         str_to_upper(i), ".png",
-#         sep = ""
-#       )
-#     ),
-#     plot = result_list[[i]],
-#     device = "png",
-#     bg = "white",
-#     width = 10,
-#     height = 12,
-#     dpi = 500
-#   )
-# }

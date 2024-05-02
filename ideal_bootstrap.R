@@ -1,6 +1,12 @@
 source("ideal_comp.R")
 source("utils.R")
 
+produce_ideal_plot <- function() {
+  ideal_rds <- file.path(data_dir, "boot_ideal.rds")
+  ideal_plot <- process_ideal_output(ideal_rds)
+  save_plot(ideal_plot, file.path(data_dir, "../../Papers/Substitution Analysis/Main_figures/Cumulative.svg"))
+}
+
 run_cum_bootstrap <- function(output_name) {
   data <- read_rds(boot_data_file)
   # Matrix of variables to include in imputation model
@@ -131,7 +137,7 @@ bootstrap_ideal_fn <- function(
 }
 
 process_ideal_output <- function(rds_path) {
-  data <- readRDS(file.path(output_dir, rds_path))
+  data <- readRDS(rds_path)
   num_timegroups <- 78
 
   plot_data <- as.data.frame(data$t0) |>
@@ -179,6 +185,7 @@ process_ideal_output <- function(rds_path) {
       "Typical" = "common",
       "Worst" = "worst"
     )) |>
+    mutate(Composition = fct_rev(Composition)) |>
     ggplot(aes(x = age, y = Risk)) +
     geom_line(aes(colour = Composition)) +
     geom_ribbon(aes(ymin = lower, ymax = upper, fill = Composition),
@@ -187,12 +194,12 @@ process_ideal_output <- function(rds_path) {
     labs(x = "Age", y = "Cumulative all-cause dementia incidence") +
     cowplot::theme_cowplot() +
     scale_color_manual(
-      labels = c("Ideal", "Typical", "Worst"),
-      values = c("#7AC36A", "#56B4E9", "#DC3912")
+      labels = c("Worst", "Typical", "Ideal"),
+      values = c("#DC3912", "#56B4E9", "#7AC36A")
     ) +
     scale_fill_manual(
-      labels = c("Ideal", "Typical", "Worst"),
-      values = c("#7AC36A", "#56B4E9", "#DC3912")
+      labels = c("Worst", "Typical", "Ideal"),
+      values = c("#DC3912", "#56B4E9", "#7AC36A")
     ) +
     theme(text = element_text(family = "serif"))
 }

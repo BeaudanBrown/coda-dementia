@@ -1,0 +1,32 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.10.6/.schema/devbox.schema.json",
+  "packages": {
+    "R":                      "latest",
+    "rPackages.compositions": "latest",
+    "rPackages.tidyverse":    "latest",
+    "rPackages.dotenv":       "latest",
+    "rPackages.data_table":   "latest",
+    "rPackages.mice":         "latest",
+    "rPackages.survival":     "latest",
+    "rPackages.stringr":      "latest",
+    "rPackages.rms":          "latest",
+    "rPackages.fastglm":      "latest",
+    "rPackages.stringi":      "latest",
+    "icu": {
+      "version": "latest",
+      "outputs": ["out", "dev"]
+    },
+    "rPackages.cowplot":   "latest",
+    "rPackages.extrafont": "latest"
+  },
+  "shell": {
+    "init_hook": [
+      "echo 'Welcome to devbox!' > /dev/null"
+    ],
+    "scripts": {
+      "test": [
+        "echo \"Error: no test specified\" && exit 1"
+      ]
+    }
+  }
+}

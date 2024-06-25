@@ -65,22 +65,16 @@ get_best_and_worst_comp <- function(df, timegroup_cuts) {
   dem_df <- mice(df, m = 1, predictorMatrix = predmat, maxit = maxit)
   dem_df <- complete(dem_df)
 
-  dem_comp_df <- as.data.frame(acomp(
-    dem_df[, c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa")]
-  ))
-  dem_comp_model <-
-    lm(cbind(
-      dem_comp_df$avg_sleep, dem_comp_df$avg_inactivity,
-      dem_comp_df$avg_light
-    ) ~ 1, data = dem_comp_df)
-  vcv_mat <- vcov(dem_comp_model)
+  dem_comp_df <- as.data.frame(
+    dem_df[, c("avg_sleep", "avg_inactivity", "avg_mvpa", "avg_light")]
+  )
+
+  mean_vec <- as.numeric(apply(dem_comp_df[, -4], 2, mean))
+  vcv_mat <- cov(dem_comp_df[, -4])
   dem_comp_df$dens <- apply(
     dem_comp_df[, -4], 1, dmvnorm,
-    mean = coef(dem_comp_model), sigma = vcv_mat, log = TRUE
+    mean = mean_vec, sigma = vcv_mat, log = TRUE
   )
-  sorted_df <- dem_comp_df[order(dem_comp_df$dens, decreasing = TRUE), ]
-  sorted_df[, 1:4] <- sorted_df[, 1:4] * 24
-  most_common_comp <- acomp(sorted_df[1, 1:4])
 
   threshold <- quantile(dem_comp_df$dens, probs = c(0.025), na.rm = TRUE)
 
@@ -88,18 +82,14 @@ get_best_and_worst_comp <- function(df, timegroup_cuts) {
     quantile(column, probs = c(0.025, 0.975), na.rm = TRUE)
   })
 
-  # Convert into minutes
-  quantiles_in_minutes <- quantiles * 24 * 60
-
   # Store in "lower" and "upper" vectors
-  lower <- quantiles_in_minutes[1, ]
-  upper <- quantiles_in_minutes[2, ]
+  lower <- quantiles[1, ]
+  upper <- quantiles[2, ]
 
   generated_comps <- generate_compositions(lower, upper)
-  generated_comps <- generated_comps / mins_in_day
   generated_comps$dens <-
     apply(generated_comps[, -c(4, 5)], 1, dmvnorm,
-      mean = coef(dem_comp_model), sigma = vcv_mat, log = TRUE
+      mean = mean_vec, sigma = vcv_mat, log = TRUE
     )
   generated_comps <- generated_comps[generated_comps$dens > threshold, ]
 
@@ -112,7 +102,9 @@ get_best_and_worst_comp <- function(df, timegroup_cuts) {
   ref_row <- as.data.frame(dem_df[1, ])
   ref_row$timegroup <- 55
 
-  generated_comps$haz <- generate_hazards(generated_comps, dem_model, model_formula, ref_row)
+  generated_comps$haz <- generate_hazards(
+    generated_comps, dem_model, model_formula, ref_row
+  )
   generated_comps <- generated_comps[order(generated_comps$haz), ]
   best_comp <- acomp(generated_comps[1, c(1, 2, 3, 4)])
   worst_comp <- acomp(generated_comps[nrow(generated_comps), c(1, 2, 3, 4)])

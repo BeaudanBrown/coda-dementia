@@ -12,11 +12,11 @@ library(here)
 # read UKB data
 
 d <- fread(file.path(
-  data_dir, "../core_ukb_data/core_ukb_trimmed_Sep2023.csv"
+  data_dir, "../../../Generic_data/core_ukb_data/core_ukb_trimmed_Sep2023.csv"
 ))
 
 latest <- fread(file.path(
-  data_dir, "../core_ukb_data/latest_demdeath.csv"
+  data_dir, "../../../Generic_data/core_ukb_data/latest_demdeath.csv"
 ))
 
 latest <- latest |>
@@ -35,7 +35,7 @@ d <- latest %>%
 # Add in SNPs #
 
 snps <- fread(file.path(
-  data_dir, "../Raw UKB data/SNPs (basket 2)/snp_data.csv"
+  data_dir, "../../../Generic_data/Raw UKB data/SNPs (basket 2)/snp_data.csv"
 ))
 
 d <- d |> left_join(snps, by = "eid")
@@ -43,7 +43,8 @@ d <- d |> left_join(snps, by = "eid")
 # Add in diet and alcohol variables #
 
 alc_diet <- fread(file.path(
-  data_dir, "../Raw UKB data/basket 4/alcohol_diet_19_04_24.csv"
+  data_dir,
+  "../../../Generic_data/Raw UKB data/basket 4/alcohol_diet_19_04_24.csv"
 ))
 
 alc_diet <-
@@ -271,7 +272,7 @@ d2 <- d2 |> filter(accel_calibrated_own_data == 1)
 
 a <- fread(file.path(
   data_dir,
-  "../Accelerometery/Processed_GGIR/part5_daysumMM_output.csv"
+  "../../../Generic_data/Accelerometery/Processed_GGIR/part5_daysumMM_output.csv"
 ))
 
 # filter to only those with GGIR data

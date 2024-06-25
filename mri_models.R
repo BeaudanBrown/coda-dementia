@@ -179,10 +179,10 @@ predict_mri_outcome <- function(outcome_var, model_data, best_and_worst) {
 
   best <- do_prediction(model_data, best_and_worst$best)
   worst <- do_prediction(model_data, best_and_worst$worst)
-  common <- do_prediction(model_data, best_and_worst$most_common)
+  typical <- do_prediction(model_data, best_and_worst$typical)
 
   return(data.frame(
-    value = c(worst, common, best)
+    value = c(worst, typical, best)
   ))
 }
 

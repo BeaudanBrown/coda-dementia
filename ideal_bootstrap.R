@@ -7,7 +7,7 @@ produce_ideal_plot <- function() {
   save_plot(ideal_plot, file.path(data_dir, "../../Papers/Substitution Analysis/Main_figures/Cumulative.svg"))
 }
 
-run_cum_bootstrap <- function(output_name) {
+run_cum_bootstrap <- function(output_name, intervals = TRUE) {
   data <- read_rds(boot_data_file)
   # Matrix of variables to include in imputation model
   predmat <- quickpred(data,
@@ -32,18 +32,31 @@ run_cum_bootstrap <- function(output_name) {
 
   best_and_worst <- get_best_and_worst_comp(data, timegroup_cuts)
 
-  result <- boot(
-    data = data,
-    statistic = bootstrap_ideal_fn,
-    create_formula_fn = get_primary_formula,
-    best_and_worst = best_and_worst,
-    timegroup_cuts = timegroup_cuts,
-    predmat = predmat,
-    num_timegroups = num_timegroups,
-    R = bootstrap_iterations,
-    parallel = "multicore",
-    ncpus = ncpus
-  )
+  if (isTRUE(intervals)) {
+    result <- boot(
+      data = data,
+      statistic = bootstrap_ideal_fn,
+      create_formula_fn = get_primary_formula,
+      predmat = predmat,
+      best_and_worst = best_and_worst,
+      timegroup_cuts = timegroup_cuts,
+      num_timegroups = num_timegroups,
+      R = bootstrap_iterations,
+      parallel = "multicore",
+      ncpus = ncpus
+    )
+  } else {
+    result <- bootstrap_ideal_fn(
+      data = data,
+      indices = seq(1, nrow(data)),
+      create_formula_fn = get_primary_formula,
+      predmat = predmat,
+      best_and_worst = best_and_worst,
+      timegroup_cuts = timegroup_cuts,
+      num_timegroups = num_timegroups
+    )
+  }
+
 
   timestamp <- format(Sys.time(), "%Y-%m-%d_%H:%M")
   output_name_with_timestamp <- paste0(output_name, "_", timestamp, ".rds")
@@ -80,7 +93,7 @@ bootstrap_ideal_fn <- function(
 
   best_ilr <- ilr(acomp(best_and_worst$best), V = v)
   worst_ilr <- ilr(acomp(best_and_worst$worst), V = v)
-  common_ilr <- ilr(acomp(best_and_worst$most_common), V = v)
+  common_ilr <- ilr(acomp(best_and_worst$typical), V = v)
 
   calculate_risk <- function(model_formula, risk_data, ilr_values, risk_name) {
     newx <- model.matrix(model_formula, risk_data)
@@ -136,49 +149,56 @@ bootstrap_ideal_fn <- function(
   return(as.matrix(full_df))
 }
 
-process_ideal_output <- function(rds_path) {
+process_ideal_output <- function(rds_path, intervals = TRUE) {
   data <- readRDS(rds_path)
   num_timegroups <- 78
+  if (isTRUE(intervals)) {
+    full_sample_results <- data$t0
+  } else {
+    full_sample_results <- data
+  }
 
-  plot_data <- as.data.frame(data$t0) |>
+  plot_data <- as.data.frame(full_sample_results) |>
     pivot_longer(
       cols = -timegroup,
       names_to = "Reference",
       values_to = "Risk"
     )
 
-  get_quantiles <- function(start, reference) {
-    slice <- data$t[, start:(start + num_timegroups - 1)]
+  if (isTRUE(intervals)) {
+    get_quantiles <- function(start, reference) {
+      slice <- data$t[, start:(start + num_timegroups - 1)]
 
-    quantiles <-
-      as.data.frame(t(as.data.frame(apply(slice, 2, function(column) quantile(column, probs = c(0.025, 0.975))))))
-    colnames(quantiles) <- c("lower", "upper")
-    quantiles$Reference <- reference
-    quantiles$timegroup <- 1:num_timegroups
-    return(quantiles)
+      quantiles <-
+        as.data.frame(t(as.data.frame(apply(slice, 2, function(column) quantile(column, probs = c(0.025, 0.975))))))
+      colnames(quantiles) <- c("lower", "upper")
+      quantiles$Reference <- reference
+      quantiles$timegroup <- 1:num_timegroups
+      return(quantiles)
+    }
+
+    reference_start <- num_timegroups + 1
+
+    best_quantiles <- get_quantiles(reference_start, "best")
+    reference_start <- reference_start + num_timegroups
+
+    worst_quantiles <- get_quantiles(reference_start, "worst")
+    reference_start <- reference_start + num_timegroups
+
+    common_quantiles <- get_quantiles(reference_start, "common")
+    reference_start <- reference_start + num_timegroups
+
+    all_quantiles <- rbind(
+      best_quantiles,
+      worst_quantiles,
+      common_quantiles
+    )
+
+    plot_data <- full_join(plot_data, all_quantiles, by = c("timegroup", "Reference"))
   }
 
-  reference_start <- num_timegroups + 1
 
-  best_quantiles <- get_quantiles(reference_start, "best")
-  reference_start <- reference_start + num_timegroups
-
-  worst_quantiles <- get_quantiles(reference_start, "worst")
-  reference_start <- reference_start + num_timegroups
-
-  common_quantiles <- get_quantiles(reference_start, "common")
-  reference_start <- reference_start + num_timegroups
-
-  all_quantiles <- rbind(
-    best_quantiles,
-    worst_quantiles,
-    common_quantiles
-  )
-
-
-  plot_data <- full_join(plot_data, all_quantiles, by = c("timegroup", "Reference"))
-
-  plot_data |>
+  p <- plot_data |>
     mutate(age = 47 + (timegroup / 2)) |>
     mutate(Composition = fct_recode(Reference,
       "Ideal" = "best",
@@ -188,9 +208,6 @@ process_ideal_output <- function(rds_path) {
     mutate(Composition = fct_rev(Composition)) |>
     ggplot(aes(x = age, y = Risk)) +
     geom_line(aes(colour = Composition)) +
-    geom_ribbon(aes(ymin = lower, ymax = upper, fill = Composition),
-      alpha = 0.25
-    ) +
     labs(x = "Age (years)", y = "Cumulative all-cause dementia incidence") +
     cowplot::theme_cowplot() +
     scale_color_manual(
@@ -202,4 +219,11 @@ process_ideal_output <- function(rds_path) {
       values = c("#DC3912", "#56B4E9", "#7AC36A")
     ) +
     theme(text = element_text(family = "serif"))
+  if (isTRUE(intervals)) {
+    p <- p |>
+      geom_ribbon(aes(ymin = lower, ymax = upper, fill = Composition),
+        alpha = 0.25
+      )
+  }
+  return(p)
 }

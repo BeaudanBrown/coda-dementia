@@ -23,10 +23,10 @@ generate_compositions <- function(lower, upper) {
 
   # Create an empty data frame
   df <- expand.grid(
-    sleep = seq(lower[1], upper[1], by = step_size),
-    inactive = seq(lower[2], upper[2], by = step_size),
-    light = seq(lower[3], upper[3], by = step_size),
-    modvig = seq(lower[4], upper[4], by = step_size)
+    sleep = seq(lower["avg_sleep"], upper["avg_sleep"], by = step_size),
+    inactive = seq(lower["avg_inactivity"], upper["avg_inactivity"], by = step_size),
+    light = seq(lower["avg_light"], upper["avg_light"], by = step_size),
+    modvig = seq(lower["avg_mvpa"], upper["avg_mvpa"], by = step_size)
   )
 
   # Calculate total times
@@ -69,10 +69,11 @@ get_best_and_worst_comp <- function(df, timegroup_cuts) {
     dem_df[, c("avg_sleep", "avg_inactivity", "avg_mvpa", "avg_light")]
   )
 
-  mean_vec <- as.numeric(apply(dem_comp_df[, -4], 2, mean))
-  vcv_mat <- cov(dem_comp_df[, -4])
+  include_cols <- c("avg_sleep", "avg_inactivity", "avg_mvpa")
+  mean_vec <- as.numeric(apply(dem_comp_df[, include_cols], 2, mean))
+  vcv_mat <- cov(dem_comp_df[, include_cols])
   dem_comp_df$dens <- apply(
-    dem_comp_df[, -4], 1, dmvnorm,
+    dem_comp_df[, include_cols], 1, dmvnorm,
     mean = mean_vec, sigma = vcv_mat, log = TRUE
   )
 
@@ -88,7 +89,7 @@ get_best_and_worst_comp <- function(df, timegroup_cuts) {
 
   generated_comps <- generate_compositions(lower, upper)
   generated_comps$dens <-
-    apply(generated_comps[, -c(4, 5)], 1, dmvnorm,
+    apply(generated_comps[, c("sleep", "inactive", "modvig")], 1, dmvnorm,
       mean = mean_vec, sigma = vcv_mat, log = TRUE
     )
   generated_comps <- generated_comps[generated_comps$dens > threshold, ]
@@ -108,8 +109,9 @@ get_best_and_worst_comp <- function(df, timegroup_cuts) {
   generated_comps <- generated_comps[order(generated_comps$haz), ]
   best_comp <- acomp(generated_comps[1, c(1, 2, 3, 4)])
   worst_comp <- acomp(generated_comps[nrow(generated_comps), c(1, 2, 3, 4)])
+  typical_comp <- acomp(generated_comps[generated_comps$dens == max(generated_comps$dens), c(1, 2, 3, 4)])
 
-  result <- as.data.frame(t(rbind(best_comp, worst_comp, most_common_comp)))
-  colnames(result) <- c("best", "worst", "most_common")
+  result <- as.data.frame(t(rbind(best_comp, worst_comp, typical_comp)))
+  colnames(result) <- c("best", "worst", "typical")
   return(result)
 }

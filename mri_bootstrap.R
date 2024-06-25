@@ -9,12 +9,27 @@ produce_mri_plots <- function() {
   mri_df <- make_mri_df(read_rds(boot_data_file))
 
   mri_plot <- plot_mri(mri_output, mri_df)
-  mri_subs_plots <- process_mri_subs_output(mri_subs_rds, make_mri_df(read_rds(boot_data_file)))
+  mri_subs_plots <-
+    process_mri_subs_output(
+      mri_subs_rds,
+      make_mri_df(read_rds(boot_data_file))
+    )
 
   for (i in names(mri_subs_plots)) {
-    save_plot(mri_subs_plots[[i]], file.path(data_dir, "../../Papers/Substitution Analysis/Main_figures/Substitutions_", str_to_upper(i), ".svg"))
+    save_plot(mri_subs_plots[[i]], file.path(
+      data_dir,
+      paste(
+
+        "../Manuscript/Main_figures/Substitutions_",
+        str_to_upper(i), ".svg",
+        sep = ""
+      )
+    ))
   }
-  save_plot(mri_plot, file.path(data_dir, "../../Papers/Substitution Analysis/Main_figures/Figure 4.pdf"))
+  save_plot(mri_plot, file.path(
+    data_dir,
+    "../Manuscript/Main_figures/Figure 4.svg"
+  ))
 }
 
 make_mri_df <- function(boot_df) {
@@ -264,7 +279,18 @@ plot_mri <- function(result_list, mri_model_data) {
         size = 0.1
       ) +
       labs(x = "Composition") +
-      theme_cowplot()
+      theme_cowplot(
+        font_size = 12,
+        font_family = "serif",
+        line_size = 0.25,
+      ) +
+      theme(
+        panel.border = element_rect(fill = NA, colour = "#585656"),
+        panel.grid = element_line(colour = "grey92"),
+        panel.grid.minor = element_line(linewidth = rel(0.5)),
+        axis.ticks.y = element_blank(),
+        axis.line = element_line(color = "#585656")
+      )
   }
 
   tbv_plot <- single_plot("tbv")
@@ -280,10 +306,10 @@ plot_mri <- function(result_list, mri_model_data) {
       })))) +
       labs(x = "") +
       ylim(c(
-        mean(mri_model_data$tbv, na.rm = T) - 0.5 *
-          sd(mri_model_data$tbv, na.rm = T),
-        mean(mri_model_data$tbv, na.rm = T) + 0.5 *
-          sd(mri_model_data$tbv, na.rm = T)
+        mean(mri_model_data$tbv, na.rm = TRUE) - 0.5 *
+          sd(mri_model_data$tbv, na.rm = TRUE),
+        mean(mri_model_data$tbv, na.rm = TRUE) + 0.5 *
+          sd(mri_model_data$tbv, na.rm = TRUE)
       )),
     gmv_plot +
       labs(y = expression(paste("Grey matter volume ", (cm^{
@@ -291,10 +317,10 @@ plot_mri <- function(result_list, mri_model_data) {
       })))) +
       labs(x = "") +
       ylim(c(
-        mean(mri_model_data$gmv, na.rm = T) - 0.5 *
-          sd(mri_model_data$gmv, na.rm = T),
-        mean(mri_model_data$gmv, na.rm = T) + 0.5 *
-          sd(mri_model_data$gmv, na.rm = T)
+        mean(mri_model_data$gmv, na.rm = TRUE) - 0.5 *
+          sd(mri_model_data$gmv, na.rm = TRUE),
+        mean(mri_model_data$gmv, na.rm = TRUE) + 0.5 *
+          sd(mri_model_data$gmv, na.rm = TRUE)
       )),
     wmv_plot +
       labs(
@@ -304,28 +330,28 @@ plot_mri <- function(result_list, mri_model_data) {
         x = ""
       ) +
       ylim(c(
-        mean(mri_model_data$wmv, na.rm = T) - 0.5 *
-          sd(mri_model_data$wmv, na.rm = T),
-        mean(mri_model_data$wmv, na.rm = T) + 0.5 *
-          sd(mri_model_data$wmv, na.rm = T)
+        mean(mri_model_data$wmv, na.rm = TRUE) - 0.5 *
+          sd(mri_model_data$wmv, na.rm = TRUE),
+        mean(mri_model_data$wmv, na.rm = TRUE) + 0.5 *
+          sd(mri_model_data$wmv, na.rm = TRUE)
       )),
     hip_plot +
       labs(y = expression(paste("Hippocampal volume ", (cm^{
         3
       })))) +
       ylim(c(
-        mean(mri_model_data$hip, na.rm = T) - 0.5 *
-          sd(mri_model_data$hip, na.rm = T),
-        mean(mri_model_data$hip, na.rm = T) + 0.5 *
-          sd(mri_model_data$hip, na.rm = T)
+        mean(mri_model_data$hip, na.rm = TRUE) - 0.5 *
+          sd(mri_model_data$hip, na.rm = TRUE),
+        mean(mri_model_data$hip, na.rm = TRUE) + 0.5 *
+          sd(mri_model_data$hip, na.rm = TRUE)
       )),
     wmh_plot +
       labs(y = "Log white matter hyperintensities") +
       ylim(c(
-        mean(mri_model_data$log_wmh, na.rm = T) - 0.5 *
-          sd(mri_model_data$log_wmh, na.rm = T),
-        mean(mri_model_data$log_wmh, na.rm = T) + 0.5 *
-          sd(mri_model_data$log_wmh, na.rm = T)
+        mean(mri_model_data$log_wmh, na.rm = TRUE) - 0.5 *
+          sd(mri_model_data$log_wmh, na.rm = TRUE),
+        mean(mri_model_data$log_wmh, na.rm = TRUE) + 0.5 *
+          sd(mri_model_data$log_wmh, na.rm = TRUE)
       )),
     nrow = 3
   )
@@ -476,10 +502,10 @@ process_mri_subs_output <- function(rds_path, mri_model_data) {
         out_df$Reference == refcomp, ]
 
       # plot limits
-      lower_lim <- mean(mri_model_data[[outcome]], na.rm = T) - 0.25 *
-        sd(mri_model_data[[outcome]], na.rm = T)
-      upper_lim <- mean(mri_model_data[[outcome]], na.rm = T) + 0.25 *
-        sd(mri_model_data[[outcome]], na.rm = T)
+      lower_lim <- mean(mri_model_data[[outcome]], na.rm = TRUE) - 0.25 *
+        sd(mri_model_data[[outcome]], na.rm = TRUE)
+      upper_lim <- mean(mri_model_data[[outcome]], na.rm = TRUE) + 0.25 *
+        sd(mri_model_data[[outcome]], na.rm = TRUE)
 
       minutes_offset <- 0.2 * (upper_lim - lower_lim)
       sleep_offset <- 0.275 * (upper_lim - lower_lim)
@@ -540,12 +566,20 @@ process_mri_subs_output <- function(rds_path, mri_model_data) {
           ylim = c(lower_lim, upper_lim),
           expand = FALSE, clip = "off"
         ) +
-        cowplot::theme_cowplot() +
+        cowplot::theme_cowplot(
+          font_size = 12,
+          font_family = "serif",
+          line_size = 0.25
+        ) +
         theme(
-          text = element_text(size = 12, family = "serif"),
           plot.margin = unit(c(1, 1, 4, 1), "lines"),
           strip.background = element_blank(),
           strip.text.x = element_blank(),
+          panel.border = element_rect(fill = NA, colour = "#585656"),
+          panel.grid = element_line(colour = "grey92"),
+          panel.grid.minor = element_line(linewidth = rel(0.5)),
+          axis.ticks.y = element_blank(),
+          axis.line = element_line(color = "#585656"),
           axis.title.y = element_text(margin = margin(
             t = 0, r = 10, b = 0, l = 0
           ))
@@ -583,8 +617,9 @@ process_mri_subs_output <- function(rds_path, mri_model_data) {
         align = "vh",
         rel_heights = c(0.05, 1, 1, 1),
         nrow = 4,
+        label_fontfamily = "serif",
         labels = "Normal sleepers",
-        hjust = -1
+        hjust = -1.1
       )
 
     # short sleepers
@@ -619,7 +654,8 @@ process_mri_subs_output <- function(rds_path, mri_model_data) {
         rel_heights = c(0.05, 1, 1, 1),
         nrow = 4,
         labels = "Short sleepers",
-        hjust = -1
+        label_fontfamily = "serif",
+        hjust = -1.3
       )
 
     plot <- plot_grid(pnorm,
@@ -691,41 +727,42 @@ get_boot_contrasts <- function(offset) {
   sub_idx <- 1
   t0_outcome_idx <- 1
 
-  get_contrast_data <- function(t0_sub_idx, t_ref_idx, t0_outcome_idx, sub_idx) {
-    whole_sample_values <-
-      data$t0[t0_outcome_idx:(t0_outcome_idx + num_subs - 1), t0_sub_idx]
-    whole_sample_values <- cbind(
-      whole_sample_values, sub_col_names
-    ) |> as_tibble()
+  get_contrast_data <-
+    function(t0_sub_idx, t_ref_idx, t0_outcome_idx, sub_idx) {
+      whole_sample_values <-
+        data$t0[t0_outcome_idx:(t0_outcome_idx + num_subs - 1), t0_sub_idx]
+      whole_sample_values <- cbind(
+        whole_sample_values, sub_col_names
+      ) |> as_tibble()
 
 
-    # whole sample
-    ref_value <- as.numeric(whole_sample_values[
-      whole_sample_values$sub_col_names == 0, 1
-    ])
-    offset_value <- as.numeric(whole_sample_values[
-      whole_sample_values$sub_col_names == offset, 1
-    ])
-    dif_full_sample <- offset_value - ref_value
+      # whole sample
+      ref_value <- as.numeric(whole_sample_values[
+        whole_sample_values$sub_col_names == 0, 1
+      ])
+      offset_value <- as.numeric(whole_sample_values[
+        whole_sample_values$sub_col_names == offset, 1
+      ])
+      dif_full_sample <- offset_value - ref_value
 
-    # bootstrap samples
-    ref_values <- data$t[, t_ref_idx:(
-      t_ref_idx + sub_len - 1)]
-    sub_values <- ref_values[, sub_idx:(
-      sub_idx + num_subs - 1)]
-    dif_samples <- sub_values[
-      , sub_col_names == offset
-    ] - sub_values[, sub_col_names == 0]
+      # bootstrap samples
+      ref_values <- data$t[, t_ref_idx:(
+        t_ref_idx + sub_len - 1)]
+      sub_values <- ref_values[, sub_idx:(
+        sub_idx + num_subs - 1)]
+      dif_samples <- sub_values[
+        , sub_col_names == offset
+      ] - sub_values[, sub_col_names == 0]
 
-    return(tibble(
-      offset = offset,
-      ref_value = ref_value,
-      offset_value = offset_value,
-      mean_dif = dif_full_sample,
-      lower = quantile(dif_samples, probs = 0.025),
-      upper = quantile(dif_samples, probs = 0.975),
-    ))
-  }
+      return(tibble(
+        offset = offset,
+        ref_value = ref_value,
+        offset_value = offset_value,
+        mean_dif = dif_full_sample,
+        lower = quantile(dif_samples, probs = 0.025),
+        upper = quantile(dif_samples, probs = 0.975),
+      ))
+    }
 
   # Initialize empty lists
   tbv_list <- list()

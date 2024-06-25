@@ -4,7 +4,9 @@ source("utils.R")
 produce_ideal_plot <- function() {
   ideal_rds <- file.path(data_dir, "boot_ideal.rds")
   ideal_plot <- process_ideal_output(ideal_rds)
-  save_plot(ideal_plot, file.path(data_dir, "../../Papers/Substitution Analysis/Main_figures/Cumulative.svg"))
+  save_plot(ideal_plot, file.path(
+    data_dir, "../../Papers/Substitution Analysis/Main_figures/Cumulative.svg"
+  ))
 }
 
 run_cum_bootstrap <- function(output_name, intervals = TRUE) {
@@ -170,7 +172,18 @@ process_ideal_output <- function(rds_path, intervals = TRUE) {
       slice <- data$t[, start:(start + num_timegroups - 1)]
 
       quantiles <-
-        as.data.frame(t(as.data.frame(apply(slice, 2, function(column) quantile(column, probs = c(0.025, 0.975))))))
+        as.data.frame(
+          t(
+            as.data.frame(
+              apply(slice, 2, function(column) {
+                quantile(
+                  column,
+                  probs = c(0.025, 0.975)
+                )
+              })
+            )
+          )
+        )
       colnames(quantiles) <- c("lower", "upper")
       quantiles$Reference <- reference
       quantiles$timegroup <- 1:num_timegroups
@@ -194,7 +207,12 @@ process_ideal_output <- function(rds_path, intervals = TRUE) {
       common_quantiles
     )
 
-    plot_data <- full_join(plot_data, all_quantiles, by = c("timegroup", "Reference"))
+    plot_data <-
+      full_join(
+        plot_data,
+        all_quantiles,
+        by = c("timegroup", "Reference")
+      )
   }
 
 
@@ -209,7 +227,6 @@ process_ideal_output <- function(rds_path, intervals = TRUE) {
     ggplot(aes(x = age, y = Risk)) +
     geom_line(aes(colour = Composition)) +
     labs(x = "Age (years)", y = "Cumulative all-cause dementia incidence") +
-    cowplot::theme_cowplot() +
     scale_color_manual(
       labels = c("Worst", "Typical", "Ideal"),
       values = c("#DC3912", "#56B4E9", "#7AC36A")
@@ -218,9 +235,19 @@ process_ideal_output <- function(rds_path, intervals = TRUE) {
       labels = c("Worst", "Typical", "Ideal"),
       values = c("#DC3912", "#56B4E9", "#7AC36A")
     ) +
-    theme(text = element_text(family = "serif"))
+    cowplot::theme_cowplot(
+      font_size = 12,
+      font_family = "serif"
+    ) +
+    theme(
+      panel.border = element_rect(fill = NA, colour = "#585656"),
+      panel.grid = element_line(colour = "grey92"),
+      panel.grid.minor = element_line(linewidth = rel(0.5)),
+      axis.ticks.y = element_blank(),
+      axis.line = element_line(color = "#585656")
+    )
   if (isTRUE(intervals)) {
-    p <- p |>
+    p <- p +
       geom_ribbon(aes(ymin = lower, ymax = upper, fill = Composition),
         alpha = 0.25
       )

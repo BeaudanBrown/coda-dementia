@@ -20,7 +20,7 @@ list_of_packages <- c(
 lapply(list_of_packages, library, character.only = TRUE)
 
 ## Load data
-boot_data <- read_rds(file.path(data_dir, "bootstrap_data.rds"))
+boot_data <- read_rds(file.path(data_dir, "bootstrap_data_26_04_24.rds"))
 
 ## Single imputation
 
@@ -68,16 +68,14 @@ avg_sleep_geo_mean <- acomp(
 imp2 <- imp[imp$time_to_dem > (3 * 365), ]
 imp_len <- nrow(imp2)
 
-## Fit models
-
-models <- fit_model(imp2, get_primary_formula)
-
+## constants
 # data for g-computation/standardisation
-min_age_of_dem <- min(boot_data$age_dem)
-max_age_of_dem <- max(boot_data$age_dem)
+
+min_age_of_dem <- min(imp2$age_dem)
+max_age_of_dem <- max(imp2$age_dem)
 age_range <- max_age_of_dem - min_age_of_dem
 timegroup_steps <- ceiling(age_range * 2)
-median_age_of_dem <- median(boot_data[boot_data$dem == 1, ]$age_dem)
+median_age_of_dem <- median(imp2[imp2$dem == 1, ]$age_dem)
 
 timegroup_cuts <-
   seq(
@@ -88,6 +86,10 @@ timegroup_cuts <-
 
 median_age_of_dem_timegroup <-
   which(timegroup_cuts > median_age_of_dem)[1] - 1
+
+## Fit models
+
+models <- fit_model(imp2, timegroup_cuts, get_primary_formula)
 
 # data for g-computation/standardisation
 imp2 <- imp2[rep(seq_len(imp_len), each = median_age_of_dem_timegroup)]
@@ -100,6 +102,7 @@ short_sleep_inactive <-
     imp2,
     models[["model_dem"]],
     models[["model_death"]],
+    models[["model_formula"]],
     c("avg_sleep", "avg_inactivity"),
     timegroup = timegroup
   )
@@ -109,6 +112,7 @@ short_sleep_light <-
     imp2,
     models[["model_dem"]],
     models[["model_death"]],
+    models[["model_formula"]],
     c("avg_sleep", "avg_light"),
     timegroup = timegroup
   )
@@ -118,6 +122,7 @@ short_sleep_mvpa <-
     imp2,
     models[["model_dem"]],
     models[["model_death"]],
+    models[["model_formula"]],
     c("avg_sleep", "avg_mvpa"),
     timegroup = timegroup
   )
@@ -127,6 +132,7 @@ avg_sleep_inactive <-
     imp2,
     models[["model_dem"]],
     models[["model_death"]],
+    models[["model_formula"]],
     c("avg_sleep", "avg_inactivity"),
     timegroup = timegroup
   )
@@ -136,6 +142,7 @@ avg_sleep_light <-
     imp2,
     models[["model_dem"]],
     models[["model_death"]],
+    models[["model_formula"]],
     c("avg_sleep", "avg_light"),
     timegroup = timegroup
   )
@@ -145,6 +152,7 @@ avg_sleep_mvpa <-
     imp2,
     models[["model_dem"]],
     models[["model_death"]],
+    models[["model_formula"]],
     c("avg_sleep", "avg_mvpa"),
     timegroup = timegroup
   )
@@ -282,12 +290,20 @@ rr_plot <- function(sub, refcomp, colour) {
       expand = FALSE,
       clip = "off"
     ) +
-    cowplot::theme_cowplot() +
+    cowplot::theme_cowplot(
+      font_size = 12,
+      font_family = "serif",
+      line_size = 0.25
+    ) +
     theme(
-      text = element_text(size = 12, family = "serif"),
       plot.margin = unit(c(1, 1, 4, 1), "lines"),
       strip.background = element_blank(),
-      strip.text.x = element_blank()
+      strip.text.x = element_blank(),
+      panel.border = element_rect(fill = NA, colour = "#585656"),
+      panel.grid = element_line(colour = "grey92"),
+      panel.grid.minor = element_line(linewidth = rel(0.5)),
+      axis.ticks.y = element_blank(),
+      axis.line = element_line(color = "#585656")
     )
 }
 
@@ -304,12 +320,12 @@ pnorm <-
       plot.title.position = "plot",
       plot.title = element_text(size = 16)
     ),
-    p2 + labs(x = "", title = "C") + theme(
+    p2 + labs(x = "", title = "B") + theme(
       legend.position = "none",
       plot.title.position = "plot",
       plot.title = element_text(size = 16)
     ),
-    p3 + labs(x = "", title = "E") + theme(
+    p3 + labs(x = "", title = "C") + theme(
       legend.position = "none",
       plot.title.position = "plot",
       plot.title = element_text(size = 16)
@@ -318,7 +334,8 @@ pnorm <-
     rel_heights = c(0.05, 1, 1, 1),
     nrow = 4,
     labels = "Normal sleepers",
-    hjust = -1
+    label_fontfamily = "serif",
+    hjust = -1.1
   )
 
 # short sleepers
@@ -329,17 +346,17 @@ p6 <- rr_plot("MVPA", "Short sleepers", "#708ff9")
 pshort <-
   plot_grid(
     NULL,
-    p4 + labs(x = "", title = "A") + theme(
+    p4 + labs(x = "", title = "D") + theme(
       legend.position = "none",
       plot.title.position = "plot",
       plot.title = element_text(size = 16)
     ),
-    p5 + labs(x = "", title = "C") + theme(
+    p5 + labs(x = "", title = "E") + theme(
       legend.position = "none",
       plot.title.position = "plot",
       plot.title = element_text(size = 16)
     ),
-    p6 + labs(x = "", title = "E") + theme(
+    p6 + labs(x = "", title = "F") + theme(
       legend.position = "none",
       plot.title.position = "plot",
       plot.title = element_text(size = 16)
@@ -347,8 +364,9 @@ pshort <-
     align = "vh",
     rel_heights = c(0.05, 1, 1, 1),
     nrow = 4,
-    labels = "Normal sleepers",
-    hjust = -1
+    labels = "Short sleepers",
+    label_fontfamily = "serif",
+    hjust = -1.3
   )
 
 plot <- plot_grid(pnorm,
@@ -359,12 +377,10 @@ plot <- plot_grid(pnorm,
 ggsave(
   file.path(
     data_dir,
-    "../../Papers/Substitution Analysis/Appendix_figures/truncate_3years_v2.png"
+    "../Manuscript/Appendix_figures/truncate_3years.svg"
   ),
   plot = plot,
-  device = "png",
-  bg = "white",
+  device = "svg",
   width = 10,
-  height = 12,
-  dpi = 500
+  height = 12
 )

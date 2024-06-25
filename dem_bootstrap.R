@@ -13,7 +13,7 @@ run_primary_bootstrap <- function() {
 produce_plots <- function() {
   primary_rds <- file.path(data_dir, "boot_primary.rds")
   s1_rds <- file.path(data_dir, "boot_s1.rds")
-  s2_rds <- file.path(output_dir, "boot_s2.rds")
+  s2_rds <- file.path(data_dir, "boot_s2.rds")
   s3_rds <- file.path(data_dir, "boot_s3.rds")
 
   primary_plot <- process_dem_output(primary_rds)
@@ -21,10 +21,22 @@ produce_plots <- function() {
   s2_plot <- process_dem_output(s2_rds)
   s3_plot <- process_dem_output(s3_rds, intervals = FALSE)
 
-  save_plot(primary_plot[[1]], file.path(data_dir, "../../Papers/Substitution Analysis/Main_figures/Substitutions.svg"))
-  save_plot(s1_plot[[1]], file.path(data_dir, "../../Papers/Substitution Analysis/Appendix_figures/Substitutions_s1.svg"))
-  save_plot(s2_plot[[1]], file.path(data_dir, "../../Papers/Substitution Analysis/Appendix_figures/Substitutions_s2.svg"))
-  save_plot(s3_plot[[1]], file.path(data_dir, "../../Papers/Substitution Analysis/Appendix_figures/Substitutions_s2.svg"))
+  save_plot(primary_plot[[1]], file.path(
+    data_dir,
+    "../Manuscript/Main_figures/Figure 1.svg"
+  ))
+  save_plot(s1_plot[[1]], file.path(
+    data_dir,
+    "../Manuscript/Appendix_figures/Substitutions_s1.svg"
+  ))
+  save_plot(s2_plot[[1]], file.path(
+    data_dir,
+    "../Manuscript/Appendix_figures/Substitutions_s2.svg"
+  ))
+  save_plot(s3_plot[[1]], file.path(
+    data_dir,
+    "../Manuscript/Appendix_figures/Substitutions_s3.svg"
+  ))
 }
 
 # Run bootstrap for sensitivity analysis model 1
@@ -53,7 +65,7 @@ run_s3_bootstrap <- function() {
     data = read_rds(boot_data_file),
     create_formula_fn = get_s3_formula,
     output_name = "boot_s3",
-    empirical = F
+    empirical = FALSE
   )
 }
 
@@ -454,12 +466,20 @@ process_dem_output <- function(rds_path, intervals = TRUE) {
         family = "serif", fontface = 1, size = 12 / .pt
       ) +
       coord_cartesian(ylim = c(0.33, 3), expand = FALSE, clip = "off") +
-      cowplot::theme_cowplot() +
+      cowplot::theme_cowplot(
+        font_size = 12,
+        font_family = "serif",
+        line_size = 0.25
+      ) +
       theme(
-        text = element_text(size = 12, family = "serif"),
         plot.margin = unit(c(1, 1, 4, 1), "lines"),
         strip.background = element_blank(),
-        strip.text.x = element_blank()
+        strip.text.x = element_blank(),
+        panel.border = element_rect(fill = NA, colour = "#585656"),
+        panel.grid = element_line(colour = "grey92"),
+        panel.grid.minor = element_line(linewidth = rel(0.5)),
+        axis.ticks.y = element_blank(),
+        axis.line = element_line(color = "#585656")
       )
     if (isTRUE(intervals)) {
       p <- p +
@@ -482,12 +502,12 @@ process_dem_output <- function(rds_path, intervals = TRUE) {
           legend.position = "none", plot.title.position = "plot",
           plot.title = element_text(size = 16)
         ),
-      p2 + labs(x = "", title = "C") +
+      p2 + labs(x = "", title = "B") +
         theme(
           legend.position = "none", plot.title.position = "plot",
           plot.title = element_text(size = 16)
         ),
-      p3 + labs(x = "", title = "E") +
+      p3 + labs(x = "", title = "C") +
         theme(
           legend.position = "none", plot.title.position = "plot",
           plot.title = element_text(size = 16)
@@ -496,7 +516,8 @@ process_dem_output <- function(rds_path, intervals = TRUE) {
       rel_heights = c(0.05, 1, 1, 1),
       nrow = 4,
       labels = "Normal sleepers",
-      hjust = -1
+      label_fontfamily = "serif",
+      hjust = -1.1
     )
 
   # short sleepers
@@ -506,12 +527,12 @@ process_dem_output <- function(rds_path, intervals = TRUE) {
 
   pshort <-
     plot_grid(NULL,
-      p4 + labs(title = "B", y = "") +
+      p4 + labs(title = "D", y = "") +
         theme(
           legend.position = "none", plot.title.position = "plot",
           plot.title = element_text(size = 16)
         ),
-      p5 + labs(y = "", title = "D") +
+      p5 + labs(y = "", title = "E") +
         theme(
           legend.position = "none", plot.title.position = "plot",
           plot.title = element_text(size = 16)
@@ -525,7 +546,8 @@ process_dem_output <- function(rds_path, intervals = TRUE) {
       rel_heights = c(0.05, 1, 1, 1),
       nrow = 4,
       labels = "Short sleepers",
-      hjust = -1
+      label_fontfamily = "serif",
+      hjust = -1.3
     )
 
   plot <- plot_grid(pnorm,

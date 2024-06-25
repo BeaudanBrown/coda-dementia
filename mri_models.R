@@ -187,8 +187,7 @@ predict_mri_outcome <- function(outcome_var, model_data, best_and_worst) {
 }
 
 predict_mri_results <- function(model_data, best_and_worst) {
-  results <- lapply(c("tbv", "wmv", "gmv", "hip", "log_wmh"), function(
-      outcome) {
+  results <- lapply(c("tbv", "wmv", "gmv", "hip", "log_wmh"), function(outcome) {
     df <- predict_mri_outcome(outcome, model_data, best_and_worst)
     return(df)
   })

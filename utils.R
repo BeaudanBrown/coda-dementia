@@ -33,7 +33,7 @@ sbp <- matrix(
 v <- gsi.buildilrBase(t(sbp))
 
 
-## strip unneccessary model components  
+## strip unneccessary model components
 
 strip_glm <- function(cm) {
   cm$y <- c()

@@ -12,9 +12,9 @@ produce_mri_plots <- function() {
   mri_subs_plots <- process_mri_subs_output(mri_subs_rds, make_mri_df(read_rds(boot_data_file)))
 
   for (i in names(mri_subs_plots)) {
-    save_plot(mri_subs_plots[[i]], file.path( data_dir, "../../Papers/Substitution Analysis/Main_figures/Substitutions_", str_to_upper(i), ".svg"))
+    save_plot(mri_subs_plots[[i]], file.path(data_dir, "../../Papers/Substitution Analysis/Main_figures/Substitutions_", str_to_upper(i), ".svg"))
   }
-  save_plot(mri_plot, file.path(data_dir, "../../Papers/Substitution Analysis/Main_figures/MRI_compositions.svg"))
+  save_plot(mri_plot, file.path(data_dir, "../../Papers/Substitution Analysis/Main_figures/Figure 4.pdf"))
 }
 
 make_mri_df <- function(boot_df) {
@@ -187,7 +187,7 @@ process_mri_output <- function(rds_path) {
   ## prepare data for plotting
   # Define the phenos and comps
   phenos <- rep(c("tbv", "wmv", "gmv", "hip", "log_wmh"), each = 3)
-  comps <- rep(c("worst", "common", "best"), times = 5)
+  comps <- rep(c("worst", "typical", "ideal"), times = 5)
 
   col_names <- paste(comps, phenos, sep = "_")
   boot_reps <- as_tibble(data$t)
@@ -206,7 +206,7 @@ process_mri_output <- function(rds_path) {
         slice, 2, function(column) quantile(column, probs = c(0.025, 0.975))
       )))
     colnames(quantiles) <- c("lower", "upper")
-    comps <- c("worst", "common", "best")
+    comps <- c("worst", "typical", "ideal")
     quantiles$comp <- comps
     quantiles$pheno <- pheno
     return(quantiles)
@@ -250,11 +250,11 @@ plot_mri <- function(result_list, mri_model_data) {
 
   plot_data$comp <- str_to_title(plot_data$comp)
   plot_data$comp <- ifelse(
-    plot_data$comp == "Common", "Average", plot_data$comp
+    plot_data$comp == "Common", "Typical", plot_data$comp
   )
   plot_data$comp <- factor(
     plot_data$comp,
-    levels = c("Best", "Average", "Worst")
+    levels = c("Worst", "Typical", "Ideal")
   )
 
   single_plot <- function(pheno) {
@@ -346,23 +346,23 @@ get_contrasts <- function(pheno) {
     c(
       paste(
         pheno,
-        ": worst - common ",
-        round(estimates$worst - estimates$common, 2),
+        ": worst - typical ",
+        round(estimates$worst - estimates$typical, 2),
         " (",
-        round(quantile(boot_reps$worst - boot_reps$common, 0.025), 2),
+        round(quantile(boot_reps$worst - boot_reps$typical, 0.025), 2),
         ",",
-        round(quantile(boot_reps$worst - boot_reps$common, 0.975), 2),
+        round(quantile(boot_reps$worst - boot_reps$typical, 0.975), 2),
         ")",
         sep = ""
       ),
       paste(
         pheno,
-        ": best - common ",
-        round(estimates$best - estimates$common, 3),
+        ": ideal - typical ",
+        round(estimates$ideal - estimates$typical, 3),
         " (",
-        round(quantile(boot_reps$best - boot_reps$common, 0.025), 3),
+        round(quantile(boot_reps$ideal - boot_reps$typical, 0.025), 3),
         ",",
-        round(quantile(boot_reps$best - boot_reps$common, 0.975), 3),
+        round(quantile(boot_reps$ideal - boot_reps$typical, 0.975), 3),
         ")",
         sep = ""
       )
@@ -391,8 +391,7 @@ process_mri_subs_output <- function(rds_path, mri_model_data) {
   t0_outcome_idx <- 1
 
   # Initialize a list to store the plot data for each outcome
-  get_plot_data <- function(
-      t0_sub_idx, t_ref_idx, t0_outcome_idx, sub_idx) {
+  get_plot_data <- function(t0_sub_idx, t_ref_idx, t0_outcome_idx, sub_idx) {
     whole_sample_values <- data$t0[
       t0_outcome_idx:(t0_outcome_idx + num_subs - 1), t0_sub_idx
     ]
@@ -573,11 +572,11 @@ process_mri_subs_output <- function(rds_path, mri_model_data) {
           legend.position = "none", plot.title.position = "plot",
           plot.title = element_text(size = 16)
         ),
-        p2 + labs(x = "", title = "C") + theme(
+        p2 + labs(x = "", title = "B") + theme(
           legend.position = "none", plot.title.position = "plot",
           plot.title = element_text(size = 16)
         ),
-        p3 + labs(x = "", title = "D") + theme(
+        p3 + labs(x = "", title = "C") + theme(
           legend.position = "none", plot.title.position = "plot",
           plot.title = element_text(size = 16)
         ),
@@ -604,11 +603,11 @@ process_mri_subs_output <- function(rds_path, mri_model_data) {
 
     pshort <-
       plot_grid(NULL,
-        p4 + labs(x = "", y = "", title = "B") + theme(
+        p4 + labs(x = "", y = "", title = "D") + theme(
           legend.position = "none", plot.title.position = "plot",
           plot.title = element_text(size = 16)
         ),
-        p5 + labs(x = "", y = "", title = "D") + theme(
+        p5 + labs(x = "", y = "", title = "E") + theme(
           legend.position = "none", plot.title.position = "plot",
           plot.title = element_text(size = 16)
         ),
@@ -692,8 +691,7 @@ get_boot_contrasts <- function(offset) {
   sub_idx <- 1
   t0_outcome_idx <- 1
 
-  get_contrast_data <- function(
-      t0_sub_idx, t_ref_idx, t0_outcome_idx, sub_idx) {
+  get_contrast_data <- function(t0_sub_idx, t_ref_idx, t0_outcome_idx, sub_idx) {
     whole_sample_values <-
       data$t0[t0_outcome_idx:(t0_outcome_idx + num_subs - 1), t0_sub_idx]
     whole_sample_values <- cbind(

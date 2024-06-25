@@ -36,10 +36,10 @@ imp_methods["date_acdem2"] <- ""
 imp_methods["date_of_death"] <- ""
 
 # imputation
-#imp <- mice(boot_data, m = 1, predictorMatrix = predmat, methods = imp_methods)
-#imp <- complete(imp)
+# imp <- mice(boot_data, m = 1, predictorMatrix = predmat, methods = imp_methods)
+# imp <- complete(imp)
 
-#write_rds(imp, file.path(data_dir, "imp_timescale.rds"))
+# write_rds(imp, file.path(data_dir, "imp_timescale.rds"))
 
 imp <- read_rds(file.path(data_dir, "imp_timescale.rds"))
 
@@ -86,9 +86,9 @@ fit_model <- function(low, high) {
       avg_total_household_income +
       smok_status,
     data = df
-    )
+  )
 
-    return(model)
+  return(model)
 }
 
 
@@ -138,8 +138,7 @@ get_hr <- function(model, ilr_sub, ilr_ref) {
 
 ## function to pass in substitutions to above function
 
-get_sub <- function(model, base_comp, substitution){
-
+get_sub <- function(model, base_comp, substitution) {
   # increment for substitution
   inc <- c(-1 / 24, 1 / 24)
 
@@ -167,14 +166,13 @@ get_sub <- function(model, base_comp, substitution){
   sub_hrs <-
     rbindlist(lapply(
       seq_len(nrow(sub_comps)),
-      function(i) get_hr(model, ilr(acomp(sub_comps[i]),V=v), base_comp))
-    )
+      function(i) get_hr(model, ilr(acomp(sub_comps[i]), V = v), base_comp)
+    ))
 
   sub_hrs$Substitution <- substitution[2]
-  sub_hrs$Shift <- c(inc[1], inc[2]) *  24
+  sub_hrs$Shift <- c(inc[1], inc[2]) * 24
 
   return(sub_hrs)
-
 }
 
 
@@ -210,9 +208,11 @@ get_stratified_hr <- function(substitution) {
 
 # sleep modvig
 
-all_subs <- list(c("avg_sleep","avg_mvpa"),
-                 c("avg_sleep","avg_light"),
-                 c("avg_sleep","avg_inactivity"))
+all_subs <- list(
+  c("avg_sleep", "avg_mvpa"),
+  c("avg_sleep", "avg_light"),
+  c("avg_sleep", "avg_inactivity")
+)
 
 out <- rbindlist(
   lapply(
@@ -224,21 +224,25 @@ out <- rbindlist(
 ### Plot
 
 out |>
-  mutate(across(c(Contrast,Lower,Upper), exp)) |>
-  mutate(Shift = ifelse(Shift==-1, "Add 1 hr sleep", "Remove 1 hr sleep")) |>
+  mutate(across(c(Contrast, Lower, Upper), exp)) |>
+  mutate(Shift = ifelse(Shift == -1, "Add 1 hr sleep", "Remove 1 hr sleep")) |>
   ggplot(aes(x = time_chunk, y = Contrast, colour = Shift)) +
   geom_pointrange(aes(ymin = Lower, ymax = Upper),
-                  position = position_dodge(0.15)) +
+    position = position_dodge(0.15)
+  ) +
   geom_hline(aes(yintercept = 1), linetype = "dashed") +
-  facet_wrap(~ Substitution, ncol = 1) +
+  facet_wrap(~Substitution, ncol = 1) +
   labs(x = "Time since accelerometry", y = "HR") +
-  scale_x_continuous(breaks = c(1,2),
-                     labels = c("<5 years", "\u2265 5 years")) +
+  scale_x_continuous(
+    breaks = c(1, 2),
+    labels = c("<5 years", "\u2265 5 years")
+  ) +
   theme_cowplot()
 
 ggsave(file.path(data_dir, "stratified_hrs.png"),
-       device = "png", bg = "white", width = 6,
-       height = 8)
+  device = "png", bg = "white", width = 6,
+  height = 8
+)
 
 
 # #### Bootstrap

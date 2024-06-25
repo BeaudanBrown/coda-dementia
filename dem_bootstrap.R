@@ -465,7 +465,7 @@ process_dem_output <- function(rds_path, intervals = TRUE) {
       p <- p +
         geom_ribbon(aes(ymin = lower, ymax = upper),
           alpha = 0.25, fill = colour
-          )
+        )
     }
     return(p)
   }

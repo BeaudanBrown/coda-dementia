@@ -1,30 +1,17 @@
 source("utils.R")
-
-# load packages
-list_of_packages <- c(
-  "mice",
-  "tidyverse",
-  "survival",
-  "rms",
-  "compositions",
-  "data.table",
-  "parallel",
-  "boot",
-  "renv",
-  "rlang",
-  "cowplot",
-  "extrafont",
-  "fastglm",
-  "dotenv"
-)
-
-new_packages <- list_of_packages[
-  !(list_of_packages %in% installed.packages()[, "Package"])
-]
-
-if (length(new_packages)) install.packages(new_packages)
-
-lapply(list_of_packages, library, character.only = TRUE)
+library("mice")
+library("tidyverse")
+library("survival")
+library("rms")
+library("compositions")
+library("data.table")
+library("parallel")
+library("boot")
+library("rlang")
+library("cowplot")
+library("extrafont")
+library("fastglm")
+library("dotenv")
 
 get_primary_formula <- function(data) {
   knots_timegroup <- quantile(
@@ -239,51 +226,51 @@ predict_composition_risk <- function(
 
 calc_substitution <-
   function(base_comp, imp_stacked_dt, model_dem, model_death, model_formula, substitution, timegroup) {
-  # The list of substitutions to be calculated in minutes
-  inc <- -sub_steps:sub_steps * (sub_step_mins / mins_in_day)
+    # The list of substitutions to be calculated in minutes
+    inc <- -sub_steps:sub_steps * (sub_step_mins / mins_in_day)
 
-  # Initialize a list to hold generated data.tables
-  sub_comps_list <- vector("list", length(inc))
+    # Initialize a list to hold generated data.tables
+    sub_comps_list <- vector("list", length(inc))
 
-  # Loop over inc and create a sub_comps data table for each element
-  for (i in seq_along(inc)) {
-    # The list of compositions to be fed into the model after applying the substitutions
-    sub_comps <- as.data.table(t(base_comp))
-    setnames(sub_comps, c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa"))
+    # Loop over inc and create a sub_comps data table for each element
+    for (i in seq_along(inc)) {
+      # The list of compositions to be fed into the model after applying the substitutions
+      sub_comps <- as.data.table(t(base_comp))
+      setnames(sub_comps, c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa"))
 
-    sub_comps[, (substitution[1]) := .SD[[substitution[1]]] + inc[i]]
-    sub_comps[, (substitution[2]) := .SD[[substitution[2]]] - inc[i]]
+      sub_comps[, (substitution[1]) := .SD[[substitution[1]]] + inc[i]]
+      sub_comps[, (substitution[2]) := .SD[[substitution[2]]] - inc[i]]
 
-    # Store the data.table into list
-    sub_comps_list[[i]] <- sub_comps
+      # Store the data.table into list
+      sub_comps_list[[i]] <- sub_comps
+    }
+
+    # Combine all data.tables in the list
+    sub_comps <- rbindlist(sub_comps_list)
+
+    # The risk predicted by the model for each of these composition
+    sub_risks <-
+      rbindlist(lapply(
+        seq_len(nrow(sub_comps)),
+        function(i) {
+          predict_composition_risk(
+            acomp(sub_comps[i]),
+            imp_stacked_dt,
+            model_dem,
+            model_death,
+            model_formula,
+            timegroup
+          )
+        }
+      ))
+
+    result <-
+      setnames(
+        data.table(offset = inc * mins_in_day, risks = sub_risks),
+        c("offset", paste0(substitution[2], "_", deparse(
+          substitute(base_comp)
+        )))
+      )
+
+    return(result)
   }
-
-  # Combine all data.tables in the list
-  sub_comps <- rbindlist(sub_comps_list)
-
-  # The risk predicted by the model for each of these composition
-  sub_risks <-
-    rbindlist(lapply(
-      seq_len(nrow(sub_comps)),
-      function(i) {
-        predict_composition_risk(
-          acomp(sub_comps[i]),
-          imp_stacked_dt,
-          model_dem,
-          model_death,
-          model_formula,
-          timegroup
-        )
-      }
-    ))
-
-  result <-
-    setnames(
-      data.table(offset = inc * mins_in_day, risks = sub_risks),
-      c("offset", paste0(substitution[2], "_", deparse(
-        substitute(base_comp)
-      )))
-    )
-
-  return(result)
-}

@@ -1,6 +1,7 @@
 data/
 
 # History files
+.Rlib
 .Rhistory
 .Rapp.history
 
@@ -53,3 +54,8 @@ rsconnect/
 
 # Lintr file
 .lintr
+
+.devenv
+.direnv
+flakeold/
+old/

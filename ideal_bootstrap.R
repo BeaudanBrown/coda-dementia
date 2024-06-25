@@ -191,7 +191,7 @@ process_ideal_output <- function(rds_path) {
     geom_ribbon(aes(ymin = lower, ymax = upper, fill = Composition),
       alpha = 0.25
     ) +
-    labs(x = "Age", y = "Cumulative all-cause dementia incidence") +
+    labs(x = "Age (years)", y = "Cumulative all-cause dementia incidence") +
     cowplot::theme_cowplot() +
     scale_color_manual(
       labels = c("Worst", "Typical", "Ideal"),

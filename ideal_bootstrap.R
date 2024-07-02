@@ -4,9 +4,15 @@ source("utils.R")
 produce_ideal_plot <- function() {
   ideal_rds <- file.path(data_dir, "boot_ideal.rds")
   ideal_plot <- process_ideal_output(ideal_rds)
-  save_plot(ideal_plot, file.path(
-    data_dir, "../../Papers/Substitution Analysis/Main_figures/Cumulative.svg"
-  ))
+  ggsave(
+    file.path(
+      data_dir, "../Manuscript/Main_figures/Cumulative.svg"
+    ),
+    ideal_plot,
+    device = "svg",
+    width = 8,
+    height = 8
+  )
 }
 
 run_cum_bootstrap <- function(output_name, intervals = TRUE) {
@@ -32,7 +38,9 @@ run_cum_bootstrap <- function(output_name, intervals = TRUE) {
       length.out = num_timegroups
     )
 
-  best_and_worst <- get_best_and_worst_comp(data, timegroup_cuts)
+  best_and_worst <- read_rds(
+    file.path(data_dir, "ideal_typical_worst_comps.rds")
+  )
 
   if (isTRUE(intervals)) {
     result <- boot(

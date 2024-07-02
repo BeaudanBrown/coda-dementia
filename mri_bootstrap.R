@@ -2,7 +2,7 @@ source("mri_models.R")
 library(tidyverse)
 
 produce_mri_plots <- function() {
-  mri_rds <- file.path(data_dir, "boot_mri.rds")
+  mri_rds <- file.path(data_dir, "boot_mri_2024-06-26_01:27.rds")
   mri_subs_rds <- file.path(data_dir, "boot_mri_subs.rds")
 
   mri_output <- process_mri_output(mri_rds)
@@ -16,20 +16,74 @@ produce_mri_plots <- function() {
     )
 
   for (i in names(mri_subs_plots)) {
-    save_plot(mri_subs_plots[[i]], file.path(
+    ggsave(
+      file.path(
+        data_dir,
+        paste(
+          "../Manuscript/Main_figures/Substitutions_",
+          str_to_upper(i), ".pdf",
+          sep = ""
+        )
+      ),
+      mri_subs_plots[[i]],
+      device = "pdf",
+      width = 10, height = 12
+    )
+  }
+  ggsave(
+    file.path(
       data_dir,
-      paste(
+      "../Manuscript/Main_figures/Figure_4.pdf"
+    ),
+    mri_plot,
+    device = "pdf",
+    width = 10, height = 12
+  )
+}
 
-        "../Manuscript/Main_figures/Substitutions_",
-        str_to_upper(i), ".svg",
+get_contrasts <- function(pheno) {
+  mri_rds <- file.path(data_dir, "boot_mri_2024-06-26_01:27.rds")
+  mri_output <- process_mri_output(mri_rds)
+
+  # estimates
+  estimates <- mri_output[[1]]
+  estimates <- estimates[estimates$pheno == pheno, ]
+  estimates <- estimates |>
+    select(pheno, comp, value) |>
+    pivot_wider(names_from = comp, values_from = value)
+
+  # CIs
+  boot_reps <- mri_output[[2]]
+  boot_reps <- boot_reps |> select(ends_with(pheno))
+  names(boot_reps) <- str_remove(names(boot_reps), "_(.*)")
+
+  out <-
+    c(
+      paste(
+        pheno,
+        ": worst - typical ",
+        round(estimates$worst - estimates$typical, 2),
+        " (",
+        round(quantile(boot_reps$worst - boot_reps$typical, 0.025), 2),
+        ",",
+        round(quantile(boot_reps$worst - boot_reps$typical, 0.975), 2),
+        ")",
+        sep = ""
+      ),
+      paste(
+        pheno,
+        ": ideal - typical ",
+        round(estimates$ideal - estimates$typical, 3),
+        " (",
+        round(quantile(boot_reps$ideal - boot_reps$typical, 0.025), 3),
+        ",",
+        round(quantile(boot_reps$ideal - boot_reps$typical, 0.975), 3),
+        ")",
         sep = ""
       )
-    ))
-  }
-  save_plot(mri_plot, file.path(
-    data_dir,
-    "../Manuscript/Main_figures/Figure 4.svg"
-  ))
+    )
+
+  return(out)
 }
 
 make_mri_df <- function(boot_df) {
@@ -104,7 +158,6 @@ run_mri_subs_bootstrap <- function(create_formula_fn, output_name) {
 run_mri_bootstrap <- function(create_formula_fn, output_name) {
   boot_df <- read_rds(boot_data_file)
   mri_df <- make_mri_df(boot_df)
-  options(datadist = datadist(mri_df))
   # Matrix of variables to include in imputation model
   predmat <- quickpred(mri_df,
     mincor = 0,
@@ -117,24 +170,16 @@ run_mri_bootstrap <- function(create_formula_fn, output_name) {
       "avg_mvpa"
     )
   )
-  min_age_of_dem <- min(mri_df$age_dem)
-  max_age_of_dem <- max(mri_df$age_dem)
-  age_range <- max_age_of_dem - min_age_of_dem
-  timegroup_steps <- ceiling(age_range * 2)
-  median_age_of_dem <- median(mri_df[mri_df$dem == 1, ]$age_dem)
 
-  timegroup_cuts <-
-    seq(
-      from = min_age_of_dem,
-      to = max_age_of_dem,
-      length.out = timegroup_steps
-    )
 
   make_ilr <- function(comp) {
     return(ilr(acomp(comp), V = v))
   }
 
-  best_and_worst <- get_best_and_worst_comp(boot_df, timegroup_cuts)
+  best_and_worst <- read_rds(
+    file.path(data_dir, "ideal_typical_worst_comps.rds")
+  )
+
   best_and_worst <- as.data.frame(apply(best_and_worst, 2, make_ilr))
 
   result <- boot(
@@ -355,46 +400,6 @@ plot_mri <- function(result_list, mri_model_data) {
       )),
     nrow = 3
   )
-}
-
-get_contrasts <- function(pheno) {
-  # estimates
-  estimates <- estimates[estimates$pheno == pheno, ]
-  estimates <- estimates |>
-    select(pheno, comp, value) |>
-    pivot_wider(names_from = comp, values_from = value)
-
-  # CIs
-  boot_reps <- boot_reps |> select(ends_with(pheno))
-  names(boot_reps) <- str_remove(names(boot_reps), "_(.*)")
-
-  out <-
-    c(
-      paste(
-        pheno,
-        ": worst - typical ",
-        round(estimates$worst - estimates$typical, 2),
-        " (",
-        round(quantile(boot_reps$worst - boot_reps$typical, 0.025), 2),
-        ",",
-        round(quantile(boot_reps$worst - boot_reps$typical, 0.975), 2),
-        ")",
-        sep = ""
-      ),
-      paste(
-        pheno,
-        ": ideal - typical ",
-        round(estimates$ideal - estimates$typical, 3),
-        " (",
-        round(quantile(boot_reps$ideal - boot_reps$typical, 0.025), 3),
-        ",",
-        round(quantile(boot_reps$ideal - boot_reps$typical, 0.975), 3),
-        ")",
-        sep = ""
-      )
-    )
-
-  return(out)
 }
 
 process_mri_subs_output <- function(rds_path, mri_model_data) {
@@ -619,7 +624,7 @@ process_mri_subs_output <- function(rds_path, mri_model_data) {
         nrow = 4,
         label_fontfamily = "serif",
         labels = "Normal sleepers",
-        hjust = -1.1
+        hjust = -1.6
       )
 
     # short sleepers
@@ -655,7 +660,7 @@ process_mri_subs_output <- function(rds_path, mri_model_data) {
         nrow = 4,
         labels = "Short sleepers",
         label_fontfamily = "serif",
-        hjust = -1.3
+        hjust = -1.9
       )
 
     plot <- plot_grid(pnorm,
@@ -668,33 +673,33 @@ process_mri_subs_output <- function(rds_path, mri_model_data) {
   tbv_plot <- mri_plots(
     tbv_plot_df, "tbv",
     ylabel = expression(
-      paste("Total brain volume ", cm^{
+      paste("Total brain volume ", (cm^{
         3
-      })
+      }))
     )
   )
   wmv_plot <- mri_plots(
     wmv_plot_df, "wmv",
     ylabel = expression(
-      paste("White matter volume ", cm^{
+      paste("White matter volume ", (cm^{
         3
-      })
+      }))
     )
   )
   gmv_plot <- mri_plots(
     gmv_plot_df, "gmv",
     ylabel = expression(
-      paste("Grey matter volume ", cm^{
+      paste("Grey matter volume ", (cm^{
         3
-      })
+      }))
     )
   )
   hip_plot <- mri_plots(
     hip_plot_df, "hip",
     ylabel = expression(
-      paste("Hippocampal volume ", cm^{
+      paste("Hippocampal volume ", (cm^{
         3
-      })
+      }))
     )
   )
   wmh_plot <- mri_plots(log_wmh_plot_df, "log_wmh", ylabel = "Log WMH")

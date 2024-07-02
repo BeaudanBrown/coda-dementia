@@ -113,5 +113,26 @@ get_best_and_worst_comp <- function(df, timegroup_cuts) {
 
   result <- as.data.frame(t(rbind(best_comp, worst_comp, typical_comp)))
   colnames(result) <- c("best", "worst", "typical")
-  return(result)
+
+  write_rds(
+    result,
+    file.path(data_dir, "ideal_typical_worst_comps.rds")
+  )
 }
+
+df <- read_rds(boot_data_file)
+
+min_age_of_dem <- min(df$age_dem)
+max_age_of_dem <- max(df$age_dem)
+age_range <- max_age_of_dem - min_age_of_dem
+timegroup_steps <- ceiling(age_range * 2)
+median_age_of_dem <- median(df[df$dem == 1, ]$age_dem)
+
+timegroup_cuts <-
+  seq(
+    from = min_age_of_dem,
+    to = max_age_of_dem,
+    length.out = timegroup_steps
+  )
+
+get_best_and_worst_comp(df, timegroup_cuts)

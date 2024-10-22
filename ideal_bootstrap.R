@@ -41,13 +41,13 @@ run_cum_bootstrap <- function(output_name, intervals = TRUE) {
   ## Split data into two folds - one for finding best and worst comp
   ## and another for estimating dementia risk for identified comps
 
-  split <- sample(1:nrow(data), size = floor(nrow(data)/2), replace = FALSE)
+  split <- sample(1:nrow(data), size = floor(nrow(data) / 2), replace = FALSE)
 
-  fold1 <- data[split,]
-  fold2 <- data[-split,]
+  fold1 <- data[split, ]
+  fold2 <- data[-split, ]
 
   best_and_worst <-
-    get_best_and_worst_comp(fold1)
+    get_best_and_worst_comp(fold1, timegroup_cuts)
 
   if (isTRUE(intervals)) {
     result <- boot(
@@ -64,7 +64,7 @@ run_cum_bootstrap <- function(output_name, intervals = TRUE) {
     )
   } else {
     result <- bootstrap_ideal_fn(
-      data = data,
+      data = fold2,
       indices = seq(1, nrow(data)),
       create_formula_fn = get_primary_formula,
       predmat = predmat,

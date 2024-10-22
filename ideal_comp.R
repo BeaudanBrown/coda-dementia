@@ -101,6 +101,7 @@ get_best_and_worst_comp <- function(df, timegroup_cuts) {
   dem_model <- models[["model_dem"]]
   model_formula <- models[["model_formula"]]
   ref_row <- as.data.frame(dem_df[1, ])
+  # Arbitrary, since hazards will be equivalently ranked across timegroups
   ref_row$timegroup <- 55
 
   generated_comps$haz <- generate_hazards(
@@ -114,8 +115,5 @@ get_best_and_worst_comp <- function(df, timegroup_cuts) {
   result <- as.data.frame(t(rbind(best_comp, worst_comp, typical_comp)))
   colnames(result) <- c("best", "worst", "typical")
 
-  write_rds(
-    result,
-    file.path(data_dir, "ideal_typical_worst_comps.rds")
-  )
+  return(result)
 }

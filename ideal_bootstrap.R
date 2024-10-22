@@ -10,8 +10,8 @@ produce_ideal_plot <- function() {
     ),
     ideal_plot,
     device = "svg",
-    width = 8,
-    height = 8
+    width = 10,
+    height = 10.5
   )
 }
 
@@ -38,13 +38,20 @@ run_cum_bootstrap <- function(output_name, intervals = TRUE) {
       length.out = num_timegroups
     )
 
-  best_and_worst <- read_rds(
-    file.path(data_dir, "ideal_typical_worst_comps.rds")
-  )
+  ## Split data into two folds - one for finding best and worst comp
+  ## and another for estimating dementia risk for identified comps
+
+  split <- sample(1:nrow(data), size = floor(nrow(data)/2), replace = FALSE)
+
+  fold1 <- data[split,]
+  fold2 <- data[-split,]
+
+  best_and_worst <-
+    get_best_and_worst_comp(fold1)
 
   if (isTRUE(intervals)) {
     result <- boot(
-      data = data,
+      data = fold2,
       statistic = bootstrap_ideal_fn,
       create_formula_fn = get_primary_formula,
       predmat = predmat,
@@ -244,15 +251,18 @@ process_ideal_output <- function(rds_path, intervals = TRUE) {
       values = c("#DC3912", "#56B4E9", "#7AC36A")
     ) +
     cowplot::theme_cowplot(
-      font_size = 12,
-      font_family = "serif"
+      font_size = 16,
+      font_family = "serif",
+      line_size = 0.25
     ) +
     theme(
       panel.border = element_rect(fill = NA, colour = "#585656"),
       panel.grid = element_line(colour = "grey92"),
       panel.grid.minor = element_line(linewidth = rel(0.5)),
       axis.ticks.y = element_blank(),
-      axis.line = element_line(color = "#585656")
+      axis.line = element_line(color = "#585656"),
+      axis.title.x = element_text(family = "serif", size = 20),
+      axis.title.y = element_text(family = "serif", size = 20)
     )
   if (isTRUE(intervals)) {
     p <- p +

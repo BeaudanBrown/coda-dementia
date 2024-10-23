@@ -53,7 +53,13 @@ generate_hazards <- function(comps, model, model_formula, ref_row) {
   return(risks)
 }
 
-get_best_and_worst_comp <- function(df, timegroup_cuts) {
+get_best_and_worst_comp <- function(df, timegroup_cuts, filename = "best_and_worst") {
+  file_path <- file.path(output_dir, paste0(filename, ".rds"))
+  if (file.exists(file_path)) {
+    rds_data <- read_rds(file_path)
+    return(rds_data)
+  }
+
   ## Load data
   predmat <- quickpred(df,
     mincor = 0,
@@ -115,5 +121,6 @@ get_best_and_worst_comp <- function(df, timegroup_cuts) {
   result <- as.data.frame(t(rbind(best_comp, worst_comp, typical_comp)))
   colnames(result) <- c("best", "worst", "typical")
 
+  write_rds(result, file_path)
   return(result)
 }

@@ -54,16 +54,6 @@
                     enable = true;
                   };
                   env.R_LIBS_USER="./.Rlib";
-
-                  pre-commit.hooks.formatter = {
-                    enable = true;
-                    entry = ''
-                    Rscript -e "styler::style_dir(path = '.',
-                      recursive = TRUE,
-                      filetype = c('R', 'Rmd'),
-                      exclude_dirs = c('.devenv', '.direnv', '.git'),
-                      transformers = styler::tidyverse_style())"'';
-                  };
                 }
               ];
             };

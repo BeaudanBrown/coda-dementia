@@ -1,17 +1,7 @@
 source("dem_models.R")
 
 # load packages
-list_of_packages <- c(
-  "mvtnorm"
-)
-
-new_packages <- list_of_packages[
-  !(list_of_packages %in% installed.packages()[, "Package"])
-]
-
-if (length(new_packages)) install.packages(new_packages)
-
-lapply(list_of_packages, library, character.only = TRUE)
+library("mvtnorm")
 
 generate_compositions <- function(lower, upper) {
   step_size <- 15

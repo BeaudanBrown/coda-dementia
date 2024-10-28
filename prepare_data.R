@@ -11,7 +11,7 @@ library(survival)
 # read main dataset
 
 dem_df <-
-  fread(file.path(data_dir, "24hr_behaviours_26_04_24.csv"),
+  fread(file.path(data_dir, "24hr_behaviours_28_10_24.csv"),
     stringsAsFactors = TRUE
   ) |>
   as_tibble()
@@ -24,7 +24,7 @@ dem_df <- dem_df |> select(-starts_with("dur_day_total_"))
 sleep_dis_df <-
   fread(file.path(
     data_dir,
-    "../Sleep_disorders/sleep_disorders_selfreport_primarycare_hosp.csv"
+    "../../../Generic_data/Sleep_disorders/sleep_disorders_selfreport_primarycare_hosp.csv"
   ))
 
 # Merge dataframes
@@ -173,7 +173,7 @@ dem_df$age_at_death <- dem_df$age_accel + (dem_df$time_to_death / 365)
 
 ## Add WASO and SRI to dataset ##
 
-waso_dat <- fread(file.path(data_dir, "../SRI/sri_data_may2023.csv"))
+waso_dat <- fread(file.path(data_dir, "../../SRI-dementia/Data/sri_data_may2023.csv"))
 
 waso_dat <- select(waso_dat, eid, avg_WASO, avg_sri)
 
@@ -183,7 +183,7 @@ dem_df <- left_join(dem_df, waso_dat, by = "eid")
 
 ### Add in prevalent illness data ###
 
-prev <- fread(file.path(data_dir, "../SRI/disease_dates.csv"),
+prev <- fread(file.path(data_dir, "../../SRI-dementia/Data/disease_dates.csv"),
   stringsAsFactors = T
 )
 
@@ -281,4 +281,4 @@ dem_model_data <- select(
 
 ## Output RDS file ##
 
-write_rds(dem_model_data, file.path(data_dir, "bootstrap_data_26_04_24.rds"))
+write_rds(dem_model_data, file.path(data_dir, "bootstrap_data_28_10_24.rds"))

@@ -5,7 +5,7 @@ dotenv::load_dot_env()
 data_dir <- Sys.getenv("DATA_DIR")
 output_dir <- Sys.getenv("OUTPUT_DIR")
 
-boot_data_file <- file.path(data_dir, "bootstrap_data_26_04_24.rds")
+boot_data_file <- file.path(data_dir, "bootstrap_data_28_10_24.rds")
 mri_data_file <- file.path(data_dir, "mri_data.csv")
 
 # Constants

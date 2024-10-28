@@ -125,7 +125,7 @@ run_bootstrap <-
         predmat = predmat,
         empirical = empirical,
         timegroup_cuts = timegroup_cuts,
-        median_age_of_dem = median_age_of_dem,
+        median_age_of_dem_timegroup = median_age_of_dem_timegroup,
         short_sleep_geo_mean = short_sleep_geo_mean,
         avg_sleep_geo_mean = avg_sleep_geo_mean,
         R = bootstrap_iterations,
@@ -139,7 +139,7 @@ run_bootstrap <-
         create_formula_fn = create_formula_fn,
         predmat = predmat,
         timegroup_cuts = timegroup_cuts,
-        median_age_of_dem = median_age_of_dem,
+        median_age_of_dem_timegroup = median_age_of_dem_timegroup,
         short_sleep_geo_mean = short_sleep_geo_mean,
         avg_sleep_geo_mean = avg_sleep_geo_mean,
         empirical = empirical

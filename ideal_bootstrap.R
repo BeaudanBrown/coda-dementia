@@ -50,6 +50,13 @@ run_cum_bootstrap <- function(output_name, intervals = TRUE) {
     get_best_and_worst_comp(fold1, timegroup_cuts)
 
   if (isTRUE(intervals)) {
+    library(parallel)
+    cl <- makeCluster(ncpus, outfile="outfile.txt")
+    clusterEvalQ(cl, {
+      source("utils.R")
+      source("ideal_comp.R")
+    })
+
     result <- boot(
       data = fold2,
       statistic = bootstrap_ideal_fn,
@@ -59,9 +66,11 @@ run_cum_bootstrap <- function(output_name, intervals = TRUE) {
       timegroup_cuts = timegroup_cuts,
       num_timegroups = num_timegroups,
       R = bootstrap_iterations,
-      parallel = "multicore",
+      parallel = "snow",
+      cl = cl,
       ncpus = ncpus
     )
+    stopCluster(cl)
   } else {
     result <- bootstrap_ideal_fn(
       data = fold2,

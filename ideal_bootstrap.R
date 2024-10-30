@@ -41,17 +41,20 @@ run_cum_bootstrap <- function(output_name, intervals = TRUE) {
   ## Split data into two folds - one for finding best and worst comp
   ## and another for estimating dementia risk for identified comps
 
+  set.seed(seed_val)
   split <- sample(1:nrow(data), size = floor(nrow(data) / 2), replace = FALSE)
 
   fold1 <- data[split, ]
   fold2 <- data[-split, ]
 
+  filename <- paste("best_and_worst", seed_val, sep = "-")
   best_and_worst <-
-    get_best_and_worst_comp(fold1, timegroup_cuts)
+    get_best_and_worst_comp(fold1, timegroup_cuts, filename = filename)
 
   if (isTRUE(intervals)) {
     library(parallel)
-    cl <- makeCluster(ncpus, outfile="outfile.txt")
+    outfile <- paste("ideal_outfile", seed_val, sep = "-")
+    cl <- makeCluster(ncpus, outfile = paste0(outfile, ".txt"))
     clusterEvalQ(cl, {
       source("utils.R")
       source("ideal_comp.R")

@@ -4,6 +4,7 @@ library(compositions)
 dotenv::load_dot_env()
 data_dir <- Sys.getenv("DATA_DIR")
 output_dir <- Sys.getenv("OUTPUT_DIR")
+seed_val <- Sys.getenv("SEED")
 
 boot_data_file <- file.path(data_dir, "bootstrap_data_28_10_24.rds")
 mri_data_file <- file.path(data_dir, "mri_data.csv")

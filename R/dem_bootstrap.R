@@ -1,88 +1,9 @@
-# Run bootstrap for primary model
-run_primary_bootstrap <- function(df, intervals = TRUE) {
-  run_bootstrap(
-    data = df,
-    create_formula_fn = get_primary_formula,
-    output_name = "boot_primary",
-    empirical = TRUE,
-    intervals = TRUE
-  )
-}
-
-produce_plots <- function(primary, s1, s2, s3) {
-  primary_plot <- process_dem_output(primary)
-  s1_plot <- process_dem_output(s1)
-  s2_plot <- process_dem_output(s2)
-  s3_plot <- process_dem_output(s3, intervals = FALSE)
-
-  save_plot(
-    primary_plot[[1]],
-    file.path(
-      data_dir,
-      "../Manuscript/Main_figures/Figure 1.svg"
-    )
-  )
-  save_plot(
-    s1_plot[[1]],
-    file.path(
-      data_dir,
-      "../Manuscript/Appendix_figures/Substitutions_s1.svg"
-    )
-  )
-  save_plot(
-    s2_plot[[1]],
-    file.path(
-      data_dir,
-      "../Manuscript/Appendix_figures/Substitutions_s2.svg"
-    )
-  )
-  save_plot(
-    s3_plot[[1]],
-    file.path(
-      data_dir,
-      "../Manuscript/Appendix_figures/Substitutions_s3.svg"
-    )
-  )
-}
-
-# Run bootstrap for sensitivity analysis model 1
-run_s1_bootstrap <- function(df, intervals = TRUE) {
-  run_bootstrap(
-    data = df,
-    create_formula_fn = get_s1_formula,
-    intervals = intervals
-  )
-}
-
-# Run bootstrap for sensitivity analysis model 2
-run_s2_bootstrap <- function(df, intervals = TRUE) {
-  run_bootstrap(
-    data = df,
-    create_formula_fn = get_s2_formula,
-    intervals = intervals
-  )
-}
-
-## Run bootstrap for sensitivity analysis model 3
-# standardising to pseudo pop of Schoeler et al.
-
-run_s3_bootstrap <- function(df, intervals = TRUE) {
-  run_bootstrap(
-    data = df,
-    create_formula_fn = get_s3_formula,
-    intervals = intervals,
-    empirical = FALSE
-  )
-}
-
-# Run bootstrap for a particular model formula and
-# timegroup target, outputting to a file
+# Run bootstrap for a particular model formula and timegroup target
 run_bootstrap <- function(
   data,
   create_formula_fn,
-  output_name,
   empirical = TRUE,
-  intervals
+  intervals = TRUE
 ) {
   # Matrix of variables to include in imputation model
   predmat <- quickpred(
@@ -344,6 +265,42 @@ bootstrap_substitutions_fn <- function(
   print("Returning results")
   print(format(Sys.time(), "%H:%M:%S"))
   return(as.matrix(full_df))
+}
+
+produce_plots <- function(primary, s1, s2, s3) {
+  primary_plot <- process_dem_output(primary)
+  s1_plot <- process_dem_output(s1)
+  s2_plot <- process_dem_output(s2)
+  s3_plot <- process_dem_output(s3, intervals = FALSE)
+
+  save_plot(
+    primary_plot[[1]],
+    file.path(
+      data_dir,
+      "../Manuscript/Main_figures/Figure 1.svg"
+    )
+  )
+  save_plot(
+    s1_plot[[1]],
+    file.path(
+      data_dir,
+      "../Manuscript/Appendix_figures/Substitutions_s1.svg"
+    )
+  )
+  save_plot(
+    s2_plot[[1]],
+    file.path(
+      data_dir,
+      "../Manuscript/Appendix_figures/Substitutions_s2.svg"
+    )
+  )
+  save_plot(
+    s3_plot[[1]],
+    file.path(
+      data_dir,
+      "../Manuscript/Appendix_figures/Substitutions_s3.svg"
+    )
+  )
 }
 
 process_dem_output <- function(result, intervals = TRUE) {

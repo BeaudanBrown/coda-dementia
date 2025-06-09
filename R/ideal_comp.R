@@ -44,17 +44,21 @@ generate_hazards <- function(comps, model, model_formula, ref_row) {
   return(risks)
 }
 
-get_best_and_worst_comp <- function(
-  df,
-  timegroup_cuts,
-  filename = "best_and_worst"
-) {
-  file_path <- file.path(output_dir, paste0(filename, ".rds"))
-  if (file.exists(file_path)) {
-    rds_data <- read_rds(file_path)
-    return(rds_data)
-  }
+get_best_and_worst_comp <- function(df, timegroup_cuts = NULL) {
+  if (is.null(timegroup_cuts)) {
+    min_age_of_dem <- min(df$age_dem)
+    max_age_of_dem <- max(df$age_dem)
+    age_range <- max_age_of_dem - min_age_of_dem
+    timegroup_steps <- ceiling(age_range * 2)
+    median_age_of_dem <- median(df[df$dem == 1, ]$age_dem)
 
+    timegroup_cuts <-
+      seq(
+        from = min_age_of_dem,
+        to = max_age_of_dem,
+        length.out = timegroup_steps
+      )
+  }
   ## Load data
   predmat <- quickpred(
     df,
@@ -138,5 +142,5 @@ get_best_and_worst_comp <- function(
   result <- as.data.frame(t(rbind(best_comp, worst_comp, typical_comp)))
   colnames(result) <- c("best", "worst", "typical")
 
-  return(result)
+  result
 }

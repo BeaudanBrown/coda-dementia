@@ -57,20 +57,46 @@ data.table::setDTthreads(1)
 ## pipeline
 list(
   tar_target(df_raw, create_data()),
-
   tar_target(df, prepare_dataset(df_raw)),
+  # Run bootstrap for primary model
+  tar_target(
+    primary,
+    run_bootstrap(
+      data = df,
+      create_formula_fn = get_primary_formula
+    )
+  ),
 
-  tar_target(primary, run_primary_bootstrap(df)),
-
-  tar_target(s1, run_s1_bootstrap(df)),
-
-  tar_target(s2, run_s2_bootstrap(df)),
-
-  tar_target(s3, run_s3_bootstrap(df)),
-
+  # Run bootstrap for sensitivity analysis model 1
+  tar_target(
+    s1,
+    run_bootstrap(
+      data = df,
+      create_formula_fn = get_s1_formula
+    )
+  ),
+  # Run bootstrap for sensitivity analysis model 2
+  tar_target(
+    s2,
+    run_bootstrap(
+      data = df,
+      create_formula_fn = get_s2_formula,
+      intervals = intervals
+    )
+  ),
+  ## Run bootstrap for sensitivity analysis model 3
+  # standardising to pseudo pop of Schoeler et al.
+  tar_target(
+    s3,
+    run_bootstrap(
+      data = df,
+      create_formula_fn = get_s3_formula,
+      intervals = intervals,
+      empirical = FALSE
+    )
+  ),
   tar_target(main_plots, produce_plots(primary, s1, s2, s3)),
-
   tar_target(mri_vars, prepare_mri(df_raw)),
-
-  tar_target(mri_df, make_mri_df(mri_vars, df))
+  tar_target(mri_df, make_mri_df(mri_vars, df)),
+  tar_target(full_best_worst, get_best_and_worst_comp(df)),
 )

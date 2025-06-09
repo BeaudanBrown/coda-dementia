@@ -164,66 +164,70 @@ calc_mri_substitution <- function(base_comp, imp, model, substitution) {
   return(result)
 }
 
-predict_mri_substitutions <-
-  function(outcome_var, model_data, short_sleep_geo_mean, avg_sleep_geo_mean) {
-    model_formula <- get_mri_formula(outcome_var, model_data)
+predict_mri_substitutions <- function(
+  outcome_var,
+  model_data,
+  short_sleep_geo_mean,
+  avg_sleep_geo_mean
+) {
+  model_formula <- get_mri_formula(outcome_var, model_data)
 
-    model <- ols(model_formula, data = model_data)
-    print(summary(model))
+  model <- ols(model_formula, data = model_data)
+  print(summary(model))
 
-    sleep_inactive <- c("avg_sleep", "avg_inactivity")
-    sleep_light <- c("avg_sleep", "avg_light")
-    sleep_mvpa <- c("avg_sleep", "avg_mvpa")
+  sleep_inactive <- c("avg_sleep", "avg_inactivity")
+  sleep_light <- c("avg_sleep", "avg_light")
+  sleep_mvpa <- c("avg_sleep", "avg_mvpa")
 
-    avg_sleep_inactive <- calc_mri_substitution(
-      avg_sleep_geo_mean,
-      model_data,
-      model,
-      sleep_inactive
-    )
-    avg_sleep_light <- calc_mri_substitution(
-      avg_sleep_geo_mean,
-      model_data,
-      model,
-      sleep_light
-    )
-    avg_sleep_mvpa <- calc_mri_substitution(
-      avg_sleep_geo_mean,
-      model_data,
-      model,
-      sleep_mvpa
-    )
-    short_sleep_inactive <- calc_mri_substitution(
-      short_sleep_geo_mean,
-      model_data,
-      model,
-      sleep_inactive
-    )
-    short_sleep_light <- calc_mri_substitution(
-      short_sleep_geo_mean,
-      model_data,
-      model,
-      sleep_light
-    )
-    short_sleep_mvpa <- calc_mri_substitution(
-      short_sleep_geo_mean,
-      model_data,
-      model,
-      sleep_mvpa
-    )
+  avg_sleep_inactive <- calc_mri_substitution(
+    avg_sleep_geo_mean,
+    model_data,
+    model,
+    sleep_inactive
+  )
+  avg_sleep_light <- calc_mri_substitution(
+    avg_sleep_geo_mean,
+    model_data,
+    model,
+    sleep_light
+  )
+  avg_sleep_mvpa <- calc_mri_substitution(
+    avg_sleep_geo_mean,
+    model_data,
+    model,
+    sleep_mvpa
+  )
+  short_sleep_inactive <- calc_mri_substitution(
+    short_sleep_geo_mean,
+    model_data,
+    model,
+    sleep_inactive
+  )
+  short_sleep_light <- calc_mri_substitution(
+    short_sleep_geo_mean,
+    model_data,
+    model,
+    sleep_light
+  )
+  short_sleep_mvpa <- calc_mri_substitution(
+    short_sleep_geo_mean,
+    model_data,
+    model,
+    sleep_mvpa
+  )
 
-    full_df <- full_join(
-      short_sleep_inactive,
-      short_sleep_light,
-      by = "offset"
-    ) |>
-      full_join(short_sleep_mvpa, by = "offset") |>
-      full_join(avg_sleep_inactive, by = "offset") |>
-      full_join(avg_sleep_light, by = "offset") |>
-      full_join(avg_sleep_mvpa, by = "offset")
+  full_df <- full_join(
+    short_sleep_inactive,
+    short_sleep_light,
+    by = "offset"
+  ) |>
+    full_join(short_sleep_mvpa, by = "offset") |>
+    full_join(avg_sleep_inactive, by = "offset") |>
+    full_join(avg_sleep_light, by = "offset") |>
+    full_join(avg_sleep_mvpa, by = "offset")
 
-    return(full_df)
-  }
+  return(full_df)
+}
 
 predict_mri_outcome <- function(outcome_var, model_data, best_and_worst) {
   model_formula <- get_mri_formula(outcome_var, model_data)

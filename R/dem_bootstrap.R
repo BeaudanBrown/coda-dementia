@@ -77,95 +77,94 @@ run_s3_bootstrap <- function(df, intervals = TRUE) {
 
 # Run bootstrap for a particular model formula and
 # timegroup target, outputting to a file
-run_bootstrap <-
-  function(
+run_bootstrap <- function(
+  data,
+  create_formula_fn,
+  output_name,
+  empirical = TRUE,
+  intervals
+) {
+  # Matrix of variables to include in imputation model
+  predmat <- quickpred(
     data,
-    create_formula_fn,
-    output_name,
-    empirical = TRUE,
-    intervals
-  ) {
-    # Matrix of variables to include in imputation model
-    predmat <- quickpred(
-      data,
-      mincor = 0,
-      exclude = c(
-        "avg_sleep",
-        "avg_inactivity",
-        "avg_light",
-        "avg_mvpa",
-        "eid"
-      )
+    mincor = 0,
+    exclude = c(
+      "avg_sleep",
+      "avg_inactivity",
+      "avg_light",
+      "avg_mvpa",
+      "eid"
+    )
+  )
+
+  ## reference compositions
+  all_comp <-
+    acomp(data[,
+      c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa")
+    ])
+
+  short_sleep_comp <-
+    all_comp[all_comp$avg_sleep < short_sleep_hours / hrs_in_day, ]
+  short_sleep_geo_mean <-
+    acomp(apply(short_sleep_comp, 2, function(x) exp(mean(log(x)))))
+
+  avg_sleep_comp <-
+    all_comp[all_comp$avg_sleep >= short_sleep_hours / hrs_in_day, ]
+  avg_sleep_geo_mean <-
+    acomp(apply(avg_sleep_comp, 2, function(x) exp(mean(log(x)))))
+
+  ## Ordinal factor variables to numeric for faster imputation
+  data <- ordinal_to_numeric(data)
+
+  ## Constants for dementia risk
+
+  min_age_of_dem <- min(data$age_dem)
+  max_age_of_dem <- max(data$age_dem)
+  age_range <- max_age_of_dem - min_age_of_dem
+  timegroup_steps <- ceiling(age_range * 2)
+  median_age_of_dem <- median(data[data$dem == 1, ]$age_dem)
+
+  timegroup_cuts <-
+    seq(
+      from = min_age_of_dem,
+      to = max_age_of_dem,
+      length.out = timegroup_steps
     )
 
-    ## reference compositions
-    all_comp <-
-      acomp(data[,
-        c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa")
-      ])
+  median_age_of_dem_timegroup <-
+    which(timegroup_cuts > median_age_of_dem)[1] - 1
 
-    short_sleep_comp <-
-      all_comp[all_comp$avg_sleep < short_sleep_hours / hrs_in_day, ]
-    short_sleep_geo_mean <-
-      acomp(apply(short_sleep_comp, 2, function(x) exp(mean(log(x)))))
-
-    avg_sleep_comp <-
-      all_comp[all_comp$avg_sleep >= short_sleep_hours / hrs_in_day, ]
-    avg_sleep_geo_mean <-
-      acomp(apply(avg_sleep_comp, 2, function(x) exp(mean(log(x)))))
-
-    ## Ordinal factor variables to numeric for faster imputation
-    data <- ordinal_to_numeric(data)
-
-    ## Constants for dementia risk
-
-    min_age_of_dem <- min(data$age_dem)
-    max_age_of_dem <- max(data$age_dem)
-    age_range <- max_age_of_dem - min_age_of_dem
-    timegroup_steps <- ceiling(age_range * 2)
-    median_age_of_dem <- median(data[data$dem == 1, ]$age_dem)
-
-    timegroup_cuts <-
-      seq(
-        from = min_age_of_dem,
-        to = max_age_of_dem,
-        length.out = timegroup_steps
-      )
-
-    median_age_of_dem_timegroup <-
-      which(timegroup_cuts > median_age_of_dem)[1] - 1
-
-    if (isTRUE(intervals)) {
-      result <- boot(
-        data = data,
-        statistic = bootstrap_substitutions_fn,
-        create_formula_fn = create_formula_fn,
-        predmat = predmat,
-        empirical = empirical,
-        timegroup_cuts = timegroup_cuts,
-        median_age_of_dem_timegroup = median_age_of_dem_timegroup,
-        short_sleep_geo_mean = short_sleep_geo_mean,
-        avg_sleep_geo_mean = avg_sleep_geo_mean,
-        R = bootstrap_iterations,
-        parallel = "multicore",
-        ncpus = ncpus
-      )
-    } else {
-      result <- bootstrap_substitutions_fn(
-        data = data,
-        indices = seq(1, nrow(data)),
-        create_formula_fn = create_formula_fn,
-        predmat = predmat,
-        timegroup_cuts = timegroup_cuts,
-        median_age_of_dem_timegroup = median_age_of_dem_timegroup,
-        short_sleep_geo_mean = short_sleep_geo_mean,
-        avg_sleep_geo_mean = avg_sleep_geo_mean,
-        empirical = empirical
-      )
-    }
-
-    return(result)
+  if (isTRUE(intervals)) {
+    result <- boot(
+      data = data,
+      statistic = bootstrap_substitutions_fn,
+      create_formula_fn = create_formula_fn,
+      predmat = predmat,
+      empirical = empirical,
+      timegroup_cuts = timegroup_cuts,
+      median_age_of_dem_timegroup = median_age_of_dem_timegroup,
+      short_sleep_geo_mean = short_sleep_geo_mean,
+      avg_sleep_geo_mean = avg_sleep_geo_mean,
+      R = bootstrap_iterations,
+      parallel = "multicore",
+      ncpus = ncpus
+    )
+  } else {
+    result <- bootstrap_substitutions_fn(
+      data = data,
+      indices = seq(1, nrow(data)),
+      create_formula_fn = create_formula_fn,
+      predmat = predmat,
+      timegroup_cuts = timegroup_cuts,
+      median_age_of_dem_timegroup = median_age_of_dem_timegroup,
+      short_sleep_geo_mean = short_sleep_geo_mean,
+      avg_sleep_geo_mean = avg_sleep_geo_mean,
+      empirical = empirical
+    )
   }
+
+  return(result)
+}
 
 # Ran each bootstrap iteration
 # Imputes the data, fits the model for the given formula and

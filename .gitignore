@@ -2,6 +2,7 @@
 .direnv
 .envrc
 .pre-commit-config.yaml
+_targets.yaml
 
 data/
 

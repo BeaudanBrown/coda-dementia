@@ -114,6 +114,45 @@ run_bootstrap <-
     avg_sleep_geo_mean <-
       acomp(apply(avg_sleep_comp, 2, function(x) exp(mean(log(x)))))
 
+    ## set binary/ordinal factor variables to numeric to allow use of pmm
+    data$ethnicity <- as.numeric(data$ethnicity)
+    data$avg_total_household_income <- ifelse(
+      data$avg_total_household_income == "<18",
+      0,
+      ifelse(
+        data$avg_total_household_income == "18-30",
+        1,
+        ifelse(data$avg_total_household_income == "31-50", 2, 3)
+      )
+    )
+    data$highest_qual <- ifelse(
+      data$highest_qual == "O",
+      0,
+      ifelse(
+        data$highest_qual == "NVQ",
+        1,
+        ifelse(data$highest_qual == "A", 2, 3)
+      )
+    )
+    data$smok_status <- as.numeric(data$smok_status) - 1
+    data$bp_med <- as.numeric(data$bp_med) - 1
+    data$any_cvd <- as.numeric(data$any_cvd) - 1
+    data$chronotype <- as.numeric(data$chronotype) - 1
+    data$apoe_e4 <- as.numeric(data$apoe_e4) - 1
+
+    data$freq_depressed_twoweeks <- ifelse(
+      data$freq_depressed_twoweeks == "not at all",
+      0,
+      ifelse(
+        data$freq_depressed_twoweeks == "several days",
+        1,
+        ifelse(data$freq_depressed_twoweeks == "more than half", 2, 3)
+      )
+    )
+    data$diagnosed_diabetes <- as.numeric(data$diagnosed_diabetes) - 1
+
+    ## Constants for dementia risk
+
     min_age_of_dem <- min(data$age_dem)
     max_age_of_dem <- max(data$age_dem)
     age_range <- max_age_of_dem - min_age_of_dem
@@ -187,6 +226,23 @@ bootstrap_substitutions_fn <- function(
   setDT(imp)
   imp[, id := .I]
   imp_len <- nrow(imp)
+
+  # set ordinal variables back to factors
+
+  imp$avg_total_household_income <- as.factor(imp$avg_total_household_income)
+  levels(imp$avg_total_household_income) <- c(
+    "<18",
+    "18-30",
+    "31-50",
+    "52-100",
+    ">100"
+  )
+  imp$chronotype <- as.factor(imp$chronotype)
+  imp$apoe_e4 <- as.factor(imp$apoe_e4)
+  imp$highest_qual <- as.factor(imp$highest_qual)
+  imp$smok_status <- as.factor(imp$smok_status)
+  levels(imp$smok_status) <- c("current", "former", "never")
+
   # fit model
   print("Fitting model")
   print(format(Sys.time(), "%H:%M:%S"))

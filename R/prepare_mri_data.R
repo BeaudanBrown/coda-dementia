@@ -1,10 +1,10 @@
 ### Prepare MRI data for analysis ###
-prepare_mri <- function() {
+prepare_mri <- function(df_raw) {
   ## read data
 
   mri <- fread(file.path(
     data_dir,
-    "../MRI/mri_full_trimmed.csv"
+    "../../../Generic_data/MRI/mri_full_trimmed.csv"
   ))
 
   ## Filter to MRI data available
@@ -16,7 +16,7 @@ prepare_mri <- function() {
 
   # create variables of interest
 
-  mri$tot_wmh <- mri$total_vol_white_matter_hyperintensities_from_t1_and_t2_flair_images # nolint: line_length_linter.
+  mri$tot_wmh <- mri$total_vol_white_matter_hyperintensities_from_t1_and_t2_flair_images
 
   mri$tbv <- (mri$vol_grey_matter_norm + mri$vol_white_matter_norm) / 1000
 
@@ -51,7 +51,7 @@ prepare_mri <- function() {
 
   ## add in QC variables
 
-  qc <- fread(file.path(data_dir, "../MRI/mri_qc.csv"))
+  qc <- fread(file.path(data_dir, "../../../Generic_data/MRI/mri_qc.csv"))
 
   qc <- qc |>
     select(eid, ends_with("-2.0")) |>
@@ -87,14 +87,7 @@ prepare_mri <- function() {
 
   ## add main data
 
-  d <- fread(
-    file.path(data_dir, "24hr_behaviours_25_03_24.csv"),
-    stringsAsFactors = T
-  )
-
-  ## Merge
-
-  mri2 <- left_join(d, mri, by = "eid")
+  mri2 <- left_join(df_raw, mri, by = "eid")
 
   ## MRI data available
 
@@ -138,4 +131,27 @@ prepare_mri <- function() {
   ## write it out
 
   return(mri_model_data)
+}
+
+## Add in main dataset predictors
+
+make_mri_df <- function(mri_vars, df) {
+  mri_df <- mri_vars
+
+  mri_df$assessment_centre_mri1 <- as.factor(mri_df$assessment_centre_mri1)
+
+  ## Read main data
+  mri_df <- left_join(mri_df, df, by = "eid")
+
+  # Age at MRI scan
+  mri_df <- mri_df |>
+    mutate(
+      age_mri = (as.numeric(
+        as.Date(date_mri1) - as.Date(calendar_date)
+      ) /
+        365) +
+        age_accel
+    )
+
+  return(mri_df)
 }

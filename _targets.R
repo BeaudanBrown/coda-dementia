@@ -60,5 +60,17 @@ list(
 
   tar_target(df, prepare_dataset(df_raw)),
 
-  tar_target(primary, run_primary_bootstrap(df, intervals = FALSE))
+  tar_target(primary, run_primary_bootstrap(df)),
+
+  tar_target(s1, run_s1_bootstrap(df)),
+
+  tar_target(s2, run_s2_bootstrap(df)),
+
+  tar_target(s3, run_s3_bootstrap(df)),
+
+  tar_target(main_plots, produce_plots(primary, s1, s2, s3)),
+
+  tar_target(mri_vars, prepare_mri(df_raw)),
+
+  tar_target(mri_df, make_mri_df(mri_vars, df))
 )

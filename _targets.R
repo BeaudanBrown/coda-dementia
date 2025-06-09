@@ -97,6 +97,11 @@ list(
   ),
   tar_target(main_plots, produce_plots(primary, s1, s2, s3)),
   tar_target(mri_vars, prepare_mri(df_raw)),
-  tar_target(mri_df, make_mri_df(mri_vars, df)),
-  tar_target(full_best_worst, get_best_and_worst_comp(df)),
+  tar_target(mri_df, make_mri_df(df, mri_vars)),
+  tar_target(
+    mri_boot,
+    run_mri_bootstrap(mri_df, full_best_worst, get_mri_formula)
+  ),
+  tar_target(mri_output, process_mri_output(mri_boot)),
+  tar_target(full_best_worst, get_best_and_worst_comp(df))
 )

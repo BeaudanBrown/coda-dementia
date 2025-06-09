@@ -1,6 +1,4 @@
-process_mri_output <- function(rds_path) {
-  data <- readRDS(rds_path)
-
+process_mri_output <- function(data) {
   # tidy bootstrap output
   ## prepare data for plotting
   # Define the phenos and comps

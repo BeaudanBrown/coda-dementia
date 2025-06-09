@@ -1,3 +1,8 @@
+.devenv
+.direnv
+.envrc
+.pre-commit-config.yaml
+
 data/
 
 # History files
@@ -57,5 +62,3 @@ rsconnect/
 
 .devenv
 .direnv
-flakeold/
-old/

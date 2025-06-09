@@ -1,12 +1,10 @@
-source("ideal_comp.R")
-source("utils.R")
-
 produce_ideal_plot <- function() {
   ideal_rds <- file.path(data_dir, "boot_ideal.rds")
   ideal_plot <- process_ideal_output(ideal_rds)
   ggsave(
     file.path(
-      data_dir, "../Manuscript/Main_figures/Cumulative.svg"
+      data_dir,
+      "../Manuscript/Main_figures/Cumulative.svg"
     ),
     ideal_plot,
     device = "svg",
@@ -18,11 +16,16 @@ produce_ideal_plot <- function() {
 run_cum_bootstrap <- function(output_name, intervals = TRUE) {
   data <- read_rds(boot_data_file)
   # Matrix of variables to include in imputation model
-  predmat <- quickpred(data,
+  predmat <- quickpred(
+    data,
     mincor = 0,
     exclude = c(
-      "avg_sleep", "avg_inactivity", "avg_light",
-      "avg_mvpa", "eid", "time_to_dem"
+      "avg_sleep",
+      "avg_inactivity",
+      "avg_light",
+      "avg_mvpa",
+      "eid",
+      "time_to_dem"
     )
   )
 
@@ -55,10 +58,10 @@ run_cum_bootstrap <- function(output_name, intervals = TRUE) {
     library(parallel)
     outfile <- paste("ideal_outfile", seed_val, sep = "-")
     cl <- makeCluster(ncpus, outfile = paste0(outfile, ".txt"))
-    clusterEvalQ(cl, {
-      source("utils.R")
-      source("ideal_comp.R")
-    })
+    # clusterEvalQ(cl, {
+    #   source("utils.R")
+    #   source("ideal_comp.R")
+    # })
 
     result <- boot(
       data = fold2,
@@ -86,20 +89,20 @@ run_cum_bootstrap <- function(output_name, intervals = TRUE) {
     )
   }
 
-
   timestamp <- format(Sys.time(), "%Y-%m-%d_%H:%M")
   output_name_with_timestamp <- paste0(output_name, "_", timestamp, ".rds")
   saveRDS(result, file.path(output_dir, output_name_with_timestamp))
 }
 
 bootstrap_ideal_fn <- function(
-    data,
-    indices,
-    create_formula_fn,
-    predmat,
-    best_and_worst,
-    timegroup_cuts,
-    num_timegroups) {
+  data,
+  indices,
+  create_formula_fn,
+  predmat,
+  best_and_worst,
+  timegroup_cuts,
+  num_timegroups
+) {
   this_sample <- data[indices, ]
 
   print("Imputing")
@@ -134,19 +137,28 @@ bootstrap_ideal_fn <- function(
     newx[, "R3"] <- ilr_values[[3]]
     newx[, "I(R3^2)"] <- ilr_values[[3]]^2
 
-    risk_data[, haz_dem := predict(
-      dem_model,
-      newdata = newx, type = "response"
-    )]
-    risk_data[, haz_death := predict(
-      death_model,
-      newdata = newx, type = "response"
-    )]
-    risk_data[, risk := cumsum(
-      haz_dem * cumprod(1 - lag(haz_dem, default = 0) * (1 - haz_death))
-    ), by = id]
-    summarised_risk <- risk_data[
-      , .(avg_risk = mean(risk, na.rm = TRUE)),
+    risk_data[,
+      haz_dem := predict(
+        dem_model,
+        newdata = newx,
+        type = "response"
+      )
+    ]
+    risk_data[,
+      haz_death := predict(
+        death_model,
+        newdata = newx,
+        type = "response"
+      )
+    ]
+    risk_data[,
+      risk := cumsum(
+        haz_dem * cumprod(1 - lag(haz_dem, default = 0) * (1 - haz_death))
+      ),
+      by = id
+    ]
+    summarised_risk <- risk_data[,
+      .(avg_risk = mean(risk, na.rm = TRUE)),
       by = .(timegroup)
     ]
     setnames(summarised_risk, c("avg_risk"), c(risk_name))
@@ -156,20 +168,26 @@ bootstrap_ideal_fn <- function(
   print(paste(format(Sys.time(), "%H:%M:%S"), "Calculating best risk"))
   print(gc())
   best_risk <- calculate_risk(
-    models[["model_formula"]], imp,
-    list(best_ilr[1], best_ilr[2], best_ilr[3]), "best"
+    models[["model_formula"]],
+    imp,
+    list(best_ilr[1], best_ilr[2], best_ilr[3]),
+    "best"
   )
   print(paste(format(Sys.time(), "%H:%M:%S"), "Calculating worst risk"))
   print(gc())
   worst_risk <- calculate_risk(
-    models[["model_formula"]], imp,
-    list(worst_ilr[1], worst_ilr[2], worst_ilr[3]), "worst"
+    models[["model_formula"]],
+    imp,
+    list(worst_ilr[1], worst_ilr[2], worst_ilr[3]),
+    "worst"
   )
   print(paste(format(Sys.time(), "%H:%M:%S"), "Calculating common risk"))
   print(gc())
   common_risk <- calculate_risk(
-    models[["model_formula"]], imp,
-    list(common_ilr[1], common_ilr[2], common_ilr[3]), "common"
+    models[["model_formula"]],
+    imp,
+    list(common_ilr[1], common_ilr[2], common_ilr[3]),
+    "common"
   )
 
   print(paste(format(Sys.time(), "%H:%M:%S"), "Returning results"))
@@ -242,14 +260,16 @@ process_ideal_output <- function(rds_path, intervals = TRUE) {
       )
   }
 
-
   p <- plot_data |>
     mutate(age = 47 + (timegroup / 2)) |>
-    mutate(Composition = fct_recode(Reference,
-      "Ideal" = "best",
-      "Typical" = "common",
-      "Worst" = "worst"
-    )) |>
+    mutate(
+      Composition = fct_recode(
+        Reference,
+        "Ideal" = "best",
+        "Typical" = "common",
+        "Worst" = "worst"
+      )
+    ) |>
     mutate(Composition = fct_rev(Composition)) |>
     ggplot(aes(x = age, y = Risk)) +
     geom_line(aes(colour = Composition)) +
@@ -278,7 +298,8 @@ process_ideal_output <- function(rds_path, intervals = TRUE) {
     )
   if (isTRUE(intervals)) {
     p <- p +
-      geom_ribbon(aes(ymin = lower, ymax = upper, fill = Composition),
+      geom_ribbon(
+        aes(ymin = lower, ymax = upper, fill = Composition),
         alpha = 0.25
       )
   }

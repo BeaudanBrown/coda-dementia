@@ -1,17 +1,20 @@
-source("ideal_comp.R")
-source("utils.R")
-
 get_mri_formula <- function(outcome_var, model_data) {
   knots_age_mri_str <-
-    paste(quantile(
-      model_data[["age_mri"]],
-      c(0.1, 0.5, 0.9)
-    ), collapse = ", ")
+    paste(
+      quantile(
+        model_data[["age_mri"]],
+        c(0.1, 0.5, 0.9)
+      ),
+      collapse = ", "
+    )
   knots_fruit_veg_str <-
-    paste(quantile(
-      model_data[["fruit_veg"]],
-      c(0.1, 0.5, 0.9)
-    ), collapse = ", ")
+    paste(
+      quantile(
+        model_data[["fruit_veg"]],
+        c(0.1, 0.5, 0.9)
+      ),
+      collapse = ", "
+    )
   knots_deprivation_str <-
     paste(
       quantile(
@@ -21,38 +24,61 @@ get_mri_formula <- function(outcome_var, model_data) {
       collapse = ", "
     )
   knots_tfmri_str <-
-    paste(quantile(
-      model_data[["mean_tfmri_headmot"]],
-      c(0.1, 0.5, 0.9)
-    ), collapse = ", ")
+    paste(
+      quantile(
+        model_data[["mean_tfmri_headmot"]],
+        c(0.1, 0.5, 0.9)
+      ),
+      collapse = ", "
+    )
   knots_head_scale_str <-
-    paste(quantile(
-      model_data[["head_scale"]],
-      c(0.1, 0.5, 0.9)
-    ), collapse = ", ")
+    paste(
+      quantile(
+        model_data[["head_scale"]],
+        c(0.1, 0.5, 0.9)
+      ),
+      collapse = ", "
+    )
   knots_lat_bpos_str <-
-    paste(quantile(
-      model_data[["scan_lat_bpos"]],
-      c(0.1, 0.5, 0.9)
-    ), collapse = ", ")
+    paste(
+      quantile(
+        model_data[["scan_lat_bpos"]],
+        c(0.1, 0.5, 0.9)
+      ),
+      collapse = ", "
+    )
   knots_trans_bpos_str <-
-    paste(quantile(
-      model_data[["scan_trans_bpos"]],
-      c(0.1, 0.5, 0.9)
-    ), collapse = ", ")
+    paste(
+      quantile(
+        model_data[["scan_trans_bpos"]],
+        c(0.1, 0.5, 0.9)
+      ),
+      collapse = ", "
+    )
   knots_long_bpos_str <-
-    paste(quantile(
-      model_data[["scan_long_bpos"]],
-      c(0.1, 0.5, 0.9)
-    ), collapse = ", ")
+    paste(
+      quantile(
+        model_data[["scan_long_bpos"]],
+        c(0.1, 0.5, 0.9)
+      ),
+      collapse = ", "
+    )
 
-  model_formula <- as.formula(paste(outcome_var, " ~
+  model_formula <- as.formula(paste(
+    outcome_var,
+    " ~
       pol(R1, 2) + pol(R2, 2) + pol(R3, 2) +
-      rcs(age_mri, c(", knots_age_mri_str, ")) +
+      rcs(age_mri, c(",
+    knots_age_mri_str,
+    ")) +
       alc_freq +
-      rcs(fruit_veg, c(", knots_fruit_veg_str, ")) +
+      rcs(fruit_veg, c(",
+    knots_fruit_veg_str,
+    ")) +
       retired +
-      rcs(townsend_deprivation_index, c(", knots_deprivation_str, ")) +
+      rcs(townsend_deprivation_index, c(",
+    knots_deprivation_str,
+    ")) +
       sex +
       psych_meds +
       ethnicity +
@@ -60,13 +86,24 @@ get_mri_formula <- function(outcome_var, model_data) {
       highest_qual +
       apoe_e4 +
       smok_status +
-      rcs(head_scale, c(", knots_head_scale_str, ")) +
-      rcs(mean_tfmri_headmot, c(", knots_tfmri_str, ")) +
-      rcs(scan_lat_bpos, c(", knots_lat_bpos_str, ")) +
-      rcs(scan_trans_bpos, c(", knots_trans_bpos_str, ")) +
-      rcs(scan_long_bpos, c(", knots_long_bpos_str, ")) +
+      rcs(head_scale, c(",
+    knots_head_scale_str,
+    ")) +
+      rcs(mean_tfmri_headmot, c(",
+    knots_tfmri_str,
+    ")) +
+      rcs(scan_lat_bpos, c(",
+    knots_lat_bpos_str,
+    ")) +
+      rcs(scan_trans_bpos, c(",
+    knots_trans_bpos_str,
+    ")) +
+      rcs(scan_long_bpos, c(",
+    knots_long_bpos_str,
+    ")) +
       scan_tabpos +
-      assessment_centre_mri1"))
+      assessment_centre_mri1"
+  ))
 
   return(model_formula)
 }
@@ -115,9 +152,14 @@ calc_mri_substitution <- function(base_comp, imp, model, substitution) {
     )
 
   result <- data.frame(offset = inc * mins_in_day, risks = sub_risks)
-  colnames(result) <- c("offset", paste0(
-    substitution[2], "_", deparse(substitute(base_comp))
-  ))
+  colnames(result) <- c(
+    "offset",
+    paste0(
+      substitution[2],
+      "_",
+      deparse(substitute(base_comp))
+    )
+  )
 
   return(result)
 }
@@ -134,25 +176,45 @@ predict_mri_substitutions <-
     sleep_mvpa <- c("avg_sleep", "avg_mvpa")
 
     avg_sleep_inactive <- calc_mri_substitution(
-      avg_sleep_geo_mean, model_data, model, sleep_inactive
+      avg_sleep_geo_mean,
+      model_data,
+      model,
+      sleep_inactive
     )
     avg_sleep_light <- calc_mri_substitution(
-      avg_sleep_geo_mean, model_data, model, sleep_light
+      avg_sleep_geo_mean,
+      model_data,
+      model,
+      sleep_light
     )
     avg_sleep_mvpa <- calc_mri_substitution(
-      avg_sleep_geo_mean, model_data, model, sleep_mvpa
+      avg_sleep_geo_mean,
+      model_data,
+      model,
+      sleep_mvpa
     )
     short_sleep_inactive <- calc_mri_substitution(
-      short_sleep_geo_mean, model_data, model, sleep_inactive
+      short_sleep_geo_mean,
+      model_data,
+      model,
+      sleep_inactive
     )
     short_sleep_light <- calc_mri_substitution(
-      short_sleep_geo_mean, model_data, model, sleep_light
+      short_sleep_geo_mean,
+      model_data,
+      model,
+      sleep_light
     )
     short_sleep_mvpa <- calc_mri_substitution(
-      short_sleep_geo_mean, model_data, model, sleep_mvpa
+      short_sleep_geo_mean,
+      model_data,
+      model,
+      sleep_mvpa
     )
 
-    full_df <- full_join(short_sleep_inactive, short_sleep_light,
+    full_df <- full_join(
+      short_sleep_inactive,
+      short_sleep_light,
       by = "offset"
     ) |>
       full_join(short_sleep_mvpa, by = "offset") |>
@@ -187,22 +249,31 @@ predict_mri_outcome <- function(outcome_var, model_data, best_and_worst) {
 }
 
 predict_mri_results <- function(model_data, best_and_worst) {
-  results <- lapply(c("tbv", "wmv", "gmv", "hip", "log_wmh"), function(outcome) {
-    df <- predict_mri_outcome(outcome, model_data, best_and_worst)
-    return(df)
-  })
+  results <- lapply(
+    c("tbv", "wmv", "gmv", "hip", "log_wmh"),
+    function(outcome) {
+      df <- predict_mri_outcome(outcome, model_data, best_and_worst)
+      return(df)
+    }
+  )
 
   final_df <- do.call(rbind, results)
   return(final_df)
 }
 
 predict_all_substitutions <- function(
-    model_data, short_sleep_geo_mean, avg_sleep_geo_mean) {
+  model_data,
+  short_sleep_geo_mean,
+  avg_sleep_geo_mean
+) {
   results <- lapply(
     c("tbv", "wmv", "gmv", "hip", "log_wmh"),
     function(outcome) {
       df <- predict_mri_substitutions(
-        outcome, model_data, short_sleep_geo_mean, avg_sleep_geo_mean
+        outcome,
+        model_data,
+        short_sleep_geo_mean,
+        avg_sleep_geo_mean
       )
       return(df)
     }

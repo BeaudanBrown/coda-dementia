@@ -1,70 +1,76 @@
-source("dem_models.R")
-
 # Run bootstrap for primary model
-run_primary_bootstrap <- function() {
+run_primary_bootstrap <- function(df, intervals = TRUE) {
   run_bootstrap(
-    data = read_rds(boot_data_file),
+    data = df,
     create_formula_fn = get_primary_formula,
     output_name = "boot_primary",
-    empirical = TRUE
+    empirical = TRUE,
+    intervals = TRUE
   )
 }
 
-produce_plots <- function() {
-  primary_rds <- file.path(data_dir, "boot_primary.rds")
-  s1_rds <- file.path(data_dir, "boot_s1.rds")
-  s2_rds <- file.path(data_dir, "boot_s2.rds")
-  s3_rds <- file.path(data_dir, "boot_s3.rds")
+produce_plots <- function(primary, s1, s2, s3) {
+  primary_plot <- process_dem_output(primary)
+  s1_plot <- process_dem_output(s1)
+  s2_plot <- process_dem_output(s2)
+  s3_plot <- process_dem_output(s3, intervals = FALSE)
 
-  primary_plot <- process_dem_output(primary_rds)
-  s1_plot <- process_dem_output(s1_rds)
-  s2_plot <- process_dem_output(s2_rds)
-  s3_plot <- process_dem_output(s3_rds, intervals = FALSE)
-
-  save_plot(primary_plot[[1]], file.path(
-    data_dir,
-    "../Manuscript/Main_figures/Figure 1.svg"
-  ))
-  save_plot(s1_plot[[1]], file.path(
-    data_dir,
-    "../Manuscript/Appendix_figures/Substitutions_s1.svg"
-  ))
-  save_plot(s2_plot[[1]], file.path(
-    data_dir,
-    "../Manuscript/Appendix_figures/Substitutions_s2.svg"
-  ))
-  save_plot(s3_plot[[1]], file.path(
-    data_dir,
-    "../Manuscript/Appendix_figures/Substitutions_s3.svg"
-  ))
+  save_plot(
+    primary_plot[[1]],
+    file.path(
+      data_dir,
+      "../Manuscript/Main_figures/Figure 1.svg"
+    )
+  )
+  save_plot(
+    s1_plot[[1]],
+    file.path(
+      data_dir,
+      "../Manuscript/Appendix_figures/Substitutions_s1.svg"
+    )
+  )
+  save_plot(
+    s2_plot[[1]],
+    file.path(
+      data_dir,
+      "../Manuscript/Appendix_figures/Substitutions_s2.svg"
+    )
+  )
+  save_plot(
+    s3_plot[[1]],
+    file.path(
+      data_dir,
+      "../Manuscript/Appendix_figures/Substitutions_s3.svg"
+    )
+  )
 }
 
 # Run bootstrap for sensitivity analysis model 1
-run_s1_bootstrap <- function() {
+run_s1_bootstrap <- function(df, intervals = TRUE) {
   run_bootstrap(
-    data = read_rds(boot_data_file),
+    data = df,
     create_formula_fn = get_s1_formula,
-    output_name = "boot_s1"
+    intervals = intervals
   )
 }
 
 # Run bootstrap for sensitivity analysis model 2
-run_s2_bootstrap <- function() {
+run_s2_bootstrap <- function(df, intervals = TRUE) {
   run_bootstrap(
-    data = read_rds(boot_data_file),
+    data = df,
     create_formula_fn = get_s2_formula,
-    output_name = "boot_s2"
+    intervals = intervals
   )
 }
 
 ## Run bootstrap for sensitivity analysis model 3
 # standardising to pseudo pop of Schoeler et al.
 
-run_s3_bootstrap <- function() {
+run_s3_bootstrap <- function(df, intervals = TRUE) {
   run_bootstrap(
-    data = read_rds(boot_data_file),
+    data = df,
     create_formula_fn = get_s3_formula,
-    output_name = "boot_s3",
+    intervals = intervals,
     empirical = FALSE
   )
 }
@@ -72,22 +78,29 @@ run_s3_bootstrap <- function() {
 # Run bootstrap for a particular model formula and
 # timegroup target, outputting to a file
 run_bootstrap <-
-  function(data, create_formula_fn,
-           output_name, empirical = TRUE, intervals = TRUE) {
+  function(
+    data,
+    create_formula_fn,
+    output_name,
+    empirical = TRUE,
+    intervals
+  ) {
     # Matrix of variables to include in imputation model
-    predmat <- quickpred(data,
+    predmat <- quickpred(
+      data,
       mincor = 0,
       exclude = c(
-        "avg_sleep", "avg_inactivity", "avg_light",
-        "avg_mvpa", "eid"
+        "avg_sleep",
+        "avg_inactivity",
+        "avg_light",
+        "avg_mvpa",
+        "eid"
       )
     )
 
-
     ## reference compositions
     all_comp <-
-      acomp(data[
-        ,
+      acomp(data[,
         c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa")
       ])
 
@@ -146,34 +159,29 @@ run_bootstrap <-
       )
     }
 
-    # Prepend timestamp to avoid accidental data loss
-    timestamp <- format(Sys.time(), "%Y-%m-%d_%H:%M")
-    output_name_with_timestamp <- paste0(output_name, "_", timestamp, ".rds")
-    saveRDS(result, file.path(output_dir, output_name_with_timestamp))
+    return(result)
   }
 
 # Ran each bootstrap iteration
 # Imputes the data, fits the model for the given formula and
 # predicts the risks for a variety of substitutions and cohorts
 bootstrap_substitutions_fn <- function(
-    data,
-    indices,
-    create_formula_fn,
-    predmat,
-    timegroup_cuts,
-    median_age_of_dem_timegroup,
-    short_sleep_geo_mean,
-    avg_sleep_geo_mean,
-    empirical = TRUE) {
+  data,
+  indices,
+  create_formula_fn,
+  predmat,
+  timegroup_cuts,
+  median_age_of_dem_timegroup,
+  short_sleep_geo_mean,
+  avg_sleep_geo_mean,
+  empirical = TRUE
+) {
   this_sample <- data[indices, ]
 
   print("Imputing")
   print(format(Sys.time(), "%H:%M:%S"))
 
-  imp <- mice(this_sample,
-    m = 1,
-    predictorMatrix = predmat, maxit = maxit
-  )
+  imp <- mice(this_sample, m = 1, predictorMatrix = predmat, maxit = maxit)
 
   imp <- complete(imp)
   setDT(imp)
@@ -193,18 +201,21 @@ bootstrap_substitutions_fn <- function(
       imp %>%
       mutate(
         sex = sample(
-          c("female", "male"), n(),
+          c("female", "male"),
+          n(),
           replace = TRUE,
           prob = c(0.504, 0.496)
         ),
         retired = rbinom(n(), 1, prob = 0.193),
         avg_total_household_income = sample(
-          c("<18", "18-30", "31-50", "52-100", ">100"), n(),
+          c("<18", "18-30", "31-50", "52-100", ">100"),
+          n(),
           replace = TRUE,
           prob = c(0.264, 0.141, 0.205, 0.145, 0.245)
         ),
         smok_status = sample(
-          c("current", "former", "never"), n(),
+          c("current", "former", "never"),
+          n(),
           replace = TRUE,
           prob = c(0.208, 0.359, 0.433)
         )
@@ -219,7 +230,8 @@ bootstrap_substitutions_fn <- function(
   print(format(Sys.time(), "%H:%M:%S"))
   print(gc())
   short_sleep_inactive <-
-    calc_substitution(short_sleep_geo_mean,
+    calc_substitution(
+      short_sleep_geo_mean,
       imp,
       models[["model_dem"]],
       models[["model_death"]],
@@ -232,7 +244,8 @@ bootstrap_substitutions_fn <- function(
   print(format(Sys.time(), "%H:%M:%S"))
   print(gc())
   short_sleep_light <-
-    calc_substitution(short_sleep_geo_mean,
+    calc_substitution(
+      short_sleep_geo_mean,
       imp,
       models[["model_dem"]],
       models[["model_death"]],
@@ -245,7 +258,8 @@ bootstrap_substitutions_fn <- function(
   print(format(Sys.time(), "%H:%M:%S"))
   print(gc())
   short_sleep_mvpa <-
-    calc_substitution(short_sleep_geo_mean,
+    calc_substitution(
+      short_sleep_geo_mean,
       imp,
       models[["model_dem"]],
       models[["model_death"]],
@@ -258,7 +272,8 @@ bootstrap_substitutions_fn <- function(
   print(format(Sys.time(), "%H:%M:%S"))
   print(gc())
   avg_sleep_inactive <-
-    calc_substitution(avg_sleep_geo_mean,
+    calc_substitution(
+      avg_sleep_geo_mean,
       imp,
       models[["model_dem"]],
       models[["model_death"]],
@@ -271,7 +286,8 @@ bootstrap_substitutions_fn <- function(
   print(format(Sys.time(), "%H:%M:%S"))
   print(gc())
   avg_sleep_light <-
-    calc_substitution(avg_sleep_geo_mean,
+    calc_substitution(
+      avg_sleep_geo_mean,
       imp,
       models[["model_dem"]],
       models[["model_death"]],
@@ -284,7 +300,8 @@ bootstrap_substitutions_fn <- function(
   print(format(Sys.time(), "%H:%M:%S"))
   print(gc())
   avg_sleep_mvpa <-
-    calc_substitution(avg_sleep_geo_mean,
+    calc_substitution(
+      avg_sleep_geo_mean,
       imp,
       models[["model_dem"]],
       models[["model_death"]],
@@ -293,7 +310,9 @@ bootstrap_substitutions_fn <- function(
       timegroup = median_age_of_dem_timegroup
     )
 
-  full_df <- full_join(short_sleep_inactive, short_sleep_light,
+  full_df <- full_join(
+    short_sleep_inactive,
+    short_sleep_light,
     by = "offset"
   ) |>
     full_join(short_sleep_mvpa, by = "offset") |>
@@ -306,8 +325,8 @@ bootstrap_substitutions_fn <- function(
   return(as.matrix(full_df))
 }
 
-process_dem_output <- function(rds_path, intervals = TRUE) {
-  data <- readRDS(rds_path)
+process_dem_output <- function(result, intervals = TRUE) {
+  data <- result
   if (isTRUE(intervals)) {
     full_sample_results <- data$t0
   } else {
@@ -315,9 +334,11 @@ process_dem_output <- function(rds_path, intervals = TRUE) {
   }
 
   plot_data <-
-    pivot_longer(as.data.frame(full_sample_results),
+    pivot_longer(
+      as.data.frame(full_sample_results),
       -offset,
-      values_to = "risk", names_to = "Substitution"
+      values_to = "risk",
+      names_to = "Substitution"
     ) |>
     group_by(Substitution) |>
     mutate(ref_risk = ifelse(offset == 0, risk, NA_real_)) |>
@@ -326,17 +347,26 @@ process_dem_output <- function(rds_path, intervals = TRUE) {
       risk_dif = risk - ref_risk,
       risk_ratio = risk / ref_risk
     ) |>
-    mutate(Reference = ifelse(str_detect(Substitution, "short_sleep"),
-      "Short sleepers", "Normal sleepers"
-    )) |>
+    mutate(
+      Reference = ifelse(
+        str_detect(Substitution, "short_sleep"),
+        "Short sleepers",
+        "Normal sleepers"
+      )
+    ) |>
     mutate(Substitution = str_remove(Substitution, "_short_sleep_geo_mean")) |>
     mutate(Substitution = str_remove(Substitution, "_avg_sleep_geo_mean")) |>
-    mutate(Substitution = ifelse(
-      Substitution == "avg_inactivity", "Inactivity",
-      ifelse(
-        Substitution == "avg_light", "Light activity", "MVPA"
+    mutate(
+      Substitution = ifelse(
+        Substitution == "avg_inactivity",
+        "Inactivity",
+        ifelse(
+          Substitution == "avg_light",
+          "Light activity",
+          "MVPA"
+        )
       )
-    ))
+    )
 
   if (isTRUE(intervals)) {
     num_subs <- sub_steps * 2 + 1
@@ -345,14 +375,20 @@ process_dem_output <- function(rds_path, intervals = TRUE) {
       slice <- data$t[, start:(start + num_subs - 1)]
       middle_col <- ceiling(ncol(slice) / 2)
 
-      slice <- t(apply(slice, 1, function(row, idx) {
-        zero_offset <- row[middle_col]
-        return(row / zero_offset)
-      }, idx = middle_col))
+      slice <- t(apply(
+        slice,
+        1,
+        function(row, idx) {
+          zero_offset <- row[middle_col]
+          return(row / zero_offset)
+        },
+        idx = middle_col
+      ))
 
       quantiles <-
         as.data.frame(t(apply(
-          slice, 2,
+          slice,
+          2,
           function(column) quantile(column, probs = c(0.025, 0.975))
         )))
       colnames(quantiles) <- c("lower", "upper")
@@ -397,17 +433,22 @@ process_dem_output <- function(rds_path, intervals = TRUE) {
     )
 
     plot_data <-
-      full_join(plot_data, all_quantiles,
+      full_join(
+        plot_data,
+        all_quantiles,
         by = c("offset", "Substitution", "Reference")
       )
   }
 
-
   rr_plot <- function(sub, refcomp, colour) {
     plot_data$Substitution <-
-      ifelse(plot_data$Substitution == "Inactivity", "inactivity",
-        ifelse(plot_data$Substitution == "Light activity",
-          "light activity", "MVPA"
+      ifelse(
+        plot_data$Substitution == "Inactivity",
+        "inactivity",
+        ifelse(
+          plot_data$Substitution == "Light activity",
+          "light activity",
+          "MVPA"
         )
       )
 
@@ -415,7 +456,6 @@ process_dem_output <- function(rds_path, intervals = TRUE) {
       plot_data[
         plot_data$Substitution == sub & plot_data$Reference == refcomp,
       ]
-
 
     p <- plot_data2 |>
       ggplot(aes(x = offset, y = risk_ratio)) +
@@ -425,45 +465,73 @@ process_dem_output <- function(rds_path, intervals = TRUE) {
       xlab("") +
       ylab("Risk ratio") +
       annotate(
-        geom = "text", x = 0, y = -0.15,
-        hjust = 0.5, fontface = 1, size = 14 / .pt,
-        label = "Minutes", family = "serif"
+        geom = "text",
+        x = 0,
+        y = -0.15,
+        hjust = 0.5,
+        fontface = 1,
+        size = 14 / .pt,
+        label = "Minutes",
+        family = "serif"
       ) +
       annotate(
-        geom = "text", x = -20, y = -0.5,
-        hjust = 1, fontface = 1, size = 12 / .pt,
-        label = "Less sleep", family = "serif"
+        geom = "text",
+        x = -20,
+        y = -0.5,
+        hjust = 1,
+        fontface = 1,
+        size = 12 / .pt,
+        label = "Less sleep",
+        family = "serif"
       ) +
       annotate(
-        geom = "text", x = 20, y = -0.5,
-        hjust = 0, fontface = 1, size = 12 / .pt,
-        label = "More sleep", family = "serif"
+        geom = "text",
+        x = 20,
+        y = -0.5,
+        hjust = 0,
+        fontface = 1,
+        size = 12 / .pt,
+        label = "More sleep",
+        family = "serif"
       ) +
       geom_segment(
         aes(
-          x = 1, y = -0.625,
-          xend = 15, yend = -0.625
+          x = 1,
+          y = -0.625,
+          xend = 15,
+          yend = -0.625
         ),
         arrow = arrow(length = unit(0.15, "cm"))
       ) +
       geom_segment(
         aes(
-          x = -1, y = -0.625,
-          xend = -15, yend = -0.625
+          x = -1,
+          y = -0.625,
+          xend = -15,
+          yend = -0.625
         ),
         arrow = arrow(length = unit(0.15, "cm"))
       ) +
       annotate(
-        geom = "text", x = -20, y = -0.75,
-        hjust = 1, size = 12 / .pt,
+        geom = "text",
+        x = -20,
+        y = -0.75,
+        hjust = 1,
+        size = 12 / .pt,
         label = paste("More", plot_data2$Substitution),
-        family = "serif", fontface = 1, size = 12 / .pt
+        family = "serif",
+        fontface = 1,
+        size = 12 / .pt
       ) +
       annotate(
-        geom = "text", x = 20, y = -0.75,
+        geom = "text",
+        x = 20,
+        y = -0.75,
         hjust = 0,
         label = paste("Less", plot_data2$Substitution),
-        family = "serif", fontface = 1, size = 12 / .pt
+        family = "serif",
+        fontface = 1,
+        size = 12 / .pt
       ) +
       coord_cartesian(ylim = c(0.33, 3), expand = FALSE, clip = "off") +
       cowplot::theme_cowplot(
@@ -483,8 +551,10 @@ process_dem_output <- function(rds_path, intervals = TRUE) {
       )
     if (isTRUE(intervals)) {
       p <- p +
-        geom_ribbon(aes(ymin = lower, ymax = upper),
-          alpha = 0.25, fill = colour
+        geom_ribbon(
+          aes(ymin = lower, ymax = upper),
+          alpha = 0.25,
+          fill = colour
         )
     }
     return(p)
@@ -496,20 +566,27 @@ process_dem_output <- function(rds_path, intervals = TRUE) {
   p3 <- rr_plot("MVPA", "Normal sleepers", "#011869")
 
   pnorm <-
-    plot_grid(NULL,
-      p1 + labs(x = "", title = "A") +
+    plot_grid(
+      NULL,
+      p1 +
+        labs(x = "", title = "A") +
         theme(
-          legend.position = "none", plot.title.position = "plot",
+          legend.position = "none",
+          plot.title.position = "plot",
           plot.title = element_text(size = 16)
         ),
-      p2 + labs(x = "", title = "B") +
+      p2 +
+        labs(x = "", title = "B") +
         theme(
-          legend.position = "none", plot.title.position = "plot",
+          legend.position = "none",
+          plot.title.position = "plot",
           plot.title = element_text(size = 16)
         ),
-      p3 + labs(x = "", title = "C") +
+      p3 +
+        labs(x = "", title = "C") +
         theme(
-          legend.position = "none", plot.title.position = "plot",
+          legend.position = "none",
+          plot.title.position = "plot",
           plot.title = element_text(size = 16)
         ),
       align = "vh",
@@ -526,20 +603,27 @@ process_dem_output <- function(rds_path, intervals = TRUE) {
   p6 <- rr_plot("MVPA", "Short sleepers", "#708ff9")
 
   pshort <-
-    plot_grid(NULL,
-      p4 + labs(title = "D", y = "") +
+    plot_grid(
+      NULL,
+      p4 +
+        labs(title = "D", y = "") +
         theme(
-          legend.position = "none", plot.title.position = "plot",
+          legend.position = "none",
+          plot.title.position = "plot",
           plot.title = element_text(size = 16)
         ),
-      p5 + labs(y = "", title = "E") +
+      p5 +
+        labs(y = "", title = "E") +
         theme(
-          legend.position = "none", plot.title.position = "plot",
+          legend.position = "none",
+          plot.title.position = "plot",
           plot.title = element_text(size = 16)
         ),
-      p6 + labs(y = "", title = "F") +
+      p6 +
+        labs(y = "", title = "F") +
         theme(
-          legend.position = "none", plot.title.position = "plot",
+          legend.position = "none",
+          plot.title.position = "plot",
           plot.title = element_text(size = 16)
         ),
       align = "vh",
@@ -550,10 +634,7 @@ process_dem_output <- function(rds_path, intervals = TRUE) {
       hjust = -1.3
     )
 
-  plot <- plot_grid(pnorm,
-    pshort,
-    nrow = 1
-  )
+  plot <- plot_grid(pnorm, pshort, nrow = 1)
 
   return(list(plot, plot_data))
 }

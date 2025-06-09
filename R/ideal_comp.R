@@ -1,8 +1,3 @@
-source("dem_models.R")
-
-# load packages
-library("mvtnorm")
-
 generate_compositions <- function(lower, upper) {
   step_size <- 15
 
@@ -14,7 +9,11 @@ generate_compositions <- function(lower, upper) {
   # Create an empty data frame
   df <- expand.grid(
     sleep = seq(lower["avg_sleep"], upper["avg_sleep"], by = step_size),
-    inactive = seq(lower["avg_inactivity"], upper["avg_inactivity"], by = step_size),
+    inactive = seq(
+      lower["avg_inactivity"],
+      upper["avg_inactivity"],
+      by = step_size
+    ),
     light = seq(lower["avg_light"], upper["avg_light"], by = step_size),
     modvig = seq(lower["avg_mvpa"], upper["avg_mvpa"], by = step_size)
   )
@@ -31,7 +30,9 @@ generate_compositions <- function(lower, upper) {
 
 generate_hazards <- function(comps, model, model_formula, ref_row) {
   ilrs <- t(apply(
-    comps[, c(1, 2, 3, 4)], 1, function(comp) ilr(acomp(comp), V = v)
+    comps[, c(1, 2, 3, 4)],
+    1,
+    function(comp) ilr(acomp(comp), V = v)
   ))
 
   # Convert contrasts into a data frame
@@ -43,7 +44,11 @@ generate_hazards <- function(comps, model, model_formula, ref_row) {
   return(risks)
 }
 
-get_best_and_worst_comp <- function(df, timegroup_cuts, filename = "best_and_worst") {
+get_best_and_worst_comp <- function(
+  df,
+  timegroup_cuts,
+  filename = "best_and_worst"
+) {
   file_path <- file.path(output_dir, paste0(filename, ".rds"))
   if (file.exists(file_path)) {
     rds_data <- read_rds(file_path)
@@ -51,11 +56,16 @@ get_best_and_worst_comp <- function(df, timegroup_cuts, filename = "best_and_wor
   }
 
   ## Load data
-  predmat <- quickpred(df,
+  predmat <- quickpred(
+    df,
     mincor = 0,
     exclude = c(
-      "avg_sleep", "avg_inactivity", "avg_light",
-      "avg_mvpa", "eid", "time_to_dem"
+      "avg_sleep",
+      "avg_inactivity",
+      "avg_light",
+      "avg_mvpa",
+      "eid",
+      "time_to_dem"
     )
   )
   dem_df <- mice(df, m = 1, predictorMatrix = predmat, maxit = maxit)
@@ -69,8 +79,12 @@ get_best_and_worst_comp <- function(df, timegroup_cuts, filename = "best_and_wor
   mean_vec <- as.numeric(apply(dem_comp_df[, include_cols], 2, mean))
   vcv_mat <- cov(dem_comp_df[, include_cols])
   dem_comp_df$dens <- apply(
-    dem_comp_df[, include_cols], 1, dmvnorm,
-    mean = mean_vec, sigma = vcv_mat, log = TRUE
+    dem_comp_df[, include_cols],
+    1,
+    dmvnorm,
+    mean = mean_vec,
+    sigma = vcv_mat,
+    log = TRUE
   )
 
   threshold <- quantile(dem_comp_df$dens, probs = c(0.025), na.rm = TRUE)
@@ -85,14 +99,21 @@ get_best_and_worst_comp <- function(df, timegroup_cuts, filename = "best_and_wor
 
   generated_comps <- generate_compositions(lower, upper)
   generated_comps$dens <-
-    apply(generated_comps[, c("sleep", "inactive", "modvig")], 1, dmvnorm,
-      mean = mean_vec, sigma = vcv_mat, log = TRUE
+    apply(
+      generated_comps[, c("sleep", "inactive", "modvig")],
+      1,
+      dmvnorm,
+      mean = mean_vec,
+      sigma = vcv_mat,
+      log = TRUE
     )
   generated_comps <- generated_comps[generated_comps$dens > threshold, ]
 
   # fit model
   models <- fit_model(
-    dem_df, timegroup_cuts, get_primary_formula
+    dem_df,
+    timegroup_cuts,
+    get_primary_formula
   )
   dem_model <- models[["model_dem"]]
   model_formula <- models[["model_formula"]]
@@ -101,16 +122,21 @@ get_best_and_worst_comp <- function(df, timegroup_cuts, filename = "best_and_wor
   ref_row$timegroup <- 55
 
   generated_comps$haz <- generate_hazards(
-    generated_comps, dem_model, model_formula, ref_row
+    generated_comps,
+    dem_model,
+    model_formula,
+    ref_row
   )
   generated_comps <- generated_comps[order(generated_comps$haz), ]
   best_comp <- acomp(generated_comps[1, c(1, 2, 3, 4)])
   worst_comp <- acomp(generated_comps[nrow(generated_comps), c(1, 2, 3, 4)])
-  typical_comp <- acomp(generated_comps[generated_comps$dens == max(generated_comps$dens), c(1, 2, 3, 4)])
+  typical_comp <- acomp(generated_comps[
+    generated_comps$dens == max(generated_comps$dens),
+    c(1, 2, 3, 4)
+  ])
 
   result <- as.data.frame(t(rbind(best_comp, worst_comp, typical_comp)))
   colnames(result) <- c("best", "worst", "typical")
 
-  write_rds(result, file_path)
   return(result)
 }

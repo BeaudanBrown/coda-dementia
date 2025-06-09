@@ -1,6 +1,3 @@
-source("mri_models.R")
-library(tidyverse)
-
 produce_mri_plots <- function() {
   mri_rds <- file.path(data_dir, "boot_mri_2024-06-26_01:27.rds")
   mri_subs_rds <- file.path(data_dir, "boot_mri_subs.rds")
@@ -21,13 +18,15 @@ produce_mri_plots <- function() {
         data_dir,
         paste(
           "../Manuscript/Main_figures/Substitutions_",
-          str_to_upper(i), ".pdf",
+          str_to_upper(i),
+          ".pdf",
           sep = ""
         )
       ),
       mri_subs_plots[[i]],
       device = "pdf",
-      width = 10, height = 12
+      width = 10,
+      height = 12
     )
   }
   ggsave(
@@ -37,7 +36,8 @@ produce_mri_plots <- function() {
     ),
     mri_plot,
     device = "pdf",
-    width = 10, height = 12
+    width = 10,
+    height = 12
   )
 }
 
@@ -99,9 +99,13 @@ make_mri_df <- function(boot_df) {
 
   # Age at MRI scan
   mri_df <- mri_df |>
-    mutate(age_mri = (as.numeric(
-      as.Date(date_mri1) - as.Date(calendar_date)
-    ) / 365) + age_accel)
+    mutate(
+      age_mri = (as.numeric(
+        as.Date(date_mri1) - as.Date(calendar_date)
+      ) /
+        365) +
+        age_accel
+    )
 
   return(mri_df)
 }
@@ -112,7 +116,8 @@ run_mri_subs_bootstrap <- function(create_formula_fn, output_name) {
   options(datadist = datadist(mri_df))
 
   # Matrix of variables to include in imputation model
-  predmat <- quickpred(mri_df,
+  predmat <- quickpred(
+    mri_df,
     mincor = 0,
     exclude = c(
       "eid",
@@ -125,8 +130,8 @@ run_mri_subs_bootstrap <- function(create_formula_fn, output_name) {
   )
 
   ## reference compositions
-  all_comp <- acomp(boot_df[
-    , c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa")
+  all_comp <- acomp(boot_df[,
+    c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa")
   ])
   short_sleep_comp <-
     all_comp[all_comp$avg_sleep < short_sleep_hours / hrs_in_day, ]
@@ -159,7 +164,8 @@ run_mri_bootstrap <- function(create_formula_fn, output_name) {
   boot_df <- read_rds(boot_data_file)
   mri_df <- make_mri_df(boot_df)
   # Matrix of variables to include in imputation model
-  predmat <- quickpred(mri_df,
+  predmat <- quickpred(
+    mri_df,
     mincor = 0,
     exclude = c(
       "eid",
@@ -170,7 +176,6 @@ run_mri_bootstrap <- function(create_formula_fn, output_name) {
       "avg_mvpa"
     )
   )
-
 
   make_ilr <- function(comp) {
     return(ilr(acomp(comp), V = v))
@@ -200,16 +205,19 @@ run_mri_bootstrap <- function(create_formula_fn, output_name) {
 }
 
 bootstrap_mri_fn <- function(
-    data,
-    indices,
-    create_formula_fn,
-    predmat,
-    best_and_worst) {
+  data,
+  indices,
+  create_formula_fn,
+  predmat,
+  best_and_worst
+) {
   this_sample <- data[indices, ]
 
   imp <- mice(
     this_sample,
-    m = 1, maxit = maxit, predictorMatrix = predmat
+    m = 1,
+    maxit = maxit,
+    predictorMatrix = predmat
   )
   imp <- complete(imp)
 
@@ -219,22 +227,27 @@ bootstrap_mri_fn <- function(
 }
 
 bootstrap_mri_subs_fn <- function(
-    data,
-    indices,
-    create_formula_fn,
-    predmat,
-    short_sleep_geo_mean,
-    avg_sleep_geo_mean) {
+  data,
+  indices,
+  create_formula_fn,
+  predmat,
+  short_sleep_geo_mean,
+  avg_sleep_geo_mean
+) {
   this_sample <- data[indices, ]
 
   imp <- mice(
     this_sample,
-    m = 1, maxit = maxit, predictorMatrix = predmat
+    m = 1,
+    maxit = maxit,
+    predictorMatrix = predmat
   )
   imp <- complete(imp)
 
   result_df <- predict_all_substitutions(
-    imp, short_sleep_geo_mean, avg_sleep_geo_mean
+    imp,
+    short_sleep_geo_mean,
+    avg_sleep_geo_mean
   )
 
   return(as.matrix(result_df))
@@ -263,7 +276,9 @@ process_mri_output <- function(rds_path) {
 
     quantiles <-
       as.data.frame(t(apply(
-        slice, 2, function(column) quantile(column, probs = c(0.025, 0.975))
+        slice,
+        2,
+        function(column) quantile(column, probs = c(0.025, 0.975))
       )))
     colnames(quantiles) <- c("lower", "upper")
     comps <- c("worst", "typical", "ideal")
@@ -296,7 +311,6 @@ process_mri_output <- function(rds_path) {
     log_wmh_quants
   )
 
-
   plot_data <- full_join(plot_data, all_quantiles, by = c("comp", "pheno"))
 
   return(list(plot_data, boot_reps))
@@ -310,7 +324,9 @@ plot_mri <- function(result_list, mri_model_data) {
 
   plot_data$comp <- str_to_title(plot_data$comp)
   plot_data$comp <- ifelse(
-    plot_data$comp == "Common", "Typical", plot_data$comp
+    plot_data$comp == "Common",
+    "Typical",
+    plot_data$comp
   )
   plot_data$comp <- factor(
     plot_data$comp,
@@ -320,9 +336,7 @@ plot_mri <- function(result_list, mri_model_data) {
   single_plot <- function(pheno) {
     plot_data[plot_data$pheno == pheno, ] |>
       ggplot(aes(x = comp, y = value)) +
-      geom_pointrange(aes(ymin = lower, ymax = upper),
-        size = 0.1
-      ) +
+      geom_pointrange(aes(ymin = lower, ymax = upper), size = 0.1) +
       labs(x = "Composition") +
       theme_cowplot(
         font_size = 12,
@@ -346,57 +360,85 @@ plot_mri <- function(result_list, mri_model_data) {
 
   plot_grid(
     tbv_plot +
-      labs(y = expression(paste("Total brain volume ", (cm^{
-        3
-      })))) +
+      labs(
+        y = expression(paste(
+          "Total brain volume ",
+          (cm^{
+            3
+          })
+        ))
+      ) +
       labs(x = "") +
       ylim(c(
-        mean(mri_model_data$tbv, na.rm = TRUE) - 0.5 *
-          sd(mri_model_data$tbv, na.rm = TRUE),
-        mean(mri_model_data$tbv, na.rm = TRUE) + 0.5 *
-          sd(mri_model_data$tbv, na.rm = TRUE)
+        mean(mri_model_data$tbv, na.rm = TRUE) -
+          0.5 *
+            sd(mri_model_data$tbv, na.rm = TRUE),
+        mean(mri_model_data$tbv, na.rm = TRUE) +
+          0.5 *
+            sd(mri_model_data$tbv, na.rm = TRUE)
       )),
     gmv_plot +
-      labs(y = expression(paste("Grey matter volume ", (cm^{
-        3
-      })))) +
+      labs(
+        y = expression(paste(
+          "Grey matter volume ",
+          (cm^{
+            3
+          })
+        ))
+      ) +
       labs(x = "") +
       ylim(c(
-        mean(mri_model_data$gmv, na.rm = TRUE) - 0.5 *
-          sd(mri_model_data$gmv, na.rm = TRUE),
-        mean(mri_model_data$gmv, na.rm = TRUE) + 0.5 *
-          sd(mri_model_data$gmv, na.rm = TRUE)
+        mean(mri_model_data$gmv, na.rm = TRUE) -
+          0.5 *
+            sd(mri_model_data$gmv, na.rm = TRUE),
+        mean(mri_model_data$gmv, na.rm = TRUE) +
+          0.5 *
+            sd(mri_model_data$gmv, na.rm = TRUE)
       )),
     wmv_plot +
       labs(
-        y = expression(paste("White matter volume ", (cm^{
-          3
-        }))),
+        y = expression(paste(
+          "White matter volume ",
+          (cm^{
+            3
+          })
+        )),
         x = ""
       ) +
       ylim(c(
-        mean(mri_model_data$wmv, na.rm = TRUE) - 0.5 *
-          sd(mri_model_data$wmv, na.rm = TRUE),
-        mean(mri_model_data$wmv, na.rm = TRUE) + 0.5 *
-          sd(mri_model_data$wmv, na.rm = TRUE)
+        mean(mri_model_data$wmv, na.rm = TRUE) -
+          0.5 *
+            sd(mri_model_data$wmv, na.rm = TRUE),
+        mean(mri_model_data$wmv, na.rm = TRUE) +
+          0.5 *
+            sd(mri_model_data$wmv, na.rm = TRUE)
       )),
     hip_plot +
-      labs(y = expression(paste("Hippocampal volume ", (cm^{
-        3
-      })))) +
+      labs(
+        y = expression(paste(
+          "Hippocampal volume ",
+          (cm^{
+            3
+          })
+        ))
+      ) +
       ylim(c(
-        mean(mri_model_data$hip, na.rm = TRUE) - 0.5 *
-          sd(mri_model_data$hip, na.rm = TRUE),
-        mean(mri_model_data$hip, na.rm = TRUE) + 0.5 *
-          sd(mri_model_data$hip, na.rm = TRUE)
+        mean(mri_model_data$hip, na.rm = TRUE) -
+          0.5 *
+            sd(mri_model_data$hip, na.rm = TRUE),
+        mean(mri_model_data$hip, na.rm = TRUE) +
+          0.5 *
+            sd(mri_model_data$hip, na.rm = TRUE)
       )),
     wmh_plot +
       labs(y = "Log white matter hyperintensities") +
       ylim(c(
-        mean(mri_model_data$log_wmh, na.rm = TRUE) - 0.5 *
-          sd(mri_model_data$log_wmh, na.rm = TRUE),
-        mean(mri_model_data$log_wmh, na.rm = TRUE) + 0.5 *
-          sd(mri_model_data$log_wmh, na.rm = TRUE)
+        mean(mri_model_data$log_wmh, na.rm = TRUE) -
+          0.5 *
+            sd(mri_model_data$log_wmh, na.rm = TRUE),
+        mean(mri_model_data$log_wmh, na.rm = TRUE) +
+          0.5 *
+            sd(mri_model_data$log_wmh, na.rm = TRUE)
       )),
     nrow = 3
   )
@@ -424,7 +466,8 @@ process_mri_subs_output <- function(rds_path, mri_model_data) {
   # Initialize a list to store the plot data for each outcome
   get_plot_data <- function(t0_sub_idx, t_ref_idx, t0_outcome_idx, sub_idx) {
     whole_sample_values <- data$t0[
-      t0_outcome_idx:(t0_outcome_idx + num_subs - 1), t0_sub_idx
+      t0_outcome_idx:(t0_outcome_idx + num_subs - 1),
+      t0_sub_idx
     ]
     ref_values <- data$t[, t_ref_idx:(t_ref_idx + sub_len - 1)]
     sub_values <- ref_values[, sub_idx:(sub_idx + num_subs - 1)]
@@ -450,7 +493,10 @@ process_mri_subs_output <- function(rds_path, mri_model_data) {
       for (i in 1:num_outcomes) {
         # Construct the plot data
         plot_data <- get_plot_data(
-          t0_sub_idx, t_ref_idx, t0_outcome_idx, sub_idx
+          t0_sub_idx,
+          t_ref_idx,
+          t0_outcome_idx,
+          sub_idx
         )
 
         # Store the plot data in the corresponding list
@@ -492,25 +538,28 @@ process_mri_subs_output <- function(rds_path, mri_model_data) {
   log_wmh_plot_df <- log_wmh_plot_df %>%
     separate(Type, into = c("Reference", "Substitution"), sep = "_")
 
-
   mri_plots <- function(outcome_df, outcome, ylabel) {
     get_plot <- function(outcome_df, outcome, sub, refcomp, colour, ylabel) {
       out_df <- outcome_df
       out_df$Substitution <-
-        ifelse(out_df$Substitution == "inactive", "inactivity",
-          ifelse(out_df$Substitution == "light",
-            "light activity", "MVPA"
-          )
+        ifelse(
+          out_df$Substitution == "inactive",
+          "inactivity",
+          ifelse(out_df$Substitution == "light", "light activity", "MVPA")
         )
 
-      out_df <- out_df[out_df$Substitution == sub &
-        out_df$Reference == refcomp, ]
+      out_df <- out_df[
+        out_df$Substitution == sub &
+          out_df$Reference == refcomp,
+      ]
 
       # plot limits
-      lower_lim <- mean(mri_model_data[[outcome]], na.rm = TRUE) - 0.25 *
-        sd(mri_model_data[[outcome]], na.rm = TRUE)
-      upper_lim <- mean(mri_model_data[[outcome]], na.rm = TRUE) + 0.25 *
-        sd(mri_model_data[[outcome]], na.rm = TRUE)
+      lower_lim <- mean(mri_model_data[[outcome]], na.rm = TRUE) -
+        0.25 *
+          sd(mri_model_data[[outcome]], na.rm = TRUE)
+      upper_lim <- mean(mri_model_data[[outcome]], na.rm = TRUE) +
+        0.25 *
+          sd(mri_model_data[[outcome]], na.rm = TRUE)
 
       minutes_offset <- 0.2 * (upper_lim - lower_lim)
       sleep_offset <- 0.275 * (upper_lim - lower_lim)
@@ -520,56 +569,87 @@ process_mri_subs_output <- function(rds_path, mri_model_data) {
       out_df |>
         ggplot(aes(x = offset, y = value)) +
         geom_line(colour = colour) +
-        geom_ribbon(aes(ymin = lower, ymax = upper),
-          alpha = 0.2, fill = colour
+        geom_ribbon(
+          aes(ymin = lower, ymax = upper),
+          alpha = 0.2,
+          fill = colour
         ) +
         xlab("") +
         ylab(ylabel) +
         facet_wrap(~Substitution, nrow = 2) +
         annotate(
-          geom = "text", x = 0, y = lower_lim - minutes_offset,
-          hjust = 0.5, fontface = 1, size = 14 / .pt,
-          label = "Minutes", family = "serif"
+          geom = "text",
+          x = 0,
+          y = lower_lim - minutes_offset,
+          hjust = 0.5,
+          fontface = 1,
+          size = 14 / .pt,
+          label = "Minutes",
+          family = "serif"
         ) +
         annotate(
-          geom = "text", x = -20, y = lower_lim - sleep_offset,
-          hjust = 1, fontface = 1, size = 12 / .pt,
-          label = "Less sleep", family = "serif"
+          geom = "text",
+          x = -20,
+          y = lower_lim - sleep_offset,
+          hjust = 1,
+          fontface = 1,
+          size = 12 / .pt,
+          label = "Less sleep",
+          family = "serif"
         ) +
         annotate(
-          geom = "text", x = 20, y = lower_lim - sleep_offset,
-          hjust = 0, fontface = 1, size = 12 / .pt,
-          label = "More sleep", family = "serif"
+          geom = "text",
+          x = 20,
+          y = lower_lim - sleep_offset,
+          hjust = 0,
+          fontface = 1,
+          size = 12 / .pt,
+          label = "More sleep",
+          family = "serif"
         ) +
         geom_segment(
           aes(
-            x = 1, y = lower_lim - arrow_offset,
-            xend = 15, yend = lower_lim - arrow_offset
+            x = 1,
+            y = lower_lim - arrow_offset,
+            xend = 15,
+            yend = lower_lim - arrow_offset
           ),
           arrow = arrow(length = unit(0.15, "cm"))
         ) +
         geom_segment(
           aes(
-            x = -1, y = lower_lim - arrow_offset,
-            xend = -15, yend = lower_lim - arrow_offset
+            x = -1,
+            y = lower_lim - arrow_offset,
+            xend = -15,
+            yend = lower_lim - arrow_offset
           ),
           arrow = arrow(length = unit(0.15, "cm"))
         ) +
         annotate(
-          geom = "text", x = -20, y = lower_lim - sub_offset,
-          hjust = 1, size = 12 / .pt,
+          geom = "text",
+          x = -20,
+          y = lower_lim - sub_offset,
+          hjust = 1,
+          size = 12 / .pt,
           label = paste("More", out_df$Substitution),
-          family = "serif", fontface = 1, size = 12 / .pt
+          family = "serif",
+          fontface = 1,
+          size = 12 / .pt
         ) +
         annotate(
-          geom = "text", x = 20, y = lower_lim - sub_offset,
+          geom = "text",
+          x = 20,
+          y = lower_lim - sub_offset,
           hjust = 0,
           label = paste("Less", out_df$Substitution),
-          family = "serif", fontface = 1, size = 12 / .pt
+          family = "serif",
+          fontface = 1,
+          size = 12 / .pt
         ) +
         coord_cartesian(
           ylim = c(lower_lim, upper_lim),
-          expand = FALSE, clip = "off"
+          expand = FALSE,
+          clip = "off"
         ) +
         cowplot::theme_cowplot(
           font_size = 12,
@@ -585,40 +665,67 @@ process_mri_subs_output <- function(rds_path, mri_model_data) {
           panel.grid.minor = element_line(linewidth = rel(0.5)),
           axis.ticks.y = element_blank(),
           axis.line = element_line(color = "#585656"),
-          axis.title.y = element_text(margin = margin(
-            t = 0, r = 10, b = 0, l = 0
-          ))
+          axis.title.y = element_text(
+            margin = margin(
+              t = 0,
+              r = 10,
+              b = 0,
+              l = 0
+            )
+          )
         )
     }
 
     # normal sleepers
     p1 <- get_plot(
-      outcome_df, outcome, "inactivity", "avg", "#fc020f",
+      outcome_df,
+      outcome,
+      "inactivity",
+      "avg",
+      "#fc020f",
       ylabel = ylabel
     )
     p2 <- get_plot(
-      outcome_df, outcome, "light activity", "avg", "#145e01",
+      outcome_df,
+      outcome,
+      "light activity",
+      "avg",
+      "#145e01",
       ylabel = ylabel
     )
     p3 <- get_plot(
-      outcome_df, outcome, "MVPA", "avg", "#011869",
+      outcome_df,
+      outcome,
+      "MVPA",
+      "avg",
+      "#011869",
       ylabel = ylabel
     )
 
     pnorm <-
-      plot_grid(NULL,
-        p1 + labs(x = "", title = "A") + theme(
-          legend.position = "none", plot.title.position = "plot",
-          plot.title = element_text(size = 16)
-        ),
-        p2 + labs(x = "", title = "B") + theme(
-          legend.position = "none", plot.title.position = "plot",
-          plot.title = element_text(size = 16)
-        ),
-        p3 + labs(x = "", title = "C") + theme(
-          legend.position = "none", plot.title.position = "plot",
-          plot.title = element_text(size = 16)
-        ),
+      plot_grid(
+        NULL,
+        p1 +
+          labs(x = "", title = "A") +
+          theme(
+            legend.position = "none",
+            plot.title.position = "plot",
+            plot.title = element_text(size = 16)
+          ),
+        p2 +
+          labs(x = "", title = "B") +
+          theme(
+            legend.position = "none",
+            plot.title.position = "plot",
+            plot.title = element_text(size = 16)
+          ),
+        p3 +
+          labs(x = "", title = "C") +
+          theme(
+            legend.position = "none",
+            plot.title.position = "plot",
+            plot.title = element_text(size = 16)
+          ),
         align = "vh",
         rel_heights = c(0.05, 1, 1, 1),
         nrow = 4,
@@ -629,32 +736,54 @@ process_mri_subs_output <- function(rds_path, mri_model_data) {
 
     # short sleepers
     p4 <- get_plot(
-      outcome_df, outcome, "inactivity", "short", "#ff747b",
+      outcome_df,
+      outcome,
+      "inactivity",
+      "short",
+      "#ff747b",
       ylabel = ylabel
     )
     p5 <- get_plot(
-      outcome_df, outcome, "light activity", "short", "#6ed853",
+      outcome_df,
+      outcome,
+      "light activity",
+      "short",
+      "#6ed853",
       ylabel = ylabel
     )
     p6 <- get_plot(
-      outcome_df, outcome, "MVPA", "short", "#708ff9",
+      outcome_df,
+      outcome,
+      "MVPA",
+      "short",
+      "#708ff9",
       ylabel = ylabel
     )
 
     pshort <-
-      plot_grid(NULL,
-        p4 + labs(x = "", y = "", title = "D") + theme(
-          legend.position = "none", plot.title.position = "plot",
-          plot.title = element_text(size = 16)
-        ),
-        p5 + labs(x = "", y = "", title = "E") + theme(
-          legend.position = "none", plot.title.position = "plot",
-          plot.title = element_text(size = 16)
-        ),
-        p6 + labs(x = "", y = "", title = "F") + theme(
-          legend.position = "none", plot.title.position = "plot",
-          plot.title = element_text(size = 16)
-        ),
+      plot_grid(
+        NULL,
+        p4 +
+          labs(x = "", y = "", title = "D") +
+          theme(
+            legend.position = "none",
+            plot.title.position = "plot",
+            plot.title = element_text(size = 16)
+          ),
+        p5 +
+          labs(x = "", y = "", title = "E") +
+          theme(
+            legend.position = "none",
+            plot.title.position = "plot",
+            plot.title = element_text(size = 16)
+          ),
+        p6 +
+          labs(x = "", y = "", title = "F") +
+          theme(
+            legend.position = "none",
+            plot.title.position = "plot",
+            plot.title = element_text(size = 16)
+          ),
         align = "vh",
         rel_heights = c(0.05, 1, 1, 1),
         nrow = 4,
@@ -663,50 +792,66 @@ process_mri_subs_output <- function(rds_path, mri_model_data) {
         hjust = -1.9
       )
 
-    plot <- plot_grid(pnorm,
-      pshort,
-      nrow = 1
-    )
+    plot <- plot_grid(pnorm, pshort, nrow = 1)
     return(plot)
   }
 
   tbv_plot <- mri_plots(
-    tbv_plot_df, "tbv",
+    tbv_plot_df,
+    "tbv",
     ylabel = expression(
-      paste("Total brain volume ", (cm^{
-        3
-      }))
+      paste(
+        "Total brain volume ",
+        (cm^{
+          3
+        })
+      )
     )
   )
   wmv_plot <- mri_plots(
-    wmv_plot_df, "wmv",
+    wmv_plot_df,
+    "wmv",
     ylabel = expression(
-      paste("White matter volume ", (cm^{
-        3
-      }))
+      paste(
+        "White matter volume ",
+        (cm^{
+          3
+        })
+      )
     )
   )
   gmv_plot <- mri_plots(
-    gmv_plot_df, "gmv",
+    gmv_plot_df,
+    "gmv",
     ylabel = expression(
-      paste("Grey matter volume ", (cm^{
-        3
-      }))
+      paste(
+        "Grey matter volume ",
+        (cm^{
+          3
+        })
+      )
     )
   )
   hip_plot <- mri_plots(
-    hip_plot_df, "hip",
+    hip_plot_df,
+    "hip",
     ylabel = expression(
-      paste("Hippocampal volume ", (cm^{
-        3
-      }))
+      paste(
+        "Hippocampal volume ",
+        (cm^{
+          3
+        })
+      )
     )
   )
   wmh_plot <- mri_plots(log_wmh_plot_df, "log_wmh", ylabel = "Log WMH")
 
   return(list(
-    tbv = tbv_plot, wmv = wmv_plot, gmv = gmv_plot,
-    hip = hip_plot, wmh = wmh_plot
+    tbv = tbv_plot,
+    wmv = wmv_plot,
+    gmv = gmv_plot,
+    hip = hip_plot,
+    wmh = wmh_plot
   ))
 }
 
@@ -737,27 +882,29 @@ get_boot_contrasts <- function(offset) {
       whole_sample_values <-
         data$t0[t0_outcome_idx:(t0_outcome_idx + num_subs - 1), t0_sub_idx]
       whole_sample_values <- cbind(
-        whole_sample_values, sub_col_names
-      ) |> as_tibble()
-
+        whole_sample_values,
+        sub_col_names
+      ) |>
+        as_tibble()
 
       # whole sample
       ref_value <- as.numeric(whole_sample_values[
-        whole_sample_values$sub_col_names == 0, 1
+        whole_sample_values$sub_col_names == 0,
+        1
       ])
       offset_value <- as.numeric(whole_sample_values[
-        whole_sample_values$sub_col_names == offset, 1
+        whole_sample_values$sub_col_names == offset,
+        1
       ])
       dif_full_sample <- offset_value - ref_value
 
       # bootstrap samples
-      ref_values <- data$t[, t_ref_idx:(
-        t_ref_idx + sub_len - 1)]
-      sub_values <- ref_values[, sub_idx:(
-        sub_idx + num_subs - 1)]
-      dif_samples <- sub_values[
-        , sub_col_names == offset
-      ] - sub_values[, sub_col_names == 0]
+      ref_values <- data$t[, t_ref_idx:(t_ref_idx + sub_len - 1)]
+      sub_values <- ref_values[, sub_idx:(sub_idx + num_subs - 1)]
+      dif_samples <- sub_values[,
+        sub_col_names == offset
+      ] -
+        sub_values[, sub_col_names == 0]
 
       return(tibble(
         offset = offset,
@@ -782,7 +929,10 @@ get_boot_contrasts <- function(offset) {
       for (i in 1:num_outcomes) {
         # Construct the contrast data
         contrast_data <- get_contrast_data(
-          t0_sub_idx, t_ref_idx, t0_outcome_idx, sub_idx
+          t0_sub_idx,
+          t_ref_idx,
+          t0_outcome_idx,
+          sub_idx
         )
 
         # Store the contrast data in the corresponding list
@@ -813,8 +963,14 @@ get_boot_contrasts <- function(offset) {
   hip_df <- bind_rows(hip_list, .id = "Type")
   log_wmh_df <- bind_rows(log_wmh_list, .id = "Type")
 
-  return(bind_rows(list(
-    tbv = tbv_df, wmv = wmv_df, gmv = gmv_df,
-    hip = hip_df, wmh = log_wmh_df
-  ), .id = "outcome"))
+  return(bind_rows(
+    list(
+      tbv = tbv_df,
+      wmv = wmv_df,
+      gmv = gmv_df,
+      hip = hip_df,
+      wmh = log_wmh_df
+    ),
+    .id = "outcome"
+  ))
 }

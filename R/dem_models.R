@@ -1,34 +1,26 @@
-source("utils.R")
-library("mice")
-library("tidyverse")
-library("survival")
-library("rms")
-library("compositions")
-library("data.table")
-library("parallel")
-library("boot")
-library("rlang")
-library("cowplot")
-library("extrafont")
-library("fastglm")
-library("dotenv")
-
 get_primary_formula <- function(data) {
   knots_timegroup <- quantile(
-    data[["timegroup"]], c(0.05, 0.275, 0.5, 0.725, 0.95)
+    data[["timegroup"]],
+    c(0.05, 0.275, 0.5, 0.725, 0.95)
   )
   knots_deprivation <- quantile(
-    data[["townsend_deprivation_index"]], c(0.1, 0.5, 0.9)
+    data[["townsend_deprivation_index"]],
+    c(0.1, 0.5, 0.9)
   )
   knots_fruit_veg <- quantile(
-    data[["fruit_veg"]], c(0.1, 0.5, 0.9)
+    data[["fruit_veg"]],
+    c(0.1, 0.5, 0.9)
   )
 
   primary_formula <- as.formula(
-    ~ -1 + rcs(timegroup, knots_timegroup) +
-      R1 + I(R1^2) +
-      R2 + I(R2^2) +
-      R3 + I(R3^2) +
+    ~ -1 +
+      rcs(timegroup, knots_timegroup) +
+      R1 +
+      I(R1^2) +
+      R2 +
+      I(R2^2) +
+      R3 +
+      I(R3^2) +
       rcs(fruit_veg, knots_fruit_veg) +
       alc_freq +
       sex +
@@ -48,19 +40,25 @@ get_primary_formula <- function(data) {
 
 get_s1_formula <- function(data) {
   knots_timegroup <- quantile(
-    data[["timegroup"]], c(0.05, 0.275, 0.5, 0.725, 0.95)
+    data[["timegroup"]],
+    c(0.05, 0.275, 0.5, 0.725, 0.95)
   )
   knots_deprivation <- quantile(
-    data[["townsend_deprivation_index"]], c(0.1, 0.5, 0.9)
+    data[["townsend_deprivation_index"]],
+    c(0.1, 0.5, 0.9)
   )
   knots_waso <- quantile(data[["avg_WASO"]], c(0.1, 0.5, 0.9))
   knots_fruit_veg <- quantile(data[["fruit_veg"]], c(0.1, 0.5, 0.9))
 
   s1_formula <- as.formula(
-    ~ -1 + rcs(timegroup, knots_timegroup) +
-      R1 + I(R1^2) +
-      R2 + I(R2^2) +
-      R3 + I(R3^2) +
+    ~ -1 +
+      rcs(timegroup, knots_timegroup) +
+      R1 +
+      I(R1^2) +
+      R2 +
+      I(R2^2) +
+      R3 +
+      I(R3^2) +
       rcs(fruit_veg, knots_fruit_veg) +
       alc_freq +
       sex +
@@ -80,20 +78,26 @@ get_s1_formula <- function(data) {
 
 get_s2_formula <- function(data) {
   knots_timegroup <- quantile(
-    data[["timegroup"]], c(0.05, 0.275, 0.5, 0.725, 0.95)
+    data[["timegroup"]],
+    c(0.05, 0.275, 0.5, 0.725, 0.95)
   )
   knots_deprivation <- quantile(
-    data[["townsend_deprivation_index"]], c(0.1, 0.5, 0.9)
+    data[["townsend_deprivation_index"]],
+    c(0.1, 0.5, 0.9)
   )
   knots_bmi <- quantile(data[["BMI"]], c(0.1, 0.5, 0.9))
   knots_bp <- quantile(data[["bp_syst_avg"]], c(0.1, 0.5, 0.9))
   knots_fruit_veg <- quantile(data[["fruit_veg"]], c(0.1, 0.5, 0.9))
 
   s2_formula <- as.formula(
-    ~ -1 + rcs(timegroup, knots_timegroup) +
-      R1 + I(R1^2) +
-      R2 + I(R2^2) +
-      R3 + I(R3^2) +
+    ~ -1 +
+      rcs(timegroup, knots_timegroup) +
+      R1 +
+      I(R1^2) +
+      R2 +
+      I(R2^2) +
+      R3 +
+      I(R3^2) +
       rcs(fruit_veg, knots_fruit_veg) +
       alc_freq +
       sex +
@@ -121,23 +125,27 @@ get_s2_formula <- function(data) {
 
 get_s3_formula <- function(data) {
   knots_timegroup <- quantile(
-    data[["timegroup"]], c(0.05, 0.275, 0.5, 0.725, 0.95)
+    data[["timegroup"]],
+    c(0.05, 0.275, 0.5, 0.725, 0.95)
   )
   knots_deprivation <- quantile(
-    data[["townsend_deprivation_index"]], c(0.1, 0.5, 0.9)
+    data[["townsend_deprivation_index"]],
+    c(0.1, 0.5, 0.9)
   )
   knots_fruit_veg <- quantile(
-    data[["fruit_veg"]], c(0.1, 0.5, 0.9)
+    data[["fruit_veg"]],
+    c(0.1, 0.5, 0.9)
   )
 
   s3_formula <- as.formula(
-    ~ -1 + rcs(timegroup, knots_timegroup) +
-      (sex + retired + avg_total_household_income +
-        smok_status) * (R1 + I(R1^2)) +
-      (sex + retired + avg_total_household_income +
-        smok_status) * (R2 + I(R2^2)) +
-      (sex + retired + avg_total_household_income +
-        smok_status) * (R3 + I(R3^2)) +
+    ~ -1 +
+      rcs(timegroup, knots_timegroup) +
+      (sex + retired + avg_total_household_income + smok_status) *
+        (R1 + I(R1^2)) +
+      (sex + retired + avg_total_household_income + smok_status) *
+        (R2 + I(R2^2)) +
+      (sex + retired + avg_total_household_income + smok_status) *
+        (R3 + I(R3^2)) +
       shift +
       rcs(fruit_veg, knots_fruit_veg) +
       alc_freq +
@@ -155,7 +163,9 @@ fit_model <- function(imp, timegroup_cuts, create_formula_fn) {
     Surv(time = age_accel, event = dem, time2 = age_dem) ~ .,
     data = imp,
     cut = timegroup_cuts,
-    episode = "timegroup", end = "age_end", event = "dem",
+    episode = "timegroup",
+    end = "age_end",
+    event = "dem",
     start = "age_start"
   )
 
@@ -172,28 +182,46 @@ fit_model <- function(imp, timegroup_cuts, create_formula_fn) {
 
   # predictor and outcome matrices for fastglm
   Xdem <- model.matrix(
-    model_formula, imp_long[death == 0, ]
+    model_formula,
+    imp_long[death == 0, ]
   )
   Ydem <- as.matrix(imp_long[death == 0, ]$dem)
 
   Xdeath <- model.matrix(
-    model_formula, imp_long[dem == 0, ]
+    model_formula,
+    imp_long[dem == 0, ]
   )
   Ydeath <- as.matrix(imp_long[dem == 0, ]$death)
 
   # fit models
   model_dem <- fastglm(
-    x = Xdem, y = Ydem, family = binomial(), method = 3
+    x = Xdem,
+    y = Ydem,
+    family = binomial(),
+    method = 3
   )
   model_death <- fastglm(
-    x = Xdeath, y = Ydeath, family = binomial, method = 3
+    x = Xdeath,
+    y = Ydeath,
+    family = binomial,
+    method = 3
   )
 
-  return(list(model_dem = model_dem, model_death = model_death, model_formula = model_formula))
+  return(list(
+    model_dem = model_dem,
+    model_death = model_death,
+    model_formula = model_formula
+  ))
 }
 
 predict_composition_risk <- function(
-    composition, stacked_data_table, model_dem, model_death, model_formula, timegroup) {
+  composition,
+  stacked_data_table,
+  model_dem,
+  model_death,
+  model_formula,
+  timegroup
+) {
   ilr <- ilr(composition, V = v)
 
   newx <- model.matrix(model_formula, stacked_data_table)
@@ -205,19 +233,28 @@ predict_composition_risk <- function(
   newx[, "R3"] <- ilr[3]
   newx[, "I(R3^2)"] <- ilr[3]^2
 
-  stacked_data_table[, haz_dem := predict(
-    model_dem,
-    newdata = newx, type = "response"
-  )]
-  stacked_data_table[, haz_death := predict(
-    model_death,
-    newdata = newx, type = "response"
-  )]
+  stacked_data_table[,
+    haz_dem := predict(
+      model_dem,
+      newdata = newx,
+      type = "response"
+    )
+  ]
+  stacked_data_table[,
+    haz_death := predict(
+      model_death,
+      newdata = newx,
+      type = "response"
+    )
+  ]
 
   setkey(stacked_data_table, id, timegroup) # sort and set keys
-  stacked_data_table[, risk := cumsum(
-    haz_dem * cumprod((1 - lag(haz_dem, default = 0)) * (1 - haz_death))
-  ), by = id]
+  stacked_data_table[,
+    risk := cumsum(
+      haz_dem * cumprod((1 - lag(haz_dem, default = 0)) * (1 - haz_death))
+    ),
+    by = id
+  ]
 
   risk <- stacked_data_table[timegroup == timegroup, .(mean = mean(risk))]
 
@@ -225,7 +262,15 @@ predict_composition_risk <- function(
 }
 
 calc_substitution <-
-  function(base_comp, imp_stacked_dt, model_dem, model_death, model_formula, substitution, timegroup) {
+  function(
+    base_comp,
+    imp_stacked_dt,
+    model_dem,
+    model_death,
+    model_formula,
+    substitution,
+    timegroup
+  ) {
     # The list of substitutions to be calculated in minutes
     inc <- -sub_steps:sub_steps * (sub_step_mins / mins_in_day)
 
@@ -236,7 +281,10 @@ calc_substitution <-
     for (i in seq_along(inc)) {
       # The list of compositions to be fed into the model after applying the substitutions
       sub_comps <- as.data.table(t(base_comp))
-      setnames(sub_comps, c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa"))
+      setnames(
+        sub_comps,
+        c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa")
+      )
 
       sub_comps[, (substitution[1]) := .SD[[substitution[1]]] + inc[i]]
       sub_comps[, (substitution[2]) := .SD[[substitution[2]]] - inc[i]]
@@ -267,9 +315,16 @@ calc_substitution <-
     result <-
       setnames(
         data.table(offset = inc * mins_in_day, risks = sub_risks),
-        c("offset", paste0(substitution[2], "_", deparse(
-          substitute(base_comp)
-        )))
+        c(
+          "offset",
+          paste0(
+            substitution[2],
+            "_",
+            deparse(
+              substitute(base_comp)
+            )
+          )
+        )
       )
 
     return(result)

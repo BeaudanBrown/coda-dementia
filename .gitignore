@@ -5,6 +5,7 @@
 _targets.yaml
 
 data/
+renv/
 
 # History files
 .Rlib

@@ -1,17 +1,19 @@
-create_data <- function() {
+create_data <- function(
+  core_file,
+  demdeath_file,
+  snp_file,
+  diet_file,
+  accel_file,
+  sleep_file,
+  sri_file
+) {
   # read UKB data
 
-  d <- fread(file.path(
-    data_dir,
-    "../../../Generic_data/core_ukb_data/core_ukb_trimmed_Sep2023.csv"
-  ))
+  d <- fread(core_file)
 
   # up to date event variables
 
-  latest <- fread(file.path(
-    data_dir,
-    "../../../Generic_data/core_ukb_data/latest_demdeath.csv"
-  ))
+  latest <- fread(demdeath_file)
 
   # rename variables
   latest <- latest |>
@@ -28,19 +30,13 @@ create_data <- function() {
 
   # Add in SNPs #
 
-  snps <- fread(file.path(
-    data_dir,
-    "../../../Generic_data/Raw_UKB_Data/SNPs (basket 2)/snp_data.csv"
-  ))
+  snps <- fread(snp_file)
 
   d <- d |> left_join(snps, by = "eid")
 
   # Add in diet and alcohol variables #
 
-  alc_diet <- fread(file.path(
-    data_dir,
-    "../../../Generic_data/Raw_UKB_Data/basket 4/alcohol_diet_19_04_24.csv"
-  ))
+  alc_diet <- fread(diet_file)
 
   alc_diet <-
     alc_diet |>
@@ -283,10 +279,7 @@ create_data <- function() {
 
   # Read in accelerometry data
 
-  a <- fread(file.path(
-    data_dir,
-    "../../../Generic_data/Accelerometery/Processed_GGIR/part5_daysumMM_output.csv"
-  ))
+  a <- fread(accel_file)
 
   # filter to only those with GGIR data
 
@@ -551,11 +544,7 @@ create_data <- function() {
   d2 <- d2 |> filter(time_to_dem > 0)
 
   # Sleep disorders data
-  sleep_dis_df <-
-    fread(file.path(
-      data_dir,
-      "../../../Generic_data/Sleep_disorders/sleep_disorders_selfreport_primarycare_hosp.csv"
-    ))
+  sleep_dis_df <- fread(sleep_file)
 
   # Merge dataframes
   d2 <- left_join(d2, sleep_dis_df, by = "eid")
@@ -565,10 +554,7 @@ create_data <- function() {
 
   ## Add WASO and SRI to dataset ##
 
-  waso_dat <- fread(file.path(
-    data_dir,
-    "../../SRI-dementia/Data/sri_data_may2023.csv"
-  ))
+  waso_dat <- fread(sri_file)
 
   waso_dat <- select(waso_dat, eid, avg_WASO, avg_sri)
 

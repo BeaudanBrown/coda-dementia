@@ -56,7 +56,53 @@ data.table::setDTthreads(1)
 
 ## pipeline
 list(
-  tar_target(df_raw, create_data()),
+  tar_target(
+    core_file,
+    file.path(data_dir, Sys.getenv("CORE_FILE")),
+    format = "file"
+  ),
+  tar_target(
+    demdeath_file,
+    file.path(data_dir, Sys.getenv("DEMDEATH_FILE")),
+    format = "file"
+  ),
+  tar_target(
+    snp_file,
+    file.path(data_dir, Sys.getenv("SNP_FILE")),
+    format = "file"
+  ),
+  tar_target(
+    diet_file,
+    file.path(data_dir, Sys.getenv("DIET_FILE")),
+    format = "file"
+  ),
+  tar_target(
+    accel_file,
+    file.path(data_dir, Sys.getenv("ACCEL_FILE")),
+    format = "file"
+  ),
+  tar_target(
+    sleep_file,
+    file.path(data_dir, Sys.getenv("SLEEP_FILE")),
+    format = "file"
+  ),
+  tar_target(
+    sri_file,
+    file.path(data_dir, Sys.getenv("SRI_FILE")),
+    format = "file"
+  ),
+  tar_target(
+    df_raw,
+    create_data(
+      core_file,
+      demdeath_file,
+      snp_file,
+      diet_file,
+      accel_file,
+      sleep_file,
+      sri_file
+    )
+  ),
   tar_target(df, prepare_dataset(df_raw)),
   # Run bootstrap for primary model
   tar_target(

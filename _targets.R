@@ -103,15 +103,12 @@ list(
       sri_file
     )
   ),
-  tar_target(df, prepare_dataset(df_raw)),
-  # Run bootstrap for primary model
   tar_target(
-    primary,
-    run_bootstrap(
-      data = df,
-      create_formula_fn = get_primary_formula
-    )
+    disease_file,
+    file.path(data_dir, Sys.getenv("DISEASE_FILE")),
+    format = "file"
   ),
+  tar_target(df, prepare_dataset(df_raw, disease_file)),
 
   # Run bootstrap for sensitivity analysis model 1
   tar_target(

@@ -1,4 +1,4 @@
-prepare_dataset <- function(df) {
+prepare_dataset <- function(df, disease_file) {
   # sleep disorder prior to accelerometry?
   df$OSA_dx <-
     ifelse(
@@ -165,7 +165,7 @@ prepare_dataset <- function(df) {
   ### Add prevalent disease variables
 
   prev <- fread(
-    file.path(data_dir, "../../SRI-dementia/Data/disease_dates.csv"),
+    disease_file,
     stringsAsFactors = T
   )
 

@@ -93,5 +93,5 @@ ordinal_to_numeric <- function(data) {
   )
   data$diagnosed_diabetes <- as.numeric(data$diagnosed_diabetes) - 1
 
-  return(data)
+  data
 }

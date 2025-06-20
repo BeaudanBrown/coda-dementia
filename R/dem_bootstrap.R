@@ -1,3 +1,143 @@
+# Generate bootstrap target definitions
+generate_bootstrap_targets <- function(
+  data_target_name,
+  create_formula_fn_name,
+  output_target_name,
+  empirical = TRUE,
+  intervals = TRUE,
+  iterations = bootstrap_iterations,
+  seed_val = 5678
+) {
+  if (FALSE) {
+    data_target_name <- "df_raw"
+    create_formula_fn_name <- "get_primary_formula"
+    output_target_name <- "test_output"
+    empirical <- FALSE
+    intervals <- TRUE
+    iterations <- 10
+    seed_val <- 5678
+  }
+  # Create a list to hold all the bootstrap iteration targets
+  bootstrap_targets <- list()
+
+  # Create a setup target that computes everything needed for bootstrapping
+  setup_target_name <- paste0(output_target_name, "_setup")
+  bootstrap_targets[[1]] <- tar_target_raw(
+    name = setup_target_name,
+    command = substitute(
+      {
+        # Matrix of variables to include in imputation model
+        data <- data_target_name
+        predmat <- quickpred(
+          data,
+          mincor = 0,
+          exclude = c(
+            "avg_sleep",
+            "avg_inactivity",
+            "avg_light",
+            "avg_mvpa",
+            "eid"
+          )
+        )
+
+        ## reference compositions
+        all_comp <-
+          acomp(data[,
+            c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa")
+          ])
+
+        short_sleep_comp <-
+          all_comp[all_comp$avg_sleep < short_sleep_hours / hrs_in_day, ]
+        short_sleep_geo_mean <-
+          acomp(apply(short_sleep_comp, 2, function(x) exp(mean(log(x)))))
+
+        avg_sleep_comp <-
+          all_comp[all_comp$avg_sleep >= short_sleep_hours / hrs_in_day, ]
+        avg_sleep_geo_mean <-
+          acomp(apply(avg_sleep_comp, 2, function(x) exp(mean(log(x)))))
+
+        ## Ordinal factor variables to numeric for faster imputation
+        data <- ordinal_to_numeric(data)
+
+        ## Constants for dementia risk
+        min_age_of_dem <- min(data$age_dem)
+        max_age_of_dem <- max(data$age_dem)
+        age_range <- max_age_of_dem - min_age_of_dem
+        timegroup_steps <- ceiling(age_range * 2)
+        median_age_of_dem <- median(data[data$dem == 1, ]$age_dem)
+
+        timegroup_cuts <-
+          seq(
+            from = min_age_of_dem,
+            to = max_age_of_dem,
+            length.out = timegroup_steps
+          )
+
+        median_age_of_dem_timegroup <-
+          which(timegroup_cuts > median_age_of_dem)[1] - 1
+
+        # Return everything needed for bootstrapping
+        list(
+          predmat = predmat,
+          timegroup_cuts = timegroup_cuts,
+          median_age_of_dem_timegroup = median_age_of_dem_timegroup,
+          short_sleep_geo_mean = short_sleep_geo_mean,
+          avg_sleep_geo_mean = avg_sleep_geo_mean,
+          nrows = nrow(data),
+          seed_val = seed_val
+        )
+      },
+      list(
+        data_target_name = as.name(data_target_name)
+      )
+    )
+  )
+
+  # Create a target for each bootstrap iteration
+  for (i in 1:iterations) {
+    iteration_name <- paste0(output_target_name, "_iter_", i)
+
+    # Create an expression for the bootstrap iteration
+    bootstrap_targets[[i + 1]] <- tar_target_raw(
+      name = iteration_name,
+      command = substitute(
+        {
+          setup <- setup_target
+          data <- data_target
+          create_formula_fn <- get(create_formula_fn_name)
+          set.seed(seed_val + iter_num) # Unique seed for each iteration
+
+          # Generate random indices for bootstrap sample (with replacement)
+          indices <- sample(seq_len(setup$nrows), setup$nrows, replace = TRUE)
+
+          # Run the bootstrap function
+          bootstrap_substitutions_fn(
+            data = data,
+            indices = indices,
+            create_formula_fn = create_formula_fn,
+            predmat = setup$predmat,
+            timegroup_cuts = setup$timegroup_cuts,
+            median_age_of_dem_timegroup = setup$median_age_of_dem_timegroup,
+            short_sleep_geo_mean = setup$short_sleep_geo_mean,
+            avg_sleep_geo_mean = setup$avg_sleep_geo_mean,
+            empirical = empirical_val
+          )
+        },
+        list(
+          setup_target = as.name(setup_target_name),
+          data_target = as.name(data_target_name),
+          create_formula_fn_name = create_formula_fn_name,
+          iter_num = i,
+          seed_val = seed_val,
+          empirical_val = empirical
+        )
+      )
+    )
+  }
+
+  bootstrap_targets
+}
+
 # Run bootstrap for a particular model formula and timegroup target
 run_bootstrap <- function(
   data,

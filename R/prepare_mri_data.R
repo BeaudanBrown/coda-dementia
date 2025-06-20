@@ -1,11 +1,8 @@
 ### Prepare MRI data for analysis ###
-prepare_mri <- function(df_raw) {
+prepare_mri <- function(df_raw, mri_file) {
   ## read data
 
-  mri <- fread(file.path(
-    data_dir,
-    "../../../Generic_data/MRI/mri_full_trimmed.csv"
-  ))
+  mri <- fread(file.path(data_dir, mri_file))
 
   ## Filter to MRI data available
 

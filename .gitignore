@@ -4,6 +4,7 @@
 .pre-commit-config.yaml
 _targets.yaml
 
+logs/
 data/
 renv/
 

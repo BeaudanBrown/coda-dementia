@@ -46,7 +46,10 @@ tar_option_set(
     "extrafont"
   ),
   format = "qs",
-  controller = crew_controller_local(workers = ncpus)
+  controller = crew_controller_local(
+    options_local = crew_options_local(log_directory = "./logs"),
+    workers = ncpus
+  )
 )
 
 # Run the R scripts in the R/ folder
@@ -125,10 +128,10 @@ list(
   generate_bootstrap_targets(
     "df",
     "get_primary_formula",
-    "test_output",
+    "primary",
     empirical = FALSE,
     intervals = TRUE,
-    iterations = 10,
-    seed_val = 5678
+    iterations = bootstrap_iterations,
+    seed_val = seed_val
   )
 )

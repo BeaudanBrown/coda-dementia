@@ -5,7 +5,7 @@ library(crew)
 dotenv::load_dot_env()
 data_dir <- Sys.getenv("DATA_DIR")
 cache_dir <- Sys.getenv("CACHE_DIR")
-seed_val <- Sys.getenv("SEED")
+seed_val <- as.integer(Sys.getenv("SEED"))
 
 # Constants
 short_sleep_hours <- 6

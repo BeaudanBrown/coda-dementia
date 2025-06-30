@@ -9,6 +9,7 @@ SLEEP_FILE=Generic_data/Sleep_disorders/sleep_disorders_selfreport_primarycare_h
 SRI_FILE=Projects/SRI-dementia/Data/sri_data_may2023.csv
 DISEASE_FILE=Projects/SRI-dementia/Data/disease_dates.csv
 MRI_FILE=Generic_data/MRI/mri_full_trimmed.csv
+MRI_QC_FILE=Generic_data/MRI/mri_qc.csv
 
 CACHE_DIR=/s/Epi-Dementia/Pase-ED/Biobank/Projects/24-hour-behaviour-dementia/Data/.targets_beau
 OUTPUT_DIR=~/monash/compositional-dementia/data

@@ -1,8 +1,8 @@
 ### Prepare MRI data for analysis ###
-prepare_mri <- function(df_raw, mri_file) {
+prepare_mri <- function(df_raw, mri_file, mri_qc_file) {
   ## read data
 
-  mri <- fread(file.path(data_dir, mri_file))
+  mri <- fread(mri_file)
 
   ## Filter to MRI data available
 
@@ -48,7 +48,7 @@ prepare_mri <- function(df_raw, mri_file) {
 
   ## add in QC variables
 
-  qc <- fread(file.path(data_dir, "../../../Generic_data/MRI/mri_qc.csv"))
+  qc <- fread(mri_qc_file)
 
   qc <- qc |>
     select(eid, ends_with("-2.0")) |>

@@ -116,7 +116,12 @@ list(
     file.path(data_dir, Sys.getenv("MRI_FILE")),
     format = "file"
   ),
-  tar_target(mri_vars, prepare_mri(df_raw, mri_file)),
+  tar_target(
+    mri_qc_file,
+    file.path(data_dir, Sys.getenv("MRI_QC_FILE")),
+    format = "file"
+  ),
+  tar_target(mri_vars, prepare_mri(df_raw, mri_file, mri_qc_file)),
   generate_bootstrap_targets(
     "df",
     "get_primary_formula",

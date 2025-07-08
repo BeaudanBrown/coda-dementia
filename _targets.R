@@ -15,11 +15,13 @@ mins_in_hour <- 60
 sub_steps <- 4
 sub_step_mins <- mins_in_hour / sub_steps
 ncpus <- as.integer(Sys.getenv("NCPUS"))
-bootstrap_iterations <- as.integer(Sys.getenv("BOOT_ITRS"))
+bootstrap_iterations <- 16
+m <- as.integer(Sys.getenv("M"))
 maxit <- as.integer(Sys.getenv("MAXIT"))
 
 # set target configs
 tar_config_set(store = cache_dir)
+unlink("./logs/*", recursive = FALSE)
 
 # Set target options:
 tar_option_set(
@@ -119,19 +121,64 @@ list(
     file.path(data_dir, Sys.getenv("MRI_FILE")),
     format = "file"
   ),
+  tar_target(imp, impute_data(df, m, maxit)),
   tar_target(
-    mri_qc_file,
-    file.path(data_dir, Sys.getenv("MRI_QC_FILE")),
-    format = "file"
+    sub_names,
+    c("avg_sleep", "avg_mvpa", "avg_light", "avg_inactivity")
   ),
-  tar_target(mri_vars, prepare_mri(df_raw, mri_file, mri_qc_file)),
-  generate_bootstrap_targets(
-    "df",
-    "get_primary_formula",
-    "primary",
-    empirical = FALSE,
-    intervals = TRUE,
-    iterations = bootstrap_iterations,
-    seed_val = seed_val
+  tar_target(sub_durations, seq(from = 15, to = 60, by = 15)),
+  tar_target(
+    substitutions,
+    {
+      expand.grid(
+        from_var = sub_names,
+        to_var = sub_names,
+        stringsAsFactors = FALSE
+      ) |>
+        dplyr::filter(from_var != to_var)
+    }
+  ),
+  tar_target(
+    timegroup_cuts,
+    make_cuts(df)
+  ),
+  tar_target(
+    imp_wide,
+    widen_data(imp, timegroup_cuts$median_age_of_dem_timegroup)
+  ),
+  tar_target(
+    substitution_results,
+    apply_substitution(
+      imp,
+      substitutions$from_var,
+      substitutions$to_var,
+      sub_durations,
+      timegroup_cuts$median_age_of_dem_timegroup
+    ),
+    pattern = cross(substitutions, sub_durations),
+    iteration = "vector"
+  ),
+  tar_target(
+    sub_test,
+    process_substitution(
+      imp_wide,
+      substitution_results,
+      baseline = c(
+        "fruit_veg",
+        "alc_freq",
+        "sex",
+        "retired",
+        "shift",
+        "apoe_e4",
+        "highest_qual",
+        "townsend_deprivation_index",
+        "psych_meds",
+        "ethnicity",
+        "avg_total_household_income",
+        "smok_status"
+      )
+    ),
+    pattern = map(substitution_results),
+    iteration = "list"
   )
 )

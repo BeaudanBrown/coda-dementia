@@ -22,7 +22,7 @@
             hooks = {
               air-fmt = {
                 enable = true;
-                entry = "air format";
+                entry = "${pkgs.air-formatter}/bin/air format";
                 files = ".*\.[rR]$";
               };
             };
@@ -42,7 +42,7 @@
                 self.checks.${system}.pre-commit-check.enabledPackages
               ];
               packages =
-                with pkgs;
+                with pkgsUnstable;
                 [
                   R
                   quarto
@@ -50,12 +50,13 @@
                 ++ (with pkgsUnstable; [
                   air-formatter
                 ])
-                ++ (with rPackages; [
+                ++ (with pkgsUnstable.rPackages; [
+                  lmtp
+                  data_table
                   languageserver
                   dotenv
                   compositions
                   tidyverse
-                  data_table
                   mice
                   survival
                   rms
@@ -69,6 +70,7 @@
                   boot
                   rlang
                   targets
+                  tarchetypes
                   usethis
                   qs2
                   emmeans
@@ -79,6 +81,10 @@
                   renv
                   extrafont
                   crew
+                  parallelly
+                  future
+                  furrr
+                  broom
                 ]);
             };
       }

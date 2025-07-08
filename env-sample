@@ -16,4 +16,5 @@ OUTPUT_DIR=~/monash/compositional-dementia/data
 NCPUS=5
 BOOT_ITRS=10
 MAXIT=1
+M=10
 SEED=5678

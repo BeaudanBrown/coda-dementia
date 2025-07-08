@@ -284,3 +284,58 @@ prepare_dataset <- function(df, disease_file) {
 
   return(dem_model_data)
 }
+
+impute_data <- function(df, m, maxit) {
+  df <- ordinal_to_numeric(df)
+  predmat <- quickpred(
+    df,
+    mincor = 0,
+    exclude = c(
+      "avg_sleep",
+      "avg_inactivity",
+      "avg_light",
+      "avg_mvpa",
+      "eid"
+    )
+  )
+  imp <- mice(
+    df,
+    m = m,
+    predictorMatrix = predmat,
+    maxit = maxit
+  )
+  # TODO: make this use all as the action
+  imp <- complete(imp)
+  setDT(imp)
+  imp[, id := .I]
+  imp$avg_total_household_income <- as.factor(imp$avg_total_household_income)
+  levels(imp$avg_total_household_income) <- c(
+    "<18",
+    "18-30",
+    "31-50",
+    "52-100",
+    ">100"
+  )
+  imp$chronotype <- as.factor(imp$chronotype)
+  imp$apoe_e4 <- as.factor(imp$apoe_e4)
+  imp$highest_qual <- as.factor(imp$highest_qual)
+  imp$smok_status <- as.factor(imp$smok_status)
+  levels(imp$smok_status) <- c("current", "former", "never")
+  imp
+}
+
+widen_data <- function(df, median_age_of_dem_timegroup) {
+  num_rows <- nrow(df)
+  df <- df[rep(seq_len(num_rows), each = median_age_of_dem_timegroup)]
+  df[, timegroup := rep(1:median_age_of_dem_timegroup, num_rows)]
+  df |>
+    mutate(
+      # TODO: Make this use the actual censoring data
+      censoring = 1
+    ) |>
+    pivot_wider(
+      values_from = c(dem, death, censoring),
+      names_from = timegroup,
+      names_glue = "{.value}_{timegroup}"
+    )
+}

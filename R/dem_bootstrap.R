@@ -756,3 +756,95 @@ process_dem_output <- function(result, intervals = TRUE) {
 
   return(list(plot, plot_data))
 }
+
+apply_substitution <- function(
+  df,
+  from_var,
+  to_var,
+  duration,
+  median_age_of_dem_timegroup
+) {
+  from_quant <- quantile(df[[from_var]], probs = c(0.01, 0.99))
+  to_quant <- quantile(df[[to_var]], probs = c(0.01, 0.99))
+
+  min_from <- from_quant[1]
+  max_from <- from_quant[2]
+  min_to <- to_quant[1]
+  max_to <- to_quant[2]
+  sub_df <- df |>
+    mutate(
+      new_from = .data[[from_var]] - duration,
+      "{from_var}" := ifelse(new_from < min_from, min_from, new_from),
+      "{from_var}" := ifelse(new_from > max_from, max_from, new_from),
+      new_to = .data[[to_var]] + duration,
+      "{to_var}" := ifelse(new_to < min_to, min_to, new_to),
+      "{to_var}" := ifelse(new_to > max_to, max_to, new_to),
+      sub_name = paste0(from_var, "_", to_var, "_", duration),
+      censoring = 1
+    )
+
+  comp <- compositions::acomp(sub_df[, c(
+    "avg_sleep",
+    "avg_inactivity",
+    "avg_light",
+    "avg_mvpa"
+  )])
+  ilr_vars <- compositions::ilr(comp, V = v) |>
+    setNames(c("R1", "R2", "R3"))
+
+  sub_df |>
+    cbind(ilr_vars)
+
+  num_rows <- nrow(sub_df)
+  sub_df <- sub_df[rep(seq_len(num_rows), each = median_age_of_dem_timegroup)]
+  sub_df[, timegroup := rep(1:median_age_of_dem_timegroup, num_rows)]
+  sub_df <- pivot_wider(
+    sub_df,
+    values_from = c(dem, death, censoring),
+    names_from = timegroup,
+    names_glue = "{.value}_{timegroup}"
+  )
+  sub_df
+}
+
+make_cuts <- function(df) {
+  min_age_of_dem <- min(df$age_dem)
+  max_age_of_dem <- max(df$age_dem)
+  age_range <- max_age_of_dem - min_age_of_dem
+  # TODO: Make this a reasonable cut method
+  # timegroup_steps <- ceiling(age_range * 2)
+  timegroup_steps <- 5
+  median_age_of_dem <- median(df[df$dem == 1, ]$age_dem)
+
+  timegroup_cuts <-
+    seq(
+      from = min_age_of_dem,
+      to = max_age_of_dem,
+      length.out = timegroup_steps
+    )
+
+  median_age_of_dem_timegroup <-
+    which(timegroup_cuts > median_age_of_dem)[1] - 1
+  list(
+    timegroup_cuts = timegroup_cuts,
+    median_age_of_dem_timegroup = median_age_of_dem_timegroup
+  )
+}
+
+process_substitution <- function(df, sub_df, baseline) {
+  cens <- grep("^censoring", names(sub_df), value = TRUE)
+  trt <- c("R1", "R2", "R3")
+  outcomes <- grep("^dem", names(sub_df), value = TRUE)
+  compete <- grep("^death", names(sub_df), value = TRUE)
+  lmtp::lmtp_survival(
+    as.data.frame(df),
+    trt = trt,
+    outcomes = outcomes,
+    cens = cens,
+    baseline = baseline,
+    compete = compete,
+    shifted = as.data.frame(sub_df),
+    folds = 1,
+    mtp = TRUE
+  )
+}

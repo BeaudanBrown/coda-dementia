@@ -5,7 +5,7 @@ library(crew)
 dotenv::load_dot_env()
 data_dir <- Sys.getenv("DATA_DIR")
 cache_dir <- Sys.getenv("CACHE_DIR")
-seed_val <- as.integer(Sys.getenv("SEED"))
+ncpus <- as.integer(Sys.getenv("NCPUS"))
 
 # Constants
 short_sleep_hours <- 6
@@ -14,10 +14,9 @@ mins_in_day <- 1440
 mins_in_hour <- 60
 sub_steps <- 4
 sub_step_mins <- mins_in_hour / sub_steps
-ncpus <- as.integer(Sys.getenv("NCPUS"))
-bootstrap_iterations <- 16
-m <- as.integer(Sys.getenv("M"))
-maxit <- as.integer(Sys.getenv("MAXIT"))
+m <- 10 # Number of imputed datasets
+maxit <- 5 # Number of MICE iterations
+bootstrap_iterations <- 16 # For ideal/worst plots
 
 # set target configs
 tar_config_set(store = cache_dir)
@@ -51,7 +50,8 @@ tar_option_set(
   controller = crew_controller_local(
     options_local = crew_options_local(log_directory = "./logs"),
     workers = ncpus
-  )
+  ),
+  seed = 5678
 )
 
 # Run the R scripts in the R/ folder
@@ -99,6 +99,11 @@ list(
     format = "file"
   ),
   tar_target(
+    mri_file,
+    file.path(data_dir, Sys.getenv("MRI_FILE")),
+    format = "file"
+  ),
+  tar_target(
     df_raw,
     create_data(
       core_file,
@@ -117,13 +122,17 @@ list(
   ),
   tar_target(df, prepare_dataset(df_raw, disease_file)),
   tar_target(test_df, sample_frac(df, 0.1)),
-  tar_target(
-    mri_file,
-    file.path(data_dir, Sys.getenv("MRI_FILE")),
-    format = "file"
-  ),
-  # tar_target(imp, impute_data(df, m, maxit)),
   tar_target(imp, impute_data(test_df, m, maxit)),
+  tar_target(imp2, back_to_factor(imp), pattern = map(imp)),
+  tar_target(
+    timegroup_cuts,
+    make_cuts(df)
+  ),
+  tar_target(
+    imp_wide,
+    widen_data(imp2, timegroup_cuts),
+    pattern = map(imp2)
+  ),
   tar_target(
     sub_names,
     c("avg_sleep", "avg_mvpa", "avg_light", "avg_inactivity")
@@ -137,21 +146,13 @@ list(
         to_var = sub_names,
         stringsAsFactors = FALSE
       ) |>
-        dplyr::filter(from_var != to_var)
+        dplyr::filter(!from_var == to_var)
     }
-  ),
-  tar_target(
-    timegroup_cuts,
-    make_cuts(df)
-  ),
-  tar_target(
-    imp_wide,
-    widen_data(imp, timegroup_cuts)
   ),
   tar_target(
     substitution_results,
     apply_substitution(
-      imp,
+      imp_wide,
       substitutions$from_var,
       substitutions$to_var,
       sub_durations,

@@ -2,19 +2,19 @@ prepare_dataset <- function(df, disease_file) {
   # sleep disorder prior to accelerometry?
   df$OSA_dx <-
     ifelse(
-      df$OSA_sr == 1 | df$date_osa_dx <= df$calendar_date,
+      df$OSA_sr == 1 | df$date_osa_dx <= df$date_accel,
       1,
       0
     )
   df$insomnia_dx <- ifelse(
     df$insomnia_sr == 1 |
-      df$date_insomnia_dx <= df$calendar_date,
+      df$date_insomnia_dx <= df$date_accel,
     1,
     0
   )
   df$sleep_disorder_dx <- ifelse(
     df$sleep_disorder_sr == 1 |
-      df$date_any_sleep_dx <= df$calendar_date,
+      df$date_any_sleep_dx <= df$date_accel,
     1,
     0
   )
@@ -104,11 +104,9 @@ prepare_dataset <- function(df, disease_file) {
   # Update age variable to age at accelerometry study
   df$age_accel <-
     df$age_assessment +
-    ((as.Date(df$calendar_date) - as.Date(df$date_baseline)) / 365)
+    ((as.Date(df$date_accel) - as.Date(df$date_baseline)) / 365)
 
   df$age_accel <- as.numeric(df$age_accel)
-
-  df <- df |> rename("date_accel" = "calendar_date")
 
   ### Create isometric log ratio coordinates
 
@@ -125,42 +123,6 @@ prepare_dataset <- function(df, disease_file) {
   dem_base_ilr <-
     ilr(dem_comp, V = v) |>
     setNames(c("R1", "R2", "R3"))
-
-  ## Construct risk set
-  # Death from other causes remain in risk set until end of FU
-
-  df <- df |>
-    mutate(
-      competing = ifelse(
-        !is.na(date_of_death) & is.na(date_acdem2),
-        1,
-        0
-      )
-    ) |>
-    mutate(
-      time_to_dem = case_when(
-        dem == 1 ~ difftime(date_acdem2, date_accel),
-        competing == 1 ~ difftime("2023-01-01", date_accel),
-        TRUE ~ difftime("2023-01-01", date_accel)
-      )
-    ) |>
-    mutate(time_to_dem = as.integer(time_to_dem))
-
-  # Create age at dementia or end of follow-up variable
-
-  df$age_dem <- df$age_accel + (df$time_to_dem / 365)
-
-  # create death and age at death variable
-
-  df$death <- ifelse(is.na(df$date_of_death), 0, 1)
-
-  df$time_to_death <- ifelse(
-    df$death == 1,
-    difftime(df$date_of_death, df$date_accel),
-    difftime("2023-01-01", df$date_accel)
-  )
-
-  df$age_at_death <- df$age_accel + (df$time_to_death / 365)
 
   ### Add prevalent disease variables
 
@@ -244,7 +206,9 @@ prepare_dataset <- function(df, disease_file) {
     avg_light,
     avg_mvpa,
     dem,
+    death,
     time_to_dem,
+    time_to_death,
     avg_WASO,
     bp_syst_avg,
     age_accel,
@@ -267,9 +231,6 @@ prepare_dataset <- function(df, disease_file) {
     diagnosed_diabetes,
     BMI,
     smok_status,
-    death,
-    age_at_death,
-    age_dem,
     sick_disabled,
     prev_diabetes,
     prev_cancer,
@@ -304,39 +265,67 @@ impute_data <- function(df, m, maxit) {
     predictorMatrix = predmat,
     maxit = maxit
   )
-  # TODO: make this use all as the action
-  imp <- complete(imp)
-  setDT(imp)
-  imp[, id := .I]
-  imp$avg_total_household_income <- as.factor(imp$avg_total_household_income)
-  levels(imp$avg_total_household_income) <- c(
+  print(imp$loggedEvents)
+  imp <- complete(imp, "all")
+  imp <- lapply(imp, back_to_factor)
+  return(imp)
+}
+
+back_to_factor <- function(df) {
+  df$avg_total_household_income <- as.factor(
+    df$avg_total_household_income
+  )
+  levels(df$avg_total_household_income) <- c(
     "<18",
     "18-30",
     "31-50",
     "52-100",
     ">100"
   )
-  imp$chronotype <- as.factor(imp$chronotype)
-  imp$apoe_e4 <- as.factor(imp$apoe_e4)
-  imp$highest_qual <- as.factor(imp$highest_qual)
-  imp$smok_status <- as.factor(imp$smok_status)
-  levels(imp$smok_status) <- c("current", "former", "never")
-  imp
+  df$chronotype <- as.factor(df$chronotype)
+  df$apoe_e4 <- as.factor(df$apoe_e4)
+  df$highest_qual <- as.factor(df$highest_qual)
+  df$smok_status <- as.factor(df$smok_status)
+  levels(df$smok_status) <- c("current", "former", "never")
+  return(as.data.table(df))
 }
 
 widen_data <- function(df, timegroup_cuts) {
   num_cuts <- length(timegroup_cuts)
   num_rows <- nrow(df)
-  df <- df[rep(seq_len(num_rows), each = num_cuts)]
-  df[, timegroup := rep(1:num_cuts, num_rows)]
-  df |>
-    mutate(
-      # TODO: Make this use the actual censoring data
-      censoring = 1
-    ) |>
-    pivot_wider(
-      values_from = c(dem, death, censoring),
-      names_from = timegroup,
-      names_glue = "{.value}_{timegroup}"
+
+  # Wide format
+  df$censoring_1 <- 1
+  df$dem_1 <- ifelse(df$dem == 1 & df$time_to_dem <= timegroup_cuts[2], 1, 0)
+  df$death_1 <- case_when(
+    df$death == 1 & df$time_to_death < timegroup_cuts[2] ~ 1,
+    df$dem == 1 ~ 0,
+    .default = 0
+  )
+
+  for (i in 2:(num_cuts - 1)) {
+    # Censoring
+    df[[paste0("censoring_", i)]] <- case_when(
+      df$dem == 0 & df$death == 0 & df$time_to_dem <= timegroup_cuts[i] ~ 0,
+      df[[paste0("dem_", i - 1)]] == 1 ~ NA,
+      df[[paste0("death_", i - 1)]] == 1 ~ NA,
+      .default = 1
     )
+    # Death
+    df[[paste0("death_", i)]] <- case_when(
+      df$death == 1 & df$time_to_death <= timegroup_cuts[i + 1] & df$dem == 0 ~
+        1,
+      df[[paste0("censoring_", i)]] == 0 ~ NA,
+      .default = 0
+    )
+    # Dem
+    df[[paste0("dem_", i)]] <- case_when(
+      df$dem == 1 & df$time_to_dem <= timegroup_cuts[i + 1] ~ 1,
+      df[[paste0("death_", i - 1)]] == 1 ~ 0,
+      df[[paste0("censoring_", i)]] == 0 ~ NA,
+      .default = 0
+    )
+  }
+
+  return(df)
 }

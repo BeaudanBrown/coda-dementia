@@ -14,7 +14,3 @@ MRI_QC_FILE=Generic_data/MRI/mri_qc.csv
 CACHE_DIR=/s/Epi-Dementia/Pase-ED/Biobank/Projects/24-hour-behaviour-dementia/Data/.targets_beau
 OUTPUT_DIR=~/monash/compositional-dementia/data
 NCPUS=5
-BOOT_ITRS=10
-MAXIT=1
-M=10
-SEED=5678

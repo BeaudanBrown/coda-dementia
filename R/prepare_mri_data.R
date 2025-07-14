@@ -95,9 +95,9 @@ prepare_mri <- function(df_raw, mri_file, mri_qc_file) {
   mri2 <- mri2 |>
     mutate(
       date_mri1 = as_date(date_mri1),
-      calendar_date = as_date(calendar_date)
+      date_accel = as_date(date_accel)
     ) |>
-    mutate(mri_accel_time_dif = as.integer(date_mri1 - calendar_date)) |>
+    mutate(mri_accel_time_dif = as.integer(date_mri1 - date_accel)) |>
     mutate(mri_before_accel = ifelse(mri_accel_time_dif < 0, 1, 0))
 
   ## Remove participants whose mri was before actigraphy
@@ -108,7 +108,7 @@ prepare_mri <- function(df_raw, mri_file, mri_qc_file) {
 
   mri_model_data <- select(
     mri2,
-    calendar_date,
+    date_accel,
     date_mri1,
     eid,
     assessment_centre_mri1,
@@ -144,7 +144,7 @@ make_mri_df <- function(mri_vars, df) {
   mri_df <- mri_df |>
     mutate(
       age_mri = (as.numeric(
-        as.Date(date_mri1) - as.Date(calendar_date)
+        as.Date(date_mri1) - as.Date(date_accel)
       ) /
         365) +
         age_accel

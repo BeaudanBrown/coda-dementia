@@ -194,7 +194,7 @@ run_mri_bootstrap <- function(mri_df, mri_best_and_worst, create_formula_fn) {
     mincor = 0,
     exclude = c(
       "eid",
-      "calendar_date",
+      "date_accel",
       "avg_sleep",
       "avg_inactivity",
       "avg_light",

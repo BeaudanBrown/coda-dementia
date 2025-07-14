@@ -791,7 +791,7 @@ apply_substitution <- function(
       new_to = .data[[to_var]] + duration,
       "{to_var}" := pmin(pmax(new_to, min_to), max_to),
       sub_name = paste0(from_var, "_", to_var, "_", duration),
-      censoring = 1L # placeholder censoring
+      censoring = 1L # no (meaningful) censoring
     ) |>
     select(-new_from, -new_to)
 
@@ -807,29 +807,6 @@ apply_substitution <- function(
 
   sub_df[, c("R1", "R2", "R3")] <- as.data.frame(ilr_vars)
 
-  # 3) replicate each row T times and add a timegroup index
-  num_cuts <- length(timegroup_cuts)
-  sub_df <- sub_df[rep(seq_len(nrow(sub_df)), each = num_cuts), ]
-  sub_df$timegroup <- rep(seq_len(num_cuts), times = nrow(df))
-
-  # 4) pivot to wide
-  sub_df <- pivot_wider(
-    sub_df,
-    values_from = c(dem, death, censoring),
-    names_from = timegroup,
-    names_glue = "{.value}_{timegroup}"
-  )
-
-  # 5) LOCF: for dem_*, death_*, censoring_*, carry forward via row‐wise cummax
-  dem_cols <- grep("^dem_", names(sub_df), value = TRUE)
-  death_cols <- grep("^death_", names(sub_df), value = TRUE)
-  censor_cols <- grep("^censoring_", names(sub_df), value = TRUE)
-
-  sub_df <- sub_df |>
-    event_locf(outcomes = dem_cols) |>
-    event_locf(outcomes = death_cols) |>
-    event_locf(outcomes = censor_cols)
-
   sub_df
 }
 
@@ -841,7 +818,7 @@ make_cuts <- function(df) {
     seq(
       from = 0,
       to = max_follow_up,
-      length.out = timegroup_steps
+      length.out = timegroup_steps + 1
     )
   timegroup_cuts
 }

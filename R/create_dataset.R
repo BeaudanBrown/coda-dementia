@@ -527,17 +527,37 @@ create_data <- function(
 
   d2$dem <- ifelse(!is.na(d2$date_acdem2), 1, 0)
 
-  # calculate time to dementia
+  ## Construct risk set
+  # Death from other causes remain in risk set until end of FU
+
+  d2 <- d2 |> rename("date_accel" = "calendar_date")
 
   d2 <- d2 |>
     mutate(
+      competing = ifelse(
+        !is.na(date_of_death) & is.na(date_acdem2),
+        1,
+        0
+      )
+    ) |>
+    mutate(
       time_to_dem = case_when(
-        dem == 1 ~ difftime(date_acdem2, calendar_date),
-        !is.na(date_ltfu) ~ difftime(date_ltfu, calendar_date),
-        TRUE ~ difftime("2022-02-01", calendar_date)
+        dem == 1 ~ difftime(date_acdem2, date_accel),
+        competing == 1 ~ difftime("2023-01-01", date_accel),
+        TRUE ~ difftime("2023-01-01", date_accel)
       )
     ) |>
     mutate(time_to_dem = as.integer(time_to_dem))
+
+  # create death and age at death variable
+
+  d2$death <- ifelse(is.na(d2$date_of_death), 0, 1)
+
+  d2$time_to_death <- ifelse(
+    d2$death == 1,
+    difftime(d2$date_of_death, d2$date_accel),
+    difftime("2023-01-01", d2$date_accel)
+  )
 
   ## remove those with prevalent dementia
 

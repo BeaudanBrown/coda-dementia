@@ -44,7 +44,7 @@ tar_option_set(
     "emmeans",
     "lubridate",
     "mvtnorm",
-    "renv",
+    "lmtp",
     "extrafont"
   ),
   format = "qs",
@@ -116,12 +116,14 @@ list(
     format = "file"
   ),
   tar_target(df, prepare_dataset(df_raw, disease_file)),
+  tar_target(test_df, sample_frac(df, 0.1)),
   tar_target(
     mri_file,
     file.path(data_dir, Sys.getenv("MRI_FILE")),
     format = "file"
   ),
-  tar_target(imp, impute_data(df, m, maxit)),
+  # tar_target(imp, impute_data(df, m, maxit)),
+  tar_target(imp, impute_data(test_df, m, maxit)),
   tar_target(
     sub_names,
     c("avg_sleep", "avg_mvpa", "avg_light", "avg_inactivity")
@@ -144,7 +146,7 @@ list(
   ),
   tar_target(
     imp_wide,
-    widen_data(imp, timegroup_cuts$median_age_of_dem_timegroup)
+    widen_data(imp, timegroup_cuts)
   ),
   tar_target(
     substitution_results,
@@ -153,7 +155,7 @@ list(
       substitutions$from_var,
       substitutions$to_var,
       sub_durations,
-      timegroup_cuts$median_age_of_dem_timegroup
+      timegroup_cuts
     ),
     pattern = cross(substitutions, sub_durations),
     iteration = "vector"

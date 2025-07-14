@@ -56,9 +56,6 @@ generate_bootstrap_targets <- function(
         avg_sleep_geo_mean <-
           acomp(apply(avg_sleep_comp, 2, function(x) exp(mean(log(x)))))
 
-        ## Ordinal factor variables to numeric for faster imputation
-        data <- ordinal_to_numeric(data)
-
         ## Constants for dementia risk
         min_age_of_dem <- min(data$age_dem)
         max_age_of_dem <- max(data$age_dem)
@@ -107,6 +104,19 @@ generate_bootstrap_targets <- function(
           create_formula_fn <- get(create_formula_fn_name)
           set.seed(seed_val + iter_num) # Unique seed for each iteration
 
+          data <- ordinal_to_numeric(data)
+          predmat <- quickpred(
+            data,
+            mincor = 0,
+            exclude = c(
+              "avg_sleep",
+              "avg_inactivity",
+              "avg_light",
+              "avg_mvpa",
+              "eid"
+            )
+          )
+
           # Generate random indices for bootstrap sample (with replacement)
           indices <- sample(seq_len(setup$nrows), setup$nrows, replace = TRUE)
 
@@ -115,7 +125,7 @@ generate_bootstrap_targets <- function(
             data = data,
             indices = indices,
             create_formula_fn = create_formula_fn,
-            predmat = setup$predmat,
+            predmat = predmat,
             timegroup_cuts = setup$timegroup_cuts,
             median_age_of_dem_timegroup = setup$median_age_of_dem_timegroup,
             short_sleep_geo_mean = setup$short_sleep_geo_mean,
@@ -498,7 +508,7 @@ process_dem_output <- function(result, intervals = TRUE) {
         1,
         function(row, idx) {
           zero_offset <- row[middle_col]
-          return(row / zero_offset)
+          row / zero_offset
         },
         idx = middle_col
       ))
@@ -513,7 +523,7 @@ process_dem_output <- function(result, intervals = TRUE) {
       quantiles$Substitution <- substitution
       quantiles$Reference <- reference
       quantiles$offset <- sub_col_names
-      return(quantiles)
+      quantiles
     }
 
     sub_start <- num_subs + 1
@@ -675,7 +685,7 @@ process_dem_output <- function(result, intervals = TRUE) {
           fill = colour
         )
     }
-    return(p)
+    p
   }
 
   # normal sleepers
@@ -762,73 +772,78 @@ apply_substitution <- function(
   from_var,
   to_var,
   duration,
-  median_age_of_dem_timegroup
+  timegroup_cuts
 ) {
-  from_quant <- quantile(df[[from_var]], probs = c(0.01, 0.99))
-  to_quant <- quantile(df[[to_var]], probs = c(0.01, 0.99))
+  # 1) compute 1st and 99th quantiles of the 'from' and 'to' cols
+  from_q <- quantile(df[[from_var]], probs = c(0.01, 0.99), na.rm = TRUE)
+  to_q <- quantile(df[[to_var]], probs = c(0.01, 0.99), na.rm = TRUE)
 
-  min_from <- from_quant[1]
-  max_from <- from_quant[2]
-  min_to <- to_quant[1]
-  max_to <- to_quant[2]
+  min_from <- from_q[1]
+  max_from <- from_q[2]
+  min_to <- to_q[1]
+  max_to <- to_q[2]
+
   sub_df <- df |>
     mutate(
       new_from = .data[[from_var]] - duration,
-      "{from_var}" := ifelse(new_from < min_from, min_from, new_from),
-      "{from_var}" := ifelse(new_from > max_from, max_from, new_from),
+      # clamp it
+      "{from_var}" := pmin(pmax(new_from, min_from), max_from),
       new_to = .data[[to_var]] + duration,
-      "{to_var}" := ifelse(new_to < min_to, min_to, new_to),
-      "{to_var}" := ifelse(new_to > max_to, max_to, new_to),
+      "{to_var}" := pmin(pmax(new_to, min_to), max_to),
       sub_name = paste0(from_var, "_", to_var, "_", duration),
-      censoring = 1
-    )
+      censoring = 1L # placeholder censoring
+    ) |>
+    select(-new_from, -new_to)
 
-  comp <- compositions::acomp(sub_df[, c(
+  # 2) composition -> ILR
+  comp <- acomp(sub_df[, c(
     "avg_sleep",
     "avg_inactivity",
     "avg_light",
     "avg_mvpa"
   )])
-  ilr_vars <- compositions::ilr(comp, V = v) |>
+  ilr_vars <- ilr(comp, V = v) |>
     setNames(c("R1", "R2", "R3"))
 
-  sub_df |>
-    cbind(ilr_vars)
+  sub_df[, c("R1", "R2", "R3")] <- as.data.frame(ilr_vars)
 
-  num_rows <- nrow(sub_df)
-  sub_df <- sub_df[rep(seq_len(num_rows), each = median_age_of_dem_timegroup)]
-  sub_df[, timegroup := rep(1:median_age_of_dem_timegroup, num_rows)]
+  # 3) replicate each row T times and add a timegroup index
+  num_cuts <- length(timegroup_cuts)
+  sub_df <- sub_df[rep(seq_len(nrow(sub_df)), each = num_cuts), ]
+  sub_df$timegroup <- rep(seq_len(num_cuts), times = nrow(df))
+
+  # 4) pivot to wide
   sub_df <- pivot_wider(
     sub_df,
     values_from = c(dem, death, censoring),
     names_from = timegroup,
     names_glue = "{.value}_{timegroup}"
   )
+
+  # 5) LOCF: for dem_*, death_*, censoring_*, carry forward via row‐wise cummax
+  dem_cols <- grep("^dem_", names(sub_df), value = TRUE)
+  death_cols <- grep("^death_", names(sub_df), value = TRUE)
+  censor_cols <- grep("^censoring_", names(sub_df), value = TRUE)
+
+  sub_df <- sub_df |>
+    event_locf(outcomes = dem_cols) |>
+    event_locf(outcomes = death_cols) |>
+    event_locf(outcomes = censor_cols)
+
   sub_df
 }
 
 make_cuts <- function(df) {
-  min_age_of_dem <- min(df$age_dem)
-  max_age_of_dem <- max(df$age_dem)
-  age_range <- max_age_of_dem - min_age_of_dem
-  # TODO: Make this a reasonable cut method
-  # timegroup_steps <- ceiling(age_range * 2)
-  timegroup_steps <- 5
-  median_age_of_dem <- median(df[df$dem == 1, ]$age_dem)
+  max_follow_up <- max(df$time_to_dem)
+  timegroup_steps <- ceiling(max_follow_up / 365)
 
   timegroup_cuts <-
     seq(
-      from = min_age_of_dem,
-      to = max_age_of_dem,
+      from = 0,
+      to = max_follow_up,
       length.out = timegroup_steps
     )
-
-  median_age_of_dem_timegroup <-
-    which(timegroup_cuts > median_age_of_dem)[1] - 1
-  list(
-    timegroup_cuts = timegroup_cuts,
-    median_age_of_dem_timegroup = median_age_of_dem_timegroup
-  )
+  timegroup_cuts
 }
 
 process_substitution <- function(df, sub_df, baseline) {
@@ -845,6 +860,10 @@ process_substitution <- function(df, sub_df, baseline) {
     compete = compete,
     shifted = as.data.frame(sub_df),
     folds = 1,
+    control = lmtp::lmtp_control(
+      .learners_outcome_folds = 1,
+      .learners_trt_folds = 1
+    ),
     mtp = TRUE
   )
 }

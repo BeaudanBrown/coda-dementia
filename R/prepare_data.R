@@ -324,10 +324,11 @@ impute_data <- function(df, m, maxit) {
   imp
 }
 
-widen_data <- function(df, median_age_of_dem_timegroup) {
+widen_data <- function(df, timegroup_cuts) {
+  num_cuts <- length(timegroup_cuts)
   num_rows <- nrow(df)
-  df <- df[rep(seq_len(num_rows), each = median_age_of_dem_timegroup)]
-  df[, timegroup := rep(1:median_age_of_dem_timegroup, num_rows)]
+  df <- df[rep(seq_len(num_rows), each = num_cuts)]
+  df[, timegroup := rep(1:num_cuts, num_rows)]
   df |>
     mutate(
       # TODO: Make this use the actual censoring data

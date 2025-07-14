@@ -95,7 +95,7 @@ run_mri_subs_bootstrap <- function(df, mri_df, create_formula_fn) {
     mincor = 0,
     exclude = c(
       "eid",
-      "calendar_date",
+      "date_accel",
       "avg_sleep",
       "avg_inactivity",
       "avg_light",

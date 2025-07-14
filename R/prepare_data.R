@@ -287,45 +287,56 @@ back_to_factor <- function(df) {
   df$highest_qual <- as.factor(df$highest_qual)
   df$smok_status <- as.factor(df$smok_status)
   levels(df$smok_status) <- c("current", "former", "never")
-  return(as.data.table(df))
+  return(as_tibble(df))
 }
 
 widen_data <- function(df, timegroup_cuts) {
   num_cuts <- length(timegroup_cuts)
-  num_rows <- nrow(df)
 
   # Wide format
-  df$censoring_1 <- 1
-  df$dem_1 <- ifelse(df$dem == 1 & df$time_to_dem <= timegroup_cuts[2], 1, 0)
-  df$death_1 <- case_when(
-    df$death == 1 & df$time_to_death < timegroup_cuts[2] ~ 1,
-    df$dem == 1 ~ 0,
-    .default = 0
-  )
-
-  for (i in 2:(num_cuts - 1)) {
-    # Censoring
-    df[[paste0("censoring_", i)]] <- case_when(
-      df$dem == 0 & df$death == 0 & df$time_to_dem <= timegroup_cuts[i] ~ 0,
-      df[[paste0("dem_", i - 1)]] == 1 ~ NA,
-      df[[paste0("death_", i - 1)]] == 1 ~ NA,
-      .default = 1
-    )
-    # Death
-    df[[paste0("death_", i)]] <- case_when(
-      df$death == 1 & df$time_to_death <= timegroup_cuts[i + 1] & df$dem == 0 ~
+  lapply(
+    df,
+    function(.x) {
+      .x$censoring_1 <- 1
+      .x$dem_1 <- ifelse(
+        .x$dem == 1 & .x$time_to_dem <= timegroup_cuts[2],
         1,
-      df[[paste0("censoring_", i)]] == 0 ~ NA,
-      .default = 0
-    )
-    # Dem
-    df[[paste0("dem_", i)]] <- case_when(
-      df$dem == 1 & df$time_to_dem <= timegroup_cuts[i + 1] ~ 1,
-      df[[paste0("death_", i - 1)]] == 1 ~ 0,
-      df[[paste0("censoring_", i)]] == 0 ~ NA,
-      .default = 0
-    )
-  }
+        0
+      )
+      .x$death_1 <- case_when(
+        .x$death == 1 & .x$time_to_death < timegroup_cuts[2] ~ 1,
+        .x$dem_1 == 1 ~ NA,
+        .default = 0
+      )
 
-  return(df)
+      for (i in 2:(num_cuts - 1)) {
+        # Censoring
+        .x[[paste0("censoring_", i)]] <- case_when(
+          .x$dem == 0 & .x$death == 0 & .x$time_to_dem <= timegroup_cuts[i] ~ 0,
+          .x[[paste0("dem_", i - 1)]] == 1 ~ NA,
+          .x[[paste0("death_", i - 1)]] == 1 ~ NA,
+          .default = 1
+        )
+        # Dem
+        .x[[paste0("dem_", i)]] <- case_when(
+          .x$dem == 1 & .x$time_to_dem <= timegroup_cuts[i + 1] ~ 1,
+          .x[[paste0("death_", i - 1)]] == 1 ~ 0,
+          .x[[paste0("censoring_", i)]] == 0 ~ NA,
+          .default = 0
+        )
+        # Death
+        .x[[paste0("death_", i)]] <- case_when(
+          .x$death == 1 &
+            .x$time_to_death <= timegroup_cuts[i + 1] &
+            .x[[paste0("dem_", i)]] == 0 ~
+            1,
+          .x[[paste0("dem_", i)]] == 1 ~ NA,
+          .x[[paste0("censoring_", i)]] == 0 ~ NA,
+          .default = 0
+        )
+      }
+
+      return(.x)
+    }
+  )
 }

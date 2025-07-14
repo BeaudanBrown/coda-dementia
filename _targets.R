@@ -1,4 +1,5 @@
 library(targets)
+library(tarchetypes)
 library(crew)
 
 # Load environment variables from the .env file
@@ -15,7 +16,7 @@ mins_in_hour <- 60
 sub_steps <- 4
 sub_step_mins <- mins_in_hour / sub_steps
 m <- 10 # Number of imputed datasets
-maxit <- 5 # Number of MICE iterations
+maxit <- 2 # Number of MICE iterations
 bootstrap_iterations <- 16 # For ideal/worst plots
 
 # set target configs
@@ -122,17 +123,12 @@ list(
   ),
   tar_target(df, prepare_dataset(df_raw, disease_file)),
   tar_target(test_df, sample_frac(df, 0.1)),
-  tar_target(imp, impute_data(test_df, m, maxit)),
-  tar_target(imp2, back_to_factor(imp), pattern = map(imp)),
+  tar_target(imp, impute_data(test_df, m, maxit), iteration = "list"),
   tar_target(
     timegroup_cuts,
     make_cuts(df)
   ),
-  tar_target(
-    imp_wide,
-    widen_data(imp2, timegroup_cuts),
-    pattern = map(imp2)
-  ),
+  tar_target(imp_wide, widen_data(imp, timegroup_cuts)),
   tar_target(
     sub_names,
     c("avg_sleep", "avg_mvpa", "avg_light", "avg_inactivity")
@@ -146,11 +142,14 @@ list(
         to_var = sub_names,
         stringsAsFactors = FALSE
       ) |>
-        dplyr::filter(!from_var == to_var)
+        dplyr::filter(
+          !from_var == to_var &
+            (from_var == "avg_sleep" | to_var == "avg_sleep")
+        )
     }
   ),
   tar_target(
-    substitution_results,
+    substituted_dfs,
     apply_substitution(
       imp_wide,
       substitutions$from_var,
@@ -159,13 +158,35 @@ list(
       timegroup_cuts
     ),
     pattern = cross(substitutions, sub_durations),
-    iteration = "vector"
+  ),
+  #### WORKS
+  tar_target(test, test_lmtp()),
+  #### DOESN'T WORK (PROBLEM WITH DATA?)
+  tar_target(
+    lmtp_reference,
+    estimate_lmtp_reference(
+      imp_wide,
+      baseline = c(
+        "fruit_veg",
+        "alc_freq",
+        "sex",
+        "retired",
+        "shift",
+        "apoe_e4",
+        "highest_qual",
+        "townsend_deprivation_index",
+        "psych_meds",
+        "ethnicity",
+        "avg_total_household_income",
+        "smok_status"
+      )
+    )
   ),
   tar_target(
     sub_test,
     process_substitution(
       imp_wide,
-      substitution_results,
+      substituted_dfs,
       baseline = c(
         "fruit_veg",
         "alc_freq",
@@ -181,7 +202,7 @@ list(
         "smok_status"
       )
     ),
-    pattern = map(substitution_results),
+    pattern = map(substituted_dfs),
     iteration = "list"
   )
 )

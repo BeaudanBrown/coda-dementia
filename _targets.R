@@ -122,7 +122,7 @@ list(
     format = "file"
   ),
   tar_target(df, prepare_dataset(df_raw, disease_file)),
-  tar_target(test_df, sample_frac(df, 0.1)),
+  tar_target(test_df, sample_frac(df, 0.25)),
   tar_target(imp, impute_data(test_df, m, maxit), iteration = "list"),
   tar_target(
     timegroup_cuts,
@@ -158,6 +158,7 @@ list(
       timegroup_cuts
     ),
     pattern = cross(substitutions, sub_durations),
+    iteration = "list"
   ),
   #### WORKS
   tar_target(test, test_lmtp()),
@@ -166,7 +167,7 @@ list(
     lmtp_reference,
     estimate_lmtp_reference(
       imp_wide,
-      baseline = c(
+      baseline_covars = c(
         "fruit_veg",
         "alc_freq",
         "sex",
@@ -183,11 +184,11 @@ list(
     )
   ),
   tar_target(
-    sub_test,
-    process_substitution(
+    lmtp_subs,
+    estimate_lmtp_subs(
       imp_wide,
       substituted_dfs,
-      baseline = c(
+      baseline_covars = c(
         "fruit_veg",
         "alc_freq",
         "sex",

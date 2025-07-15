@@ -861,8 +861,8 @@ estimate_lmtp_reference <- function(df, baseline_covars) {
       compete = compete,
       folds = 1,
       control = lmtp::lmtp_control(
-        .learners_outcome_folds = 10,
-        .learners_trt_folds = 10
+        .learners_outcome_folds = 2,
+        .learners_trt_folds = 2
       ),
       mtp = TRUE
     )
@@ -871,7 +871,7 @@ estimate_lmtp_reference <- function(df, baseline_covars) {
 
 estimate_lmtp_subs <- function(df, sub_df, baseline_covars) {
   pmap(
-    list(df, sub_df),
+    c(df, unlist(sub_df, recursive = FALSE)),
     function(.x, .y) {
       cens <- grep("^censoring_", names(.x), value = TRUE)
       trt <- c("R1", "R2", "R3")
@@ -889,8 +889,8 @@ estimate_lmtp_subs <- function(df, sub_df, baseline_covars) {
         shifted = .y,
         folds = 1,
         control = lmtp::lmtp_control(
-          .learners_outcome_folds = 1,
-          .learners_trt_folds = 1
+          .learners_outcome_folds = 2,
+          .learners_trt_folds = 2
         ),
         mtp = TRUE
       )

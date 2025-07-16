@@ -160,9 +160,6 @@ list(
     pattern = cross(substitutions, sub_durations),
     iteration = "list"
   ),
-  #### WORKS
-  tar_target(test, test_lmtp()),
-  #### DOESN'T WORK (PROBLEM WITH DATA?)
   tar_target(
     lmtp_reference,
     estimate_lmtp_reference(

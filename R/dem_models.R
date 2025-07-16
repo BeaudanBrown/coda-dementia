@@ -1,8 +1,4 @@
-get_primary_formula <- function(data) {
-  knots_timegroup <- quantile(
-    data[["timegroup"]],
-    c(0.05, 0.275, 0.5, 0.725, 0.95)
-  )
+get_primary_outcome_formula <- function(data) {
   knots_deprivation <- quantile(
     data[["townsend_deprivation_index"]],
     c(0.1, 0.5, 0.9)
@@ -13,26 +9,50 @@ get_primary_formula <- function(data) {
   )
 
   primary_formula <- as.formula(
-    ~ -1 +
-      rcs(timegroup, knots_timegroup) +
-      R1 +
+    ~ (R1 + R2 + R3) *
+      (sex +
+        retired +
+        avg_total_household_income +
+        highest_qual +
+        smok_status) +
       I(R1^2) +
-      R2 +
       I(R2^2) +
-      R3 +
       I(R3^2) +
       rcs(fruit_veg, knots_fruit_veg) +
       alc_freq +
-      sex +
-      retired +
       shift +
       apoe_e4 +
-      highest_qual +
       rcs(townsend_deprivation_index, knots_deprivation) +
       psych_meds +
-      ethnicity +
+      ethnicity
+  )
+
+  return(primary_formula)
+}
+
+get_primary_treatment_formula <- function(data) {
+  knots_deprivation <- quantile(
+    data[["townsend_deprivation_index"]],
+    c(0.1, 0.5, 0.9)
+  )
+  knots_fruit_veg <- quantile(
+    data[["fruit_veg"]],
+    c(0.1, 0.5, 0.9)
+  )
+
+  primary_formula <- as.formula(
+    ~ (sex +
+      retired +
       avg_total_household_income +
-      smok_status
+      highest_qual +
+      smok_status)^2 +
+      rcs(fruit_veg, knots_fruit_veg) +
+      alc_freq +
+      shift +
+      apoe_e4 +
+      rcs(townsend_deprivation_index, knots_deprivation) +
+      psych_meds +
+      ethnicity
   )
 
   return(primary_formula)

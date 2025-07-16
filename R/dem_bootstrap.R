@@ -827,24 +827,6 @@ make_cuts <- function(df) {
   timegroup_cuts
 }
 
-test_lmtp <-
-  function() {
-    lmtp_survival(
-      data = lmtp::sim_competing_risks,
-      trt = "A",
-      cens = paste0("C", 1:5),
-      compete = paste0("D", 1:5),
-      baseline = paste0("W", 1:5),
-      outcome = paste0("Y", 1:5),
-      folds = 1,
-      control = lmtp::lmtp_control(
-        .learners_outcome_folds = 10,
-        .learners_trt_folds = 10
-      ),
-      mtp = TRUE
-    )
-  }
-
 estimate_lmtp_reference <- function(df, baseline_covars) {
   lapply(df, function(.x) {
     cens <- grep("^censoring_", names(.x), value = TRUE)
@@ -852,6 +834,7 @@ estimate_lmtp_reference <- function(df, baseline_covars) {
     outcomes <- grep("^dem_", names(.x), value = TRUE)
     compete <- grep("^death_", names(.x), value = TRUE)
     .x <- select(.x, all_of(c(baseline_covars, trt, cens, outcomes, compete)))
+    trt <- list(c("R1", "R2", "R3"))
     lmtp::lmtp_survival(
       data = .x,
       trt = trt,
@@ -860,6 +843,8 @@ estimate_lmtp_reference <- function(df, baseline_covars) {
       baseline = baseline_covars,
       compete = compete,
       folds = 1,
+      learners_outcome = "SL.glm.Q",
+      learners_trt = "SL.glm.g",
       control = lmtp::lmtp_control(
         .learners_outcome_folds = 2,
         .learners_trt_folds = 2
@@ -879,6 +864,7 @@ estimate_lmtp_subs <- function(df, sub_df, baseline_covars) {
       compete <- grep("^death_", names(.x), value = TRUE)
       .x <- select(.x, all_of(c(baseline_covars, cens, trt, outcomes, compete)))
       .y <- select(.y, all_of(c(baseline_covars, cens, trt, outcomes, compete)))
+      trt <- list(c("R1", "R2", "R3"))
       lmtp::lmtp_survival(
         .x,
         trt = trt,

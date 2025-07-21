@@ -15,7 +15,7 @@ mins_in_day <- 1440
 mins_in_hour <- 60
 sub_steps <- 4
 sub_step_mins <- mins_in_hour / sub_steps
-m <- 10 # Number of imputed datasets
+m <- 2 # Number of imputed datasets
 maxit <- 2 # Number of MICE iterations
 bootstrap_iterations <- 16 # For ideal/worst plots
 
@@ -62,6 +62,8 @@ tar_source()
 # Set data table cores to 1
 
 data.table::setDTthreads(1)
+RhpcBLASctl::blas_set_num_threads(1)
+RhpcBLASctl::omp_set_num_threads(1)
 
 ## pipeline
 list(
@@ -129,7 +131,11 @@ list(
     timegroup_cuts,
     make_cuts(df)
   ),
-  tar_target(imp_wide, widen_data(imp, timegroup_cuts)),
+  tar_target(
+    imp_wide,
+    widen_data(imp, timegroup_cuts),
+    iteration = "list"
+  ),
   tar_target(
     sub_names,
     c("avg_sleep", "avg_mvpa", "avg_light", "avg_inactivity")
@@ -157,12 +163,11 @@ list(
       substitutions$to_var,
       sub_durations
     ),
-    pattern = cross(substitutions, sub_durations),
-    iteration = "list"
+    pattern = cross(imp_wide, substitutions, sub_durations)
   ),
   tar_target(
     lmtp_reference,
-    estimate_lmtp_reference_1(
+    estimate_lmtp_reference(
       imp_wide,
       baseline_covars = c(
         "fruit_veg",
@@ -180,13 +185,14 @@ list(
         "age_accel"
       )
     ),
-    pattern = map(imp_wide)
+    pattern = map(imp_wide),
+    iteration = "list"
   ),
   tar_target(
     lmtp_subs,
     estimate_lmtp_subs(
-      imp_wide,
-      substituted_dfs,
+      substituted_dfs[[1]],
+      substituted_dfs[[2]],
       baseline_covars = c(
         "fruit_veg",
         "alc_freq",

@@ -773,42 +773,42 @@ apply_substitution <- function(
   to_var,
   duration
 ) {
-  lapply(
-    df,
-    function(.x) {
-      # 1) compute 1st and 99th quantiles of the 'from' and 'to' cols
-      from_q <- quantile(.x[[from_var]], probs = c(0.01, 0.99), na.rm = TRUE)
-      to_q <- quantile(.x[[to_var]], probs = c(0.01, 0.99), na.rm = TRUE)
+  # 1) compute 1st and 99th quantiles of the 'from' and 'to' cols
+  from_q <- quantile(df[[from_var]], probs = c(0.01, 0.99), na.rm = TRUE)
+  to_q <- quantile(df[[to_var]], probs = c(0.01, 0.99), na.rm = TRUE)
 
-      min_from <- from_q[1]
-      max_from <- from_q[2]
-      min_to <- to_q[1]
-      max_to <- to_q[2]
+  min_from <- from_q[1]
+  max_from <- from_q[2]
+  min_to <- to_q[1]
+  max_to <- to_q[2]
 
-      sub_df <- .x |>
-        mutate(
-          new_from = .data[[from_var]] - duration,
-          # clamp it
-          "{from_var}" := pmin(pmax(new_from, min_from), max_from),
-          new_to = .data[[to_var]] + duration,
-          "{to_var}" := pmin(pmax(new_to, min_to), max_to),
-          sub_name = paste0(from_var, "_", to_var, "_", duration)
-        ) |>
-        select(-new_from, -new_to)
+  sub_df <- df |>
+    mutate(
+      new_from = .data[[from_var]] - duration,
+      # clamp it
+      "{from_var}" := pmin(pmax(new_from, min_from), max_from),
+      new_to = .data[[to_var]] + duration,
+      "{to_var}" := pmin(pmax(new_to, min_to), max_to),
+      sub_name = paste0(from_var, "_", to_var, "_", duration)
+    ) |>
+    select(-new_from, -new_to)
 
-      # 2) composition -> ILR
-      comp <- acomp(sub_df[, c(
-        "avg_sleep",
-        "avg_inactivity",
-        "avg_light",
-        "avg_mvpa"
-      )])
-      ilr_vars <- ilr(comp, V = v) |>
-        setNames(c("R1", "R2", "R3"))
+  # 2) composition -> ILR
+  comp <- acomp(sub_df[, c(
+    "avg_sleep",
+    "avg_inactivity",
+    "avg_light",
+    "avg_mvpa"
+  )])
+  ilr_vars <- ilr(comp, V = v) |>
+    setNames(c("R1", "R2", "R3"))
 
-      sub_df[, c("R1", "R2", "R3")] <- as.data.table(ilr_vars)
-      sub_df
-    }
+  sub_df[, c("R1", "R2", "R3")] <- as_tibble(ilr_vars)
+  sub_df <- mutate(sub_df, across(starts_with("censoring"), ~1))
+
+  list(
+    df = df,
+    shifted_df = sub_df
   )
 }
 
@@ -825,16 +825,12 @@ make_cuts <- function(df) {
   timegroup_cuts
 }
 
-estimate_lmtp_reference_1 <- function(df, baseline_covars) {
-  imp_name <- names(df)
-  df <- df[[imp_name]]
+estimate_lmtp_reference <- function(df, baseline_covars) {
   cens <- grep("^censoring_", names(df), value = TRUE)
   trt <- c("R1", "R2", "R3")
   outcomes <- grep("^dem_", names(df), value = TRUE)
   compete <- grep("^death_", names(df), value = TRUE)
-
   df <- select(df, all_of(c(baseline_covars, trt, cens, outcomes, compete)))
-
   trt <- list(c("R1", "R2", "R3"))
 
   RhpcBLASctl::blas_set_num_threads(1)
@@ -858,64 +854,36 @@ estimate_lmtp_reference_1 <- function(df, baseline_covars) {
   )
 }
 
-estimate_lmtp_reference <- function(df, baseline_covars) {
-  lapply(df, function(.x) {
-    cens <- grep("^censoring_", names(.x), value = TRUE)
-    trt <- c("R1", "R2", "R3")
-    outcomes <- grep("^dem_", names(.x), value = TRUE)
-    compete <- grep("^death_", names(.x), value = TRUE)
-    .x <- select(.x, all_of(c(baseline_covars, trt, cens, outcomes, compete)))
-    trt <- list(c("R1", "R2", "R3"))
-    lmtp::lmtp_survival(
-      data = .x,
-      trt = trt,
-      outcomes = outcomes,
-      cens = cens,
-      baseline = baseline_covars,
-      compete = compete,
-      folds = 1,
-      learners_outcome = "SL.glm.Q",
-      learners_trt = "SL.glm.g",
-      control = lmtp::lmtp_control(
-        .learners_outcome_folds = 2,
-        .learners_trt_folds = 2
-      ),
-      mtp = TRUE
-    )
-  })
-}
-
 estimate_lmtp_subs <- function(df, sub_df, baseline_covars) {
-  pmap(
-    list(
-      df,
-      lapply(sub_df, function(sub) {
-        select(sub, -sub_name)
-      })
+  cens <- grep("^censoring_", names(df), value = TRUE)
+  trt <- c("R1", "R2", "R3")
+  outcomes <- grep("^dem_", names(df), value = TRUE)
+  compete <- grep("^death_", names(df), value = TRUE)
+  df <- select(df, all_of(c(baseline_covars, trt, cens, outcomes, compete)))
+  sub_df <- select(
+    sub_df,
+    all_of(c(baseline_covars, trt, cens, outcomes, compete))
+  )
+  trt <- list(c("R1", "R2", "R3"))
+
+  RhpcBLASctl::blas_set_num_threads(1)
+  RhpcBLASctl::omp_set_num_threads(1)
+
+  lmtp::lmtp_survival(
+    data = df,
+    trt = trt,
+    outcomes = outcomes,
+    cens = cens,
+    baseline = baseline_covars,
+    compete = compete,
+    shifted = sub_df,
+    folds = 1,
+    learners_outcome = "SL.glm.Q",
+    learners_trt = "SL.glm.g",
+    control = lmtp::lmtp_control(
+      .learners_outcome_folds = 2,
+      .learners_trt_folds = 2
     ),
-    function(.x, .y) {
-      cens <- grep("^censoring_", names(.x), value = TRUE)
-      trt <- c("R1", "R2", "R3")
-      outcomes <- grep("^dem_", names(.x), value = TRUE)
-      compete <- grep("^death_", names(.x), value = TRUE)
-      .x <- select(.x, all_of(c(baseline_covars, cens, trt, outcomes, compete)))
-      .y <- select(.y, all_of(c(baseline_covars, cens, trt, outcomes, compete)))
-      trt <- list(c("R1", "R2", "R3"))
-      lmtp::lmtp_survival(
-        .x,
-        trt = trt,
-        outcomes = outcomes,
-        cens = cens,
-        baseline = baseline_covars,
-        compete = compete,
-        shifted = .y,
-        folds = 1,
-        control = lmtp::lmtp_control(
-          .learners_outcome_folds = 2,
-          .learners_trt_folds = 2
-        ),
-        mtp = TRUE
-      )
-    }
+    mtp = TRUE
   )
 }

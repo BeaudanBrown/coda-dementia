@@ -61,11 +61,17 @@ get_primary_treatment_formula <- function(data) {
   )
 
   primary_formula <- as.formula(
-    ~ (rcs(age_accel, knots_age) +
-      sex +
-      retired +
-      highest_qual +
-      smok_status)^2 +
+    ~ R1 +
+      R2 +
+      R3 +
+      I(R1^2) +
+      I(R2^2) +
+      I(R3^2) +
+      (rcs(age_accel, knots_age) +
+        sex +
+        retired +
+        highest_qual +
+        smok_status)^2 +
       rcs(fruit_veg, knots_fruit_veg) +
       alc_freq +
       shift +

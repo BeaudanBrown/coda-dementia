@@ -45,7 +45,8 @@ tar_option_set(
     "lubridate",
     "mvtnorm",
     "lmtp",
-    "extrafont"
+    "extrafont",
+    "RhpcBLASctl"
   ),
   format = "qs",
   controller = crew_controller_local(
@@ -154,15 +155,14 @@ list(
       imp_wide,
       substitutions$from_var,
       substitutions$to_var,
-      sub_durations,
-      timegroup_cuts
+      sub_durations
     ),
     pattern = cross(substitutions, sub_durations),
     iteration = "list"
   ),
   tar_target(
     lmtp_reference,
-    estimate_lmtp_reference(
+    estimate_lmtp_reference_1(
       imp_wide,
       baseline_covars = c(
         "fruit_veg",
@@ -179,7 +179,8 @@ list(
         "smok_status",
         "age_accel"
       )
-    )
+    ),
+    pattern = map(imp_wide)
   ),
   tar_target(
     lmtp_subs,

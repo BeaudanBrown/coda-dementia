@@ -85,6 +85,7 @@
                   future
                   furrr
                   broom
+                  RhpcBLASctl
                 ]);
             };
       }

@@ -771,8 +771,7 @@ apply_substitution <- function(
   df,
   from_var,
   to_var,
-  duration,
-  timegroup_cuts
+  duration
 ) {
   lapply(
     df,
@@ -793,8 +792,7 @@ apply_substitution <- function(
           "{from_var}" := pmin(pmax(new_from, min_from), max_from),
           new_to = .data[[to_var]] + duration,
           "{to_var}" := pmin(pmax(new_to, min_to), max_to),
-          sub_name = paste0(from_var, "_", to_var, "_", duration),
-          censoring = 1L # no (meaningful) censoring
+          sub_name = paste0(from_var, "_", to_var, "_", duration)
         ) |>
         select(-new_from, -new_to)
 
@@ -827,6 +825,39 @@ make_cuts <- function(df) {
   timegroup_cuts
 }
 
+estimate_lmtp_reference_1 <- function(df, baseline_covars) {
+  imp_name <- names(df)
+  df <- df[[imp_name]]
+  cens <- grep("^censoring_", names(df), value = TRUE)
+  trt <- c("R1", "R2", "R3")
+  outcomes <- grep("^dem_", names(df), value = TRUE)
+  compete <- grep("^death_", names(df), value = TRUE)
+
+  df <- select(df, all_of(c(baseline_covars, trt, cens, outcomes, compete)))
+
+  trt <- list(c("R1", "R2", "R3"))
+
+  RhpcBLASctl::blas_set_num_threads(1)
+  RhpcBLASctl::omp_set_num_threads(1)
+
+  lmtp::lmtp_survival(
+    data = df,
+    trt = trt,
+    outcomes = outcomes,
+    cens = cens,
+    baseline = baseline_covars,
+    compete = compete,
+    folds = 1,
+    learners_outcome = "SL.glm.Q",
+    learners_trt = "SL.glm.g",
+    control = lmtp::lmtp_control(
+      .learners_outcome_folds = 2,
+      .learners_trt_folds = 2
+    ),
+    mtp = TRUE
+  )
+}
+
 estimate_lmtp_reference <- function(df, baseline_covars) {
   lapply(df, function(.x) {
     cens <- grep("^censoring_", names(.x), value = TRUE)
@@ -856,7 +887,12 @@ estimate_lmtp_reference <- function(df, baseline_covars) {
 
 estimate_lmtp_subs <- function(df, sub_df, baseline_covars) {
   pmap(
-    c(df, unlist(sub_df, recursive = FALSE)),
+    list(
+      df,
+      lapply(sub_df, function(sub) {
+        select(sub, -sub_name)
+      })
+    ),
     function(.x, .y) {
       cens <- grep("^censoring_", names(.x), value = TRUE)
       trt <- c("R1", "R2", "R3")

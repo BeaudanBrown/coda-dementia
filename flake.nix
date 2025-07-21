@@ -52,7 +52,7 @@
                 ])
                 ++ (with pkgsUnstable.rPackages; [
                   (pkgs.rPackages.buildRPackage {
-                    name = "rmarkdown";
+                    name = "lmtp";
                     src = pkgs.fetchFromGitHub{
                       owner = "BeaudanBrown";
                       repo = "lmtp";

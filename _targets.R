@@ -176,7 +176,8 @@ list(
         "psych_meds",
         "ethnicity",
         "avg_total_household_income",
-        "smok_status"
+        "smok_status",
+        "age_accel"
       )
     )
   ),
@@ -197,7 +198,8 @@ list(
         "psych_meds",
         "ethnicity",
         "avg_total_household_income",
-        "smok_status"
+        "smok_status",
+        "age_accel"
       )
     ),
     pattern = map(substituted_dfs),

@@ -64,7 +64,6 @@ get_primary_treatment_formula <- function(data) {
     ~ (rcs(age_accel, knots_age) +
       sex +
       retired +
-      avg_total_household_income +
       highest_qual +
       smok_status)^2 +
       rcs(fruit_veg, knots_fruit_veg) +

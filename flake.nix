@@ -51,7 +51,31 @@
                   air-formatter
                 ])
                 ++ (with pkgsUnstable.rPackages; [
-                  lmtp
+                  (pkgs.rPackages.buildRPackage {
+                    name = "rmarkdown";
+                    src = pkgs.fetchFromGitHub{
+                      owner = "BeaudanBrown";
+                      repo = "lmtp";
+                      rev = "264c3c817f541ce0b0bf4598886fb6d990d9305c";
+                      sha256 = "sha256-5bwkX6RCmWW02iuFc8PtkyWXB6eHgdc/afssFEuH9kI=";
+                    };
+                    propagatedBuildInputs = with pkgs.rPackages; [
+                      nnls
+                      cli
+                      R6
+                      generics
+                      origami
+                      future
+                      progressr
+                      data_table
+                      checkmate
+                      SuperLearner
+                      isotone
+                      ife
+                      lifecycle
+                    ];
+                  })
+
                   data_table
                   languageserver
                   dotenv

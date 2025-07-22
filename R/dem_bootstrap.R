@@ -806,10 +806,7 @@ apply_substitution <- function(
   sub_df[, c("R1", "R2", "R3")] <- as_tibble(ilr_vars)
   sub_df <- mutate(sub_df, across(starts_with("censoring"), ~1))
 
-  list(
-    df = df,
-    shifted_df = sub_df
-  )
+  sub_df
 }
 
 make_cuts <- function(df) {
@@ -836,7 +833,7 @@ estimate_lmtp_reference <- function(df, baseline_covars) {
   RhpcBLASctl::blas_set_num_threads(1)
   RhpcBLASctl::omp_set_num_threads(1)
 
-  lmtp::lmtp_survival(
+  list(lmtp::lmtp_survival(
     data = df,
     trt = trt,
     outcomes = outcomes,
@@ -851,7 +848,7 @@ estimate_lmtp_reference <- function(df, baseline_covars) {
       .learners_trt_folds = 2
     ),
     mtp = TRUE
-  )
+  ))
 }
 
 estimate_lmtp_subs <- function(df, sub_df, baseline_covars) {
@@ -869,7 +866,7 @@ estimate_lmtp_subs <- function(df, sub_df, baseline_covars) {
   RhpcBLASctl::blas_set_num_threads(1)
   RhpcBLASctl::omp_set_num_threads(1)
 
-  lmtp::lmtp_survival(
+  list(lmtp::lmtp_survival(
     data = df,
     trt = trt,
     outcomes = outcomes,
@@ -885,5 +882,5 @@ estimate_lmtp_subs <- function(df, sub_df, baseline_covars) {
       .learners_trt_folds = 2
     ),
     mtp = TRUE
-  )
+  ))
 }

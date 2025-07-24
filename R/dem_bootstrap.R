@@ -784,32 +784,32 @@ get_ref_risk <- function(imp, models, final_time) {
   RhpcBLASctl::blas_set_num_threads(1)
   RhpcBLASctl::omp_set_num_threads(1)
   imp_len <- nrow(imp)
-  imp_long <- imp[rep(seq_len(imp_len), each = final_time)]
-  imp_long[, timegroup := rep(1:final_time, imp_len)]
+  imp_long_cuts <- imp[rep(seq_len(imp_len), each = final_time)]
+  imp_long_cuts[, timegroup := rep(1:final_time, imp_len)]
 
-  imp_long[,
+  imp_long_cuts[,
     haz_dem := predict(
-      models[[1]],
+      models[["model_dem"]],
       newdata = .SD,
       type = "response"
     )
   ]
-  imp_long[,
+  imp_long_cuts[,
     haz_death := predict(
-      models[[2]],
+      models[["model_death"]],
       newdata = .SD,
       type = "response"
     )
   ]
-  setkey(imp_long, id, timegroup) # sort and set keys
-  imp_long[,
+  setkey(imp_long_cuts, id, timegroup) # sort and set keys
+  imp_long_cuts[,
     risk := cumsum(
       haz_dem * cumprod((1 - lag(haz_dem, default = 0)) * (1 - haz_death))
     ),
     by = id
   ]
 
-  imp_long[
+  imp_long_cuts[
     timegroup == final_time,
     .(
       ref_risk = mean(risk),
@@ -854,12 +854,11 @@ get_sub_risk <- function(
   can_substitute <- (max_from_change >= duration) & (max_to_change >= duration)
   prop_substituted <- sum(can_substitute) / nrow(imp)
 
-  sub_df <- imp
-  sub_df[[from_var]] <- sub_df[[from_var]] - (can_substitute * duration)
-  sub_df[[to_var]] <- sub_df[[to_var]] + (can_substitute * duration)
+  sub <- imp
+  sub[[from_var]] <- sub[[from_var]] - (can_substitute * duration)
+  sub[[to_var]] <- sub[[to_var]] + (can_substitute * duration)
 
-  # 2) composition -> ILR
-  comp <- acomp(sub_df[, c(
+  comp <- acomp(sub[, c(
     "avg_sleep",
     "avg_inactivity",
     "avg_light",
@@ -868,35 +867,38 @@ get_sub_risk <- function(
   ilr_vars <- ilr(comp, V = v) |>
     setNames(c("R1", "R2", "R3"))
 
-  sub_df[, c("R1", "R2", "R3")] <- as.data.table(ilr_vars)
+  sub[, c("R1", "R2", "R3")] <- as.data.table(ilr_vars)
 
-  sub_df_len <- nrow(sub_df)
-  sub_df <- sub_df[rep(seq_len(sub_df_len), each = final_time)]
-  sub_df[, timegroup := rep(1:final_time, sub_df_len)]
+  sub_len <- nrow(sub)
+  sub_long_cuts <- sub[rep(
+    seq_len(sub_len),
+    each = final_time
+  )]
+  sub_long_cuts[, timegroup := rep(1:final_time, sub_len)]
 
-  sub_df[,
+  sub_long_cuts[,
     haz_dem := predict(
-      models[[1]],
+      models[["model_dem"]],
       newdata = .SD,
       type = "response"
     )
   ]
-  sub_df[,
+  sub_long_cuts[,
     haz_death := predict(
-      models[[2]],
+      models[["model_death"]],
       newdata = .SD,
       type = "response"
     )
   ]
-  setkey(sub_df, id, timegroup) # sort and set keys
-  sub_df[,
+  setkey(sub_long_cuts, id, timegroup) # sort and set keys
+  sub_long_cuts[,
     risk := cumsum(
       haz_dem * cumprod((1 - lag(haz_dem, default = 0)) * (1 - haz_death))
     ),
     by = id
   ]
 
-  sub_df[
+  sub_long_cuts[
     timegroup == final_time,
     .(
       sub_risk = mean(risk),

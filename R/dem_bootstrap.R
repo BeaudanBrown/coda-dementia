@@ -767,11 +767,63 @@ process_dem_output <- function(result, intervals = TRUE) {
   return(list(plot, plot_data))
 }
 
-apply_substitution <- function(
+make_cuts <- function(df) {
+  max_follow_up <- max(df$time_to_dem)
+  timegroup_steps <- ceiling(max_follow_up / 365)
+
+  timegroup_cuts <-
+    seq(
+      from = 0,
+      to = max_follow_up,
+      length.out = timegroup_steps + 1
+    )
+  timegroup_cuts
+}
+
+get_ref_risk <- function(imp, models, final_time) {
+  imp_len <- nrow(imp)
+  imp <- imp[rep(seq_len(imp_len), each = final_time)]
+  imp[, timegroup := rep(1:final_time, imp_len)]
+  xmat <- model.matrix(models[[3]], imp)
+
+  imp[,
+    haz_dem := predict(
+      models[[1]],
+      newdata = xmat,
+      type = "response"
+    )
+  ]
+  imp[,
+    haz_death := predict(
+      models[[2]],
+      newdata = xmat,
+      type = "response"
+    )
+  ]
+  setkey(imp, id, timegroup) # sort and set keys
+  imp[,
+    risk := cumsum(
+      haz_dem * cumprod((1 - lag(haz_dem, default = 0)) * (1 - haz_death))
+    ),
+    by = id
+  ]
+
+  imp[
+    timegroup == final_time,
+    .(
+      ref_risk = mean(risk),
+      B = unique(tar_batch)
+    )
+  ]
+}
+
+get_sub_risk <- function(
   df,
   from_var,
   to_var,
-  duration
+  duration,
+  models,
+  final_time
 ) {
   # 1) compute 1st and 99th quantiles of the 'from' and 'to' cols
   from_q <- quantile(df[[from_var]], probs = c(0.01, 0.99), na.rm = TRUE)
@@ -803,87 +855,101 @@ apply_substitution <- function(
   ilr_vars <- ilr(comp, V = v) |>
     setNames(c("R1", "R2", "R3"))
 
-  sub_df[, c("R1", "R2", "R3")] <- as_tibble(ilr_vars)
-  sub_df <- mutate(sub_df, across(starts_with("censoring"), ~1))
+  sub_df[, c("R1", "R2", "R3")] <- as.data.table(ilr_vars)
 
-  list(
-    df = df,
-    shifted_df = sub_df
-  )
-}
+  sub_df_len <- nrow(sub_df)
+  sub_df <- sub_df[rep(seq_len(sub_df_len), each = final_time)]
+  sub_df[, timegroup := rep(1:final_time, sub_df_len)]
+  xmat <- model.matrix(models[[3]], sub_df)
 
-make_cuts <- function(df) {
-  max_follow_up <- max(df$time_to_dem)
-  timegroup_steps <- ceiling(max_follow_up / 365)
-
-  timegroup_cuts <-
-    seq(
-      from = 0,
-      to = max_follow_up,
-      length.out = timegroup_steps + 1
+  sub_df[,
+    haz_dem := predict(
+      models[[1]],
+      newdata = xmat,
+      type = "response"
     )
-  timegroup_cuts
+  ]
+  sub_df[,
+    haz_death := predict(
+      models[[2]],
+      newdata = xmat,
+      type = "response"
+    )
+  ]
+  setkey(sub_df, id, timegroup) # sort and set keys
+  sub_df[,
+    risk := cumsum(
+      haz_dem * cumprod((1 - lag(haz_dem, default = 0)) * (1 - haz_death))
+    ),
+    by = id
+  ]
+
+  sub_df[
+    timegroup == final_time,
+    .(
+      sub_risk = mean(risk),
+      B = unique(tar_batch),
+      from_var = from_var,
+      to_var = to_var,
+      duration = duration
+    )
+  ]
 }
 
-estimate_lmtp_reference <- function(df, baseline_covars) {
-  cens <- grep("^censoring_", names(df), value = TRUE)
-  trt <- c("R1", "R2", "R3")
-  outcomes <- grep("^dem_", names(df), value = TRUE)
-  compete <- grep("^death_", names(df), value = TRUE)
-  df <- select(df, all_of(c(baseline_covars, trt, cens, outcomes, compete)))
-  trt <- list(c("R1", "R2", "R3"))
-
-  RhpcBLASctl::blas_set_num_threads(1)
-  RhpcBLASctl::omp_set_num_threads(1)
-
-  lmtp::lmtp_survival(
-    data = df,
-    trt = trt,
-    outcomes = outcomes,
-    cens = cens,
-    baseline = baseline_covars,
-    compete = compete,
-    folds = 1,
-    learners_outcome = "SL.glm.Q",
-    learners_trt = "SL.glm.g",
-    control = lmtp::lmtp_control(
-      .learners_outcome_folds = 2,
-      .learners_trt_folds = 2
+intervals <- function(ref, sub) {
+  merged <- merge(ref, sub, by = "B")
+  merged[, RR := sub_risk / ref_risk]
+  merged[,
+    list(
+      ref_risk = mean(ref_risk),
+      sub_risk = mean(sub_risk),
+      RR = mean(RR),
+      lower_RR = quantile(RR, 0.025),
+      upper_RR = quantile(RR, 0.975)
     ),
-    mtp = TRUE
-  )
+    by = c("from_var", "to_var", "duration")
+  ]
 }
 
-estimate_lmtp_subs <- function(df, sub_df, baseline_covars) {
-  cens <- grep("^censoring_", names(df), value = TRUE)
-  trt <- c("R1", "R2", "R3")
-  outcomes <- grep("^dem_", names(df), value = TRUE)
-  compete <- grep("^death_", names(df), value = TRUE)
-  df <- select(df, all_of(c(baseline_covars, trt, cens, outcomes, compete)))
-  sub_df <- select(
-    sub_df,
-    all_of(c(baseline_covars, trt, cens, outcomes, compete))
-  )
-  trt <- list(c("R1", "R2", "R3"))
+age_test <- function(
+  df,
+  models,
+  final_time
+) {
+  sub_df <- df |> mutate(age_accel = age_accel + 5)
 
-  RhpcBLASctl::blas_set_num_threads(1)
-  RhpcBLASctl::omp_set_num_threads(1)
+  sub_df_len <- nrow(sub_df)
+  sub_df <- sub_df[rep(seq_len(sub_df_len), each = final_time)]
+  sub_df[, timegroup := rep(1:final_time, sub_df_len)]
+  xmat <- model.matrix(models[[3]], sub_df)
 
-  lmtp::lmtp_survival(
-    data = df,
-    trt = trt,
-    outcomes = outcomes,
-    cens = cens,
-    baseline = baseline_covars,
-    compete = compete,
-    shifted = sub_df,
-    folds = 1,
-    learners_outcome = "SL.glm.Q",
-    learners_trt = "SL.glm.g",
-    control = lmtp::lmtp_control(
-      .learners_outcome_folds = 2,
-      .learners_trt_folds = 2
+  sub_df[,
+    haz_dem := predict(
+      models[[1]],
+      newdata = xmat,
+      type = "response"
+    )
+  ]
+  sub_df[,
+    haz_death := predict(
+      models[[2]],
+      newdata = xmat,
+      type = "response"
+    )
+  ]
+  setkey(sub_df, id, timegroup) # sort and set keys
+  sub_df[,
+    risk := cumsum(
+      haz_dem * cumprod((1 - lag(haz_dem, default = 0)) * (1 - haz_death))
     ),
-    mtp = TRUE
-  )
+    by = id
+  ]
+
+  sub_df[
+    timegroup == final_time,
+    .(
+      sub_risk = mean(risk),
+      B = unique(tar_batch)
+    )
+  ]
 }

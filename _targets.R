@@ -15,9 +15,9 @@ mins_in_day <- 1440
 mins_in_hour <- 60
 sub_steps <- 4
 sub_step_mins <- mins_in_hour / sub_steps
-m <- 2 # Number of imputed datasets
-maxit <- 2 # Number of MICE iterations
-bootstrap_iterations <- 16 # For ideal/worst plots
+m <- 1 # Number of imputed datasets
+maxit <- 5 # Number of MICE iterations
+n_boots <- 50
 
 # set target configs
 tar_config_set(store = cache_dir)
@@ -32,10 +32,10 @@ tar_option_set(
     "survival",
     "rms",
     "compositions",
-    "data.table",
     "parallel",
     "boot",
     "rlang",
+    "data.table",
     "cowplot",
     "extrafont",
     "fastglm",
@@ -66,7 +66,9 @@ RhpcBLASctl::blas_set_num_threads(1)
 RhpcBLASctl::omp_set_num_threads(1)
 
 ## pipeline
+
 list(
+  #### FILES ####
   tar_target(
     core_file,
     file.path(data_dir, Sys.getenv("CORE_FILE")),
@@ -107,6 +109,8 @@ list(
     file.path(data_dir, Sys.getenv("MRI_FILE")),
     format = "file"
   ),
+
+  #### PREPARE DATA ####
   tar_target(
     df_raw,
     create_data(
@@ -125,17 +129,8 @@ list(
     format = "file"
   ),
   tar_target(df, prepare_dataset(df_raw, disease_file)),
-  tar_target(test_df, sample_frac(df, 0.25)),
-  tar_target(imp, impute_data(test_df, m, maxit), iteration = "list"),
-  tar_target(
-    timegroup_cuts,
-    make_cuts(df)
-  ),
-  tar_target(
-    imp_wide,
-    widen_data(imp, timegroup_cuts),
-    iteration = "list"
-  ),
+
+  #### DEFINE ANALYSIS PARAMETERS ####
   tar_target(
     sub_names,
     c("avg_sleep", "avg_mvpa", "avg_light", "avg_inactivity")
@@ -155,61 +150,43 @@ list(
         )
     }
   ),
+  tar_target(timegroup_cuts, make_cuts(df)),
+  tar_target(final_time, length(timegroup_cuts) - 1),
+
+  #### IMPUTATION ####
+  tar_rep(boots, bootstrap_sample(df), batches = n_boots),
+  tar_target(imp, impute_data(boots, m, maxit), pattern = map(boots)),
+
+  #### PRIMARY ANALYSIS ####
   tar_target(
-    substituted_dfs,
-    apply_substitution(
-      imp_wide,
+    primary_models,
+    fit_models(imp, timegroup_cuts, get_primary_formula),
+    pattern = map(imp)
+  ),
+  tar_target(
+    primary_ref_risk,
+    get_ref_risk(imp, primary_models, final_time),
+    pattern = map(imp, primary_models)
+  ),
+  tar_target(
+    primary_sub_risk,
+    get_sub_risk(
+      imp,
       substitutions$from_var,
       substitutions$to_var,
-      sub_durations
+      sub_durations,
+      primary_models,
+      final_time
     ),
-    pattern = cross(imp_wide, substitutions, sub_durations)
+    pattern = cross(
+      map(imp, primary_models),
+      cross(substitutions, sub_durations)
+    )
   ),
+  tar_target(primary_results, intervals(primary_ref_risk, primary_sub_risk)),
   tar_target(
-    lmtp_reference,
-    estimate_lmtp_reference(
-      imp_wide,
-      baseline_covars = c(
-        "fruit_veg",
-        "alc_freq",
-        "sex",
-        "retired",
-        "shift",
-        "apoe_e4",
-        "highest_qual",
-        "townsend_deprivation_index",
-        "psych_meds",
-        "ethnicity",
-        "avg_total_household_income",
-        "smok_status",
-        "age_accel"
-      )
-    ),
-    pattern = map(imp_wide),
-    iteration = "list"
-  ),
-  tar_target(
-    lmtp_subs,
-    estimate_lmtp_subs(
-      substituted_dfs[[1]],
-      substituted_dfs[[2]],
-      baseline_covars = c(
-        "fruit_veg",
-        "alc_freq",
-        "sex",
-        "retired",
-        "shift",
-        "apoe_e4",
-        "highest_qual",
-        "townsend_deprivation_index",
-        "psych_meds",
-        "ethnicity",
-        "avg_total_household_income",
-        "smok_status",
-        "age_accel"
-      )
-    ),
-    pattern = map(substituted_dfs),
-    iteration = "list"
+    age_out,
+    age_test(imp, primary_models, final_time),
+    pattern = map(imp, primary_models)
   )
 )

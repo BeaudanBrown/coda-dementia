@@ -1,3 +1,9 @@
+bootstrap_sample <- function(data) {
+  out <- data[sample(nrow(data), nrow(data), TRUE)]
+  out[, id := .I]
+  return(out)
+}
+
 ## Define SBP
 sbp <- matrix(
   c(

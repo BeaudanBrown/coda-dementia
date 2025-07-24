@@ -6,7 +6,7 @@ library(crew)
 dotenv::load_dot_env()
 data_dir <- Sys.getenv("DATA_DIR")
 cache_dir <- Sys.getenv("CACHE_DIR")
-ncpus <- as.integer(Sys.getenv("NCPUS"))
+ncpus <- future::availableCores() - 1
 
 # Constants
 short_sleep_hours <- 6

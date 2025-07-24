@@ -825,25 +825,34 @@ get_sub_risk <- function(
   models,
   final_time
 ) {
-  # 1) compute 1st and 99th quantiles of the 'from' and 'to' cols
-  from_q <- quantile(df[[from_var]], probs = c(0.01, 0.99), na.rm = TRUE)
-  to_q <- quantile(df[[to_var]], probs = c(0.01, 0.99), na.rm = TRUE)
+  comp_limits <- list(
+    avg_sleep = list(
+      lower = 250,
+      upper = 500
+    ),
+    avg_inactivity = list(
+      lower = 515,
+      upper = 960
+    ),
+    avg_light = list(
+      lower = 110,
+      upper = 340
+    ),
+    avg_mvpa = list(
+      lower = 35,
+      upper = 250
+    )
+  )
+  lower_from <- comp_limits[[from_var]]$lower
+  upper_to <- comp_limits[[to_var]]$upper
 
-  min_from <- from_q[1]
-  max_from <- from_q[2]
-  min_to <- to_q[1]
-  max_to <- to_q[2]
+  max_from_change <- df[[from_var]] - lower_from
+  max_to_change <- upper_to - df[[to_var]]
+  can_substitute <- (max_from_change >= duration) & (max_to_change >= duration)
 
-  sub_df <- df |>
-    mutate(
-      new_from = .data[[from_var]] - duration,
-      # clamp it
-      "{from_var}" := pmin(pmax(new_from, min_from), max_from),
-      new_to = .data[[to_var]] + duration,
-      "{to_var}" := pmin(pmax(new_to, min_to), max_to),
-      sub_name = paste0(from_var, "_", to_var, "_", duration)
-    ) |>
-    select(-new_from, -new_to)
+  sub_df <- df
+  sub_df[[from_var]] <- sub_df[[from_var]] - (can_substitute * duration)
+  sub_df[[to_var]] <- sub_df[[to_var]] + (can_substitute * duration)
 
   # 2) composition -> ILR
   comp <- acomp(sub_df[, c(

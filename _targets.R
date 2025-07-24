@@ -17,7 +17,7 @@ sub_steps <- 4
 sub_step_mins <- mins_in_hour / sub_steps
 m <- 1 # Number of imputed datasets
 maxit <- 5 # Number of MICE iterations
-n_boots <- 50
+n_boots <- 3
 
 # set target configs
 tar_config_set(store = cache_dir)
@@ -185,8 +185,15 @@ list(
   ),
   tar_target(primary_results, intervals(primary_ref_risk, primary_sub_risk)),
   tar_target(
-    age_out,
-    age_test(imp, primary_models, final_time),
-    pattern = map(imp, primary_models)
+    test_sub,
+    get_sub_risk(
+      imp,
+      "avg_mvpa",
+      "avg_sleep",
+      60,
+      primary_models,
+      final_time
+    ),
+    map(imp, primary_models)
   )
 )

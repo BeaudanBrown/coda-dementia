@@ -781,34 +781,35 @@ make_cuts <- function(df) {
 }
 
 get_ref_risk <- function(imp, models, final_time) {
+  RhpcBLASctl::blas_set_num_threads(1)
+  RhpcBLASctl::omp_set_num_threads(1)
   imp_len <- nrow(imp)
-  imp <- imp[rep(seq_len(imp_len), each = final_time)]
-  imp[, timegroup := rep(1:final_time, imp_len)]
-  xmat <- model.matrix(models[[3]], imp)
+  imp_long <- imp[rep(seq_len(imp_len), each = final_time)]
+  imp_long[, timegroup := rep(1:final_time, imp_len)]
 
-  imp[,
+  imp_long[,
     haz_dem := predict(
       models[[1]],
-      newdata = xmat,
+      newdata = .SD,
       type = "response"
     )
   ]
-  imp[,
+  imp_long[,
     haz_death := predict(
       models[[2]],
-      newdata = xmat,
+      newdata = .SD,
       type = "response"
     )
   ]
-  setkey(imp, id, timegroup) # sort and set keys
-  imp[,
+  setkey(imp_long, id, timegroup) # sort and set keys
+  imp_long[,
     risk := cumsum(
       haz_dem * cumprod((1 - lag(haz_dem, default = 0)) * (1 - haz_death))
     ),
     by = id
   ]
 
-  imp[
+  imp_long[
     timegroup == final_time,
     .(
       ref_risk = mean(risk),
@@ -818,39 +819,42 @@ get_ref_risk <- function(imp, models, final_time) {
 }
 
 get_sub_risk <- function(
-  df,
+  imp,
   from_var,
   to_var,
   duration,
   models,
   final_time
 ) {
+  RhpcBLASctl::blas_set_num_threads(1)
+  RhpcBLASctl::omp_set_num_threads(1)
   comp_limits <- list(
     avg_sleep = list(
-      lower = 250,
-      upper = 500
+      lower = 181,
+      upper = 544
     ),
     avg_inactivity = list(
-      lower = 515,
-      upper = 960
+      lower = 348,
+      upper = 1059
     ),
     avg_light = list(
-      lower = 110,
-      upper = 340
+      lower = 76,
+      upper = 511
     ),
     avg_mvpa = list(
-      lower = 35,
-      upper = 250
+      lower = 20,
+      upper = 384
     )
   )
   lower_from <- comp_limits[[from_var]]$lower
   upper_to <- comp_limits[[to_var]]$upper
 
-  max_from_change <- df[[from_var]] - lower_from
-  max_to_change <- upper_to - df[[to_var]]
+  max_from_change <- imp[[from_var]] - lower_from
+  max_to_change <- upper_to - imp[[to_var]]
   can_substitute <- (max_from_change >= duration) & (max_to_change >= duration)
+  prop_substituted <- sum(can_substitute) / nrow(imp)
 
-  sub_df <- df
+  sub_df <- imp
   sub_df[[from_var]] <- sub_df[[from_var]] - (can_substitute * duration)
   sub_df[[to_var]] <- sub_df[[to_var]] + (can_substitute * duration)
 
@@ -869,19 +873,18 @@ get_sub_risk <- function(
   sub_df_len <- nrow(sub_df)
   sub_df <- sub_df[rep(seq_len(sub_df_len), each = final_time)]
   sub_df[, timegroup := rep(1:final_time, sub_df_len)]
-  xmat <- model.matrix(models[[3]], sub_df)
 
   sub_df[,
     haz_dem := predict(
       models[[1]],
-      newdata = xmat,
+      newdata = .SD,
       type = "response"
     )
   ]
   sub_df[,
     haz_death := predict(
       models[[2]],
-      newdata = xmat,
+      newdata = .SD,
       type = "response"
     )
   ]
@@ -900,7 +903,8 @@ get_sub_risk <- function(
       B = unique(tar_batch),
       from_var = from_var,
       to_var = to_var,
-      duration = duration
+      duration = duration,
+      prop_substituted = prop_substituted
     )
   ]
 }
@@ -917,48 +921,5 @@ intervals <- function(ref, sub) {
       upper_RR = quantile(RR, 0.975)
     ),
     by = c("from_var", "to_var", "duration")
-  ]
-}
-
-age_test <- function(
-  df,
-  models,
-  final_time
-) {
-  sub_df <- df |> mutate(age_accel = age_accel + 5)
-
-  sub_df_len <- nrow(sub_df)
-  sub_df <- sub_df[rep(seq_len(sub_df_len), each = final_time)]
-  sub_df[, timegroup := rep(1:final_time, sub_df_len)]
-  xmat <- model.matrix(models[[3]], sub_df)
-
-  sub_df[,
-    haz_dem := predict(
-      models[[1]],
-      newdata = xmat,
-      type = "response"
-    )
-  ]
-  sub_df[,
-    haz_death := predict(
-      models[[2]],
-      newdata = xmat,
-      type = "response"
-    )
-  ]
-  setkey(sub_df, id, timegroup) # sort and set keys
-  sub_df[,
-    risk := cumsum(
-      haz_dem * cumprod((1 - lag(haz_dem, default = 0)) * (1 - haz_death))
-    ),
-    by = id
-  ]
-
-  sub_df[
-    timegroup == final_time,
-    .(
-      sub_risk = mean(risk),
-      B = unique(tar_batch)
-    )
   ]
 }

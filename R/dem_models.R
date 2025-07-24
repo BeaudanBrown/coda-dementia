@@ -1,7 +1,7 @@
 get_primary_formula <- function(data) {
   knots_timegroup <- quantile(
     data[["timegroup"]],
-    c(0.1, 0.5, 0.9)
+    c(0.01, 0.5, 0.99)
   )
   knots_age <- quantile(
     data[["age_accel"]],
@@ -17,23 +17,10 @@ get_primary_formula <- function(data) {
   )
 
   primary_formula <- as.formula(
-    ~ rcs(timegroup, knots_timegroup) +
-      poly(R1, 2) +
-      poly(R2, 2) +
-      poly(R3, 2) +
-      rcs(age_accel, knots_age) +
-      sex +
-      retired +
-      highest_qual +
-      as.numeric(avg_total_household_income) +
-      smok_status +
-      rcs(fruit_veg, knots_fruit_veg) +
-      alc_freq +
-      shift +
-      as.numeric(apoe_e4) +
-      rcs(townsend_deprivation_index, knots_deprivation) +
-      psych_meds +
-      ethnicity +
+    ~ poly(R1, 2) *
+      rcs(timegroup, knots_timegroup) +
+      poly(R2, 2) * rcs(timegroup, knots_timegroup) +
+      poly(R3, 2) * rcs(timegroup, knots_timegroup) +
       poly(R1, 2) * as.numeric(avg_total_household_income) +
       poly(R2, 2) * as.numeric(avg_total_household_income) +
       poly(R3, 2) * as.numeric(avg_total_household_income) +
@@ -46,11 +33,21 @@ get_primary_formula <- function(data) {
       poly(R1, 2) * smok_status +
       poly(R2, 2) * smok_status +
       poly(R3, 2) * smok_status +
+      poly(R1, 2) * rcs(age_accel, knots_age) +
+      poly(R2, 2) * rcs(age_accel, knots_age) +
+      poly(R3, 2) * rcs(age_accel, knots_age) +
+      rcs(timegroup, knots_timegroup) * rcs(age_accel, knots_age) +
+      rcs(timegroup, knots_timegroup) * sex +
+      rcs(timegroup, knots_timegroup) * as.numeric(apoe_e4) +
+      highest_qual +
+      rcs(fruit_veg, knots_fruit_veg) +
+      alc_freq +
+      shift +
+      rcs(townsend_deprivation_index, knots_deprivation) +
+      psych_meds +
+      ethnicity +
       rcs(age_accel, knots_age) * sex +
-      rcs(age_accel, knots_age) * highest_qual +
-      sex * highest_qual +
-      rcs(age_accel, knots_age) * as.numeric(apoe_e4) +
-      sex * as.numeric(apoe_e4)
+      rcs(age_accel, knots_age) * as.numeric(apoe_e4)
   )
 
   return(primary_formula)
@@ -177,6 +174,8 @@ get_s3_formula <- function(data) {
 }
 
 fit_models <- function(imp, timegroup_cuts, create_formula_fn) {
+  RhpcBLASctl::blas_set_num_threads(1)
+  RhpcBLASctl::omp_set_num_threads(1)
   imp_long <- survSplit(
     Surv(time = time_to_dem, event = dem) ~ .,
     data = imp,
@@ -187,9 +186,12 @@ fit_models <- function(imp, timegroup_cuts, create_formula_fn) {
     start = "start"
   )
 
-  # add indicators for death
   setDT(imp_long)
 
+  # start timegroup at 1
+  imp_long[, timegroup := timegroup - 1]
+
+  # add indicators for death
   imp_long[,
     death := fcase(
       death == 1 & end > time_to_death,
@@ -207,32 +209,31 @@ fit_models <- function(imp, timegroup_cuts, create_formula_fn) {
   imp_long <- imp_long[sumdeath < 2 | is.na(sumdeath), ]
   imp_long[, sumdeath := NULL]
 
-  # predictor and outcome matrices for fastglm
+  # model formula
   model_formula <- create_formula_fn(imp_long)
-  Xdem <- model.matrix(model_formula, imp_long[death == 0 | is.na(death), ])
-  Xdeath <- model.matrix(model_formula, imp_long[dem == 0, ])
-  Ydem <- as.matrix(imp_long[death == 0 | is.na(death), ]$dem)
-  Ydeath <- as.matrix(imp_long[dem == 0, ]$death)
+  dem_model_formula <- update(model_formula, dem ~ .)
+  death_model_formula <- update(model_formula, death ~ .)
 
   # fit models
-  model_dem <- fastglm(
-    x = Xdem,
-    y = Ydem,
-    family = binomial(),
-    method = 3
+  model_dem <- glm(
+    dem_model_formula,
+    data = imp_long[death == 0 | is.na(death), ],
+    family = binomial()
   )
 
-  model_death <- fastglm(
-    x = Xdeath,
-    y = Ydeath,
-    family = binomial,
-    method = 3
+  model_dem <- strip_glm(model_dem)
+
+  model_death <- glm(
+    death_model_formula,
+    data = imp_long[dem == 0, ],
+    family = binomial()
   )
+
+  model_death <- strip_glm(model_death)
 
   return(list(
     model_dem = model_dem,
-    model_death = model_death,
-    model_formula = model_formula
+    model_death = model_death
   ))
 }
 

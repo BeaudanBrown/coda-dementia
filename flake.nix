@@ -111,6 +111,7 @@
                   broom
                   RhpcBLASctl
                   autometric
+                  ks
                 ]);
             };
       }

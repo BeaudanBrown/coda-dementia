@@ -66,7 +66,8 @@ tar_option_set(
     "mvtnorm",
     "lmtp",
     "extrafont",
-    "RhpcBLASctl"
+    "RhpcBLASctl",
+    "ks"
   ),
   format = "qs",
   controller = controller,
@@ -214,5 +215,9 @@ list(
       final_time
     ),
     map(imp, primary_models)
-  )
+  ),
+
+  #### FIND IDEAL/WORST COMPOSITION ####
+  tar_target(synth_comps, generate_compositions()),
+  tar_target(synth_comps_dens, add_density(df, synth_comps))
 )

@@ -1,31 +1,82 @@
-generate_compositions <- function(lower, upper) {
+generate_compositions <- function() {
   step_size <- 15
 
-  # Round down for the lower bounds
-  lower <- floor(lower / step_size) * step_size
-  # Round up for the upper bounds
-  upper <- ceiling(upper / step_size) * step_size
-
-  # Create an empty data frame
-  df <- expand.grid(
-    sleep = seq(lower["avg_sleep"], upper["avg_sleep"], by = step_size),
-    inactive = seq(
-      lower["avg_inactivity"],
-      upper["avg_inactivity"],
-      by = step_size
+  comp_limits <- list(
+    avg_sleep = list(
+      lower = ceiling(181 / step_size) * step_size,
+      upper = floor(544 / step_size) * step_size
     ),
-    light = seq(lower["avg_light"], upper["avg_light"], by = step_size),
-    modvig = seq(lower["avg_mvpa"], upper["avg_mvpa"], by = step_size)
+    avg_inactivity = list(
+      lower = ceiling(348 / step_size) * step_size,
+      upper = floor(1059 / step_size) * step_size
+    ),
+    avg_light = list(
+      lower = ceiling(76 / step_size) * step_size,
+      upper = floor(511 / step_size) * step_size
+    ),
+    avg_mvpa = list(
+      lower = ceiling(20 / step_size) * step_size,
+      upper = floor(384 / step_size) * step_size
+    )
   )
 
+  # Create an empty data frame
+  df <- expand_grid(
+    avg_sleep = seq(
+      comp_limits[["avg_sleep"]]$lower,
+      comp_limits[["avg_sleep"]]$upper,
+      by = step_size
+    ),
+    avg_inactivity = seq(
+      comp_limits[["avg_inactivity"]]$lower,
+      comp_limits[["avg_inactivity"]]$upper,
+      by = step_size
+    ),
+    avg_light = seq(
+      comp_limits[["avg_light"]]$lower,
+      comp_limits[["avg_light"]]$upper,
+      by = step_size
+    ),
+    avg_mvpa = seq(
+      comp_limits[["avg_mvpa"]]$lower,
+      comp_limits[["avg_mvpa"]]$upper,
+      by = step_size
+    )
+  )
+
+  setDT(df)
+
   # Calculate total times
-  df$total <- rowSums(df)
+  df[, total := rowSums(.SD)]
 
   # Filter out rows where total time is not 24 * 60
-  df <- df[df$total == mins_in_day, ]
-  rownames(df) <- NULL
+  df <- df[total == mins_in_day, ]
+  df[, total := NULL]
 
-  return(df)
+  df
+}
+
+add_density <- function(df, synth_comps) {
+  # only need ILR variables for df
+  df <- df[, list(R1, R2, R3)]
+  # add ILRs for the synth comps
+  synth_comps <- cbind(
+    synth_comps,
+    as.data.table(ilr(acomp(synth_comps), V = v)) |>
+      setnames(c("R1", "R2", "R3"))
+  )
+  # estimate params of multivariate dist using kernel dens estimator
+  df <- as.matrix(scale(df))
+  fit <- kde(df, gridsize = rep(100, 3))
+  # predict density for each composition
+  synth_comps$dens <- log(
+    predict(
+      fit,
+      x = as.matrix(scale(synth_comps[, list(R1, R2, R3)]))
+    )
+  )
+
+  synth_comps
 }
 
 generate_hazards <- function(comps, model, model_formula, ref_row) {

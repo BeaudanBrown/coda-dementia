@@ -27,6 +27,10 @@ unlink("./log.txt", recursive = FALSE)
 
 controller <- crew_controller_local(
   options_local = crew_options_local(log_directory = "./logs"),
+  options_metrics = crew_options_metrics(
+    path = "/dev/stdout",
+    seconds_interval = 10
+  ),
   workers = ncpus
 )
 

@@ -920,7 +920,8 @@ intervals <- function(ref, sub) {
       sub_risk = mean(sub_risk),
       RR = mean(RR),
       lower_RR = quantile(RR, 0.025),
-      upper_RR = quantile(RR, 0.975)
+      upper_RR = quantile(RR, 0.975),
+      prop_substituted = mean(prop_substituted)
     ),
     by = c("from_var", "to_var", "duration")
   ]

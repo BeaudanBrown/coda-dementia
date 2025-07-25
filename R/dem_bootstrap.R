@@ -809,13 +809,12 @@ get_ref_risk <- function(imp, models, final_time) {
     by = id
   ]
 
-  imp_long_cuts[
-    timegroup == final_time,
-    .(
-      ref_risk = mean(risk),
-      B = unique(tar_batch)
-    )
-  ]
+  list(
+    results = imp_long_cuts[
+      timegroup == final_time
+    ],
+    B = unique(imp_long_cuts$tar_batch)
+  )
 }
 
 get_sub_risk <- function(
@@ -898,17 +897,16 @@ get_sub_risk <- function(
     by = id
   ]
 
-  sub_long_cuts[
-    timegroup == final_time,
-    .(
-      sub_risk = mean(risk),
-      B = unique(tar_batch),
-      from_var = from_var,
-      to_var = to_var,
-      duration = duration,
-      prop_substituted = prop_substituted
-    )
-  ]
+  list(
+    results = sub_long_cuts[
+      timegroup == final_time
+    ],
+    B = unique(sub_long_cuts$tar_batch),
+    from_var = from_var,
+    to_var = to_var,
+    duration = duration,
+    prop_substituted = prop_substituted
+  )
 }
 
 intervals <- function(ref, sub) {

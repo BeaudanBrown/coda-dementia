@@ -166,7 +166,8 @@ list(
   tar_target(
     primary_ref_risk,
     get_ref_risk(imp, primary_models, final_time),
-    pattern = map(imp, primary_models)
+    pattern = map(imp, primary_models),
+    iteration = "list"
   ),
   tar_target(
     primary_sub_risk,
@@ -181,7 +182,8 @@ list(
     pattern = cross(
       map(imp, primary_models),
       cross(substitutions, sub_durations)
-    )
+    ),
+    iteration = "list"
   ),
   tar_target(primary_results, intervals(primary_ref_risk, primary_sub_risk)),
   tar_target(

@@ -150,5 +150,38 @@ make_mri_df <- function(mri_vars, df) {
         age_accel
     )
 
+  setDT(mri_df)
   return(mri_df)
+}
+
+impute_mri_data <- function(df, m, maxit) {
+  df <- ordinal_to_numeric(df)
+  predmat <- quickpred(
+    df,
+    mincor = 0,
+    exclude = c(
+      "avg_sleep",
+      "avg_inactivity",
+      "avg_light",
+      "avg_mvpa",
+      "tbv",
+      "eid",
+      "id",
+      "date_mri1",
+      "date_accel"
+    )
+  )
+
+  RhpcBLASctl::blas_set_num_threads(1)
+  RhpcBLASctl::omp_set_num_threads(1)
+  imp <- mice(
+    df,
+    m = m,
+    predictorMatrix = predmat,
+    maxit = maxit
+  )
+  print(imp$loggedEvents)
+  imp <- complete(imp)
+  imp <- back_to_factor(imp)
+  return(imp)
 }

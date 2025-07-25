@@ -688,3 +688,102 @@ get_boot_contrasts <- function(offset) {
     .id = "outcome"
   ))
 }
+
+get_mri_model <- function(imp, outcome) {
+  RhpcBLASctl::blas_set_num_threads(1)
+  RhpcBLASctl::omp_set_num_threads(1)
+
+  # Fit linear regression
+  model_formula <- get_mri_formula(imp)
+  model_formula <- update(model_formula, as.formula(paste(outcome, "~ .")))
+  model <- lm(model_formula, imp)
+  model
+}
+
+get_mri_ref <- function(imp, outcome, model) {
+  RhpcBLASctl::blas_set_num_threads(1)
+  RhpcBLASctl::omp_set_num_threads(1)
+
+  data.table(
+    outcome = outcome,
+    ref_mean = mean(predict(model, newdata = imp)),
+    B = unique(imp$tar_batch)
+  )
+}
+
+get_mri_subs <- function(imp, outcome, model, from_var, to_var, duration) {
+  RhpcBLASctl::blas_set_num_threads(1)
+  RhpcBLASctl::omp_set_num_threads(1)
+
+  # make substitution
+  comp_limits <- list(
+    avg_sleep = list(
+      lower = 181,
+      upper = 544
+    ),
+    avg_inactivity = list(
+      lower = 348,
+      upper = 1059
+    ),
+    avg_light = list(
+      lower = 76,
+      upper = 511
+    ),
+    avg_mvpa = list(
+      lower = 20,
+      upper = 384
+    )
+  )
+  lower_from <- comp_limits[[from_var]]$lower
+  upper_to <- comp_limits[[to_var]]$upper
+
+  max_from_change <- imp[[from_var]] - lower_from
+  max_to_change <- upper_to - imp[[to_var]]
+  can_substitute <- (max_from_change >= duration) & (max_to_change >= duration)
+  prop_substituted <- sum(can_substitute) / nrow(imp)
+
+  sub_df <- imp
+  sub_df[[from_var]] <- sub_df[[from_var]] - (can_substitute * duration)
+  sub_df[[to_var]] <- sub_df[[to_var]] + (can_substitute * duration)
+
+  # 2) composition -> ILR
+  comp <- acomp(sub_df[, c(
+    "avg_sleep",
+    "avg_inactivity",
+    "avg_light",
+    "avg_mvpa"
+  )])
+  ilr_vars <- ilr(comp, V = v) |>
+    setNames(c("R1", "R2", "R3"))
+
+  sub_df[, c("R1", "R2", "R3")] <- as.data.table(ilr_vars)
+
+  # estimate sub mean
+  sub_mean <- mean(predict(model, newdata = sub_df))
+
+  data.table(
+    outcome = outcome,
+    sub_mean = sub_mean,
+    B = unique(imp$tar_batch),
+    from_var = from_var,
+    to_var = to_var,
+    duration = duration,
+    prop_substituted = prop_substituted
+  )
+}
+
+mri_intervals <- function(ref, sub) {
+  merged <- merge(ref, sub, by = c("B", "outcome"))
+  merged[, MD := sub_mean - ref_mean]
+  merged[,
+    list(
+      ref_mean = mean(ref_mean),
+      sub_mean = mean(sub_mean),
+      MD = mean(MD),
+      lower_MD = quantile(MD, 0.025),
+      upper_MD = quantile(MD, 0.975),
+      prop_substituted = mean(prop_substituted)
+    ),
+    by = c("from_var", "to_var", "duration", "outcome")
+  ]
+}

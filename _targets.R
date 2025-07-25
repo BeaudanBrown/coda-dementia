@@ -109,6 +109,11 @@ list(
     file.path(data_dir, Sys.getenv("MRI_FILE")),
     format = "file"
   ),
+  tar_target(
+    mri_qc_file,
+    file.path(data_dir, Sys.getenv("MRI_QC_FILE")),
+    format = "file"
+  ),
 
   #### PREPARE DATA ####
   tar_target(
@@ -195,5 +200,43 @@ list(
       final_time
     ),
     map(imp, primary_models)
-  )
+  ),
+
+  #### MRI ANALYSIS ####
+  tar_target(mri_raw, prepare_mri(df_raw, mri_file, mri_qc_file)),
+  tar_target(mri_df, make_mri_df(mri_raw, df)),
+  tar_rep(mri_boots, bootstrap_sample(mri_df), batches = n_boots),
+  tar_target(
+    mri_imp,
+    impute_mri_data(mri_boots, m, maxit),
+    pattern = map(mri_boots)
+  ),
+  tar_target(mri_outcomes, c("tbv", "wmv", "gmv", "hip", "log_wmh")),
+  tar_target(
+    mri_models,
+    get_mri_model(mri_imp, mri_outcomes),
+    pattern = cross(mri_imp, mri_outcomes),
+    iteration = "list"
+  ),
+  tar_target(
+    mri_ref_mean,
+    get_mri_ref(mri_imp, mri_outcomes, mri_models),
+    pattern = map(cross(mri_imp, mri_outcomes), mri_models)
+  ),
+  tar_target(
+    mri_sub_mean,
+    get_mri_subs(
+      mri_imp,
+      mri_outcomes,
+      mri_models,
+      substitutions$from_var,
+      substitutions$to_var,
+      sub_durations
+    ),
+    pattern = cross(
+      map(cross(mri_imp, mri_outcomes), mri_models),
+      cross(substitutions, sub_durations)
+    )
+  ),
+  tar_target(mri_results, mri_intervals(mri_ref_mean, mri_sub_mean))
 )

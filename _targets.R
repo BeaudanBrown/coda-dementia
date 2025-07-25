@@ -219,5 +219,11 @@ list(
 
   #### FIND IDEAL/WORST COMPOSITION ####
   tar_target(synth_comps, generate_compositions()),
-  tar_target(synth_comps_dens, add_density(df, synth_comps))
+  tar_target(synth_comps_dens, add_density(df, synth_comps)),
+  tar_target(
+    synth_comps_filtered,
+    synth_comps_dens[dens > quantile(dens, 0.05, na.rm = T)]
+  )
+
+  #### ESTIMATE RISK FOR IDEAL/WORST COMPS ####
 )

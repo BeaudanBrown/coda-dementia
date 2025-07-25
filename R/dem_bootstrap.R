@@ -811,7 +811,8 @@ get_ref_risk <- function(imp, models, final_time) {
 
   list(
     results = imp_long_cuts[
-      timegroup == final_time
+      timegroup == final_time,
+      .(eid, risk)
     ],
     B = unique(imp_long_cuts$tar_batch)
   )
@@ -899,7 +900,8 @@ get_sub_risk <- function(
 
   list(
     results = sub_long_cuts[
-      timegroup == final_time
+      timegroup == final_time,
+      .(eid, risk)
     ],
     B = unique(sub_long_cuts$tar_batch),
     from_var = from_var,

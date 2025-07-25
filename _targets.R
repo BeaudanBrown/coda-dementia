@@ -1,4 +1,5 @@
 library(targets)
+library(autometric)
 library(tarchetypes)
 library(crew)
 
@@ -22,6 +23,21 @@ n_boots <- 3
 # set target configs
 tar_config_set(store = cache_dir)
 unlink("./logs/*", recursive = FALSE)
+unlink("./log.txt", recursive = FALSE)
+
+controller <- crew_controller_local(
+  options_local = crew_options_local(log_directory = "./logs"),
+  workers = ncpus
+)
+
+if (tar_active()) {
+  controller$start()
+  log_start(
+    path = "log.txt",
+    seconds = 30,
+    pids = controller$pids()
+  )
+}
 
 # Set target options:
 tar_option_set(
@@ -49,10 +65,7 @@ tar_option_set(
     "RhpcBLASctl"
   ),
   format = "qs",
-  controller = crew_controller_local(
-    options_local = crew_options_local(log_directory = "./logs"),
-    workers = ncpus
-  ),
+  controller = controller,
   seed = 5678
 )
 

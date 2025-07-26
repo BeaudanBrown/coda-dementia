@@ -236,9 +236,24 @@ list(
     train_models,
     train_model(imp_train, timegroup_cuts, get_primary_formula)
   ),
+  tar_target(covar_data, get_covar_data(imp_train)),
+  tar_target(
+    synth_split,
+    split(
+      synth_comps_filtered[1:100],
+      seq_len(nrow(synth_comps_filtered[1:100]))
+    ),
+    iteration = "list"
+  ),
   tar_target(
     synth_comp_risk,
-    get_synth_risk(imp_train, synth_comps_filtered, train_models, final_time)
+    get_synth_risk(
+      covar_data,
+      synth_split,
+      train_models,
+      final_time
+    ),
+    pattern = map(synth_split)
   )
 
   #### ESTIMATE RISK FOR IDEAL/WORST COMPS ####

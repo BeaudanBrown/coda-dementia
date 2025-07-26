@@ -1,3 +1,8 @@
+Mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
 bootstrap_sample <- function(data) {
   out <- data[sample(nrow(data), nrow(data), TRUE)]
   out[, id := .I]

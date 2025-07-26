@@ -56,7 +56,7 @@ generate_compositions <- function() {
   df
 }
 
-add_density <- function(df, synth_comps) {
+add_density <- function(df, synth_comps, dens_threshold) {
   # only need ILR variables for df
   df <- df[, list(R1, R2, R3)]
   # add ILRs for the synth comps
@@ -68,6 +68,9 @@ add_density <- function(df, synth_comps) {
   # estimate params of multivariate dist using kernel dens estimator
   df <- as.matrix(scale(df))
   fit <- kde(df, gridsize = rep(100, 3))
+  # density for observed compositions
+  dens_obs <- log(predict(fit, x = df))
+  dens_threshold <- quantile(dens_obs, dens_threshold)
   # predict density for each composition
   synth_comps$dens <- log(
     predict(
@@ -76,6 +79,7 @@ add_density <- function(df, synth_comps) {
     )
   )
 
+  synth_comps$dens_threshold <- dens_threshold
   synth_comps
 }
 

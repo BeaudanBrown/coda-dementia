@@ -305,3 +305,104 @@ process_ideal_output <- function(rds_path, intervals = TRUE) {
   }
   return(p)
 }
+
+train_model <- function(
+  train_data,
+  timegroup_cuts,
+  create_formula_fn
+) {
+  # fit model
+  train_data[, id := .I]
+  model_formula <- create_formula_fn(train_data)
+  models <- fit_models(train_data, timegroup_cuts, create_formula_fn)
+  models
+}
+
+get_synth_risk <- function(train_data, synth_comps, models, final_time) {
+  RhpcBLASctl::blas_set_num_threads(1)
+  RhpcBLASctl::omp_set_num_threads(1)
+  # minimal data for predicting
+  pred_data <- expand_grid(
+    avg_total_household_income = unique(train_data$avg_total_household_income),
+    sex = unique(train_data$sex),
+    retired = unique(train_data$retired),
+    smok_status = unique(train_data$smok_status),
+    age_accel = unique(round(train_data$age_accel))
+  )
+  setDT(pred_data)
+  # Add proportion in data for each row
+  train_data[, age_round := round(age_accel)]
+  prop <- vector("numeric", nrow(pred_data))
+  for (i in seq_len(nrow(pred_data))) {
+    prop[i] <- nrow(train_data[
+      avg_total_household_income == pred_data[i, ]$avg_total_household_income &
+        sex == pred_data[i, ]$sex &
+        retired == pred_data[i, ]$retired &
+        smok_status == pred_data[i, ]$smok_status &
+        age_round == pred_data[i, ]$age_accel,
+    ]) /
+      nrow(train_data)
+  }
+  pred_data$prop <- prop
+  pred_data <- pred_data[prop > 0, ]
+
+  # add mean for other covars
+  pred_data[, `:=`(
+    apoe_e4 = Mode(train_data$apoe_e4),
+    shift = Mode(train_data$shift),
+    highest_qual = Mode(train_data$highest_qual),
+    fruit_veg = mean(train_data$fruit_veg),
+    alc_freq = Mode(train_data$alc_freq),
+    townsend_deprivation_index = mean(train_data$townsend_deprivation_index),
+    psych_meds = Mode(train_data$psych_meds),
+    ethnicity = Mode(train_data$ethnicity)
+  )]
+
+  pred_data[, id := .I]
+
+  # append synthetic composition and predict risk
+  risk <- vector("numeric", nrow(synth_comps))
+  for (i in seq_len(nrow(synth_comps))) {
+    pred_data <- cbind(pred_data, synth_comps[i])
+    pred_data_len <- nrow(pred_data)
+    pred_data_long_cuts <- pred_data[rep(
+      seq_len(pred_data_len),
+      each = final_time
+    )]
+    pred_data_long_cuts[, timegroup := rep(1:final_time, pred_data_len)]
+
+    pred_data_long_cuts[,
+      haz_dem := predict(
+        models$model_dem,
+        newdata = .SD,
+        type = "response"
+      )
+    ]
+    pred_data_long_cuts[,
+      haz_death := predict(
+        models$model_death,
+        newdata = .SD,
+        type = "response"
+      )
+    ]
+    setkey(pred_data_long_cuts, id, timegroup) # sort and set keys
+    pred_data_long_cuts[,
+      risk := cumsum(
+        haz_dem * cumprod((1 - lag(haz_dem, default = 0)) * (1 - haz_death))
+      ),
+      by = id
+    ]
+    risk[i] <- weighted.mean(
+      pred_data_long_cuts$risk,
+      w = pred_data_long_cuts$prop
+    )
+
+    if (i %% 100 == 0) {
+      # Print on the screen some message
+      cat(paste0("iteration: ", i, "\n"))
+    }
+  }
+
+  synth_comps$risk <- risk
+  synth_comps
+}

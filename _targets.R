@@ -218,11 +218,27 @@ list(
   ),
 
   #### FIND IDEAL/WORST COMPOSITION ####
+
   tar_target(synth_comps, generate_compositions()),
-  tar_target(synth_comps_dens, add_density(df, synth_comps)),
+  tar_target(synth_comps_dens, add_density(df, synth_comps, 0.05)),
   tar_target(
     synth_comps_filtered,
-    synth_comps_dens[dens > quantile(dens, 0.05, na.rm = T)]
+    synth_comps_dens[dens > dens_threshold & !is.na(dens), ]
+  ),
+  tar_target(
+    train_indices,
+    sample(seq_len(nrow(df)), size = floor(0.5 * nrow(df)))
+  ),
+  tar_target(df_train, df[train_indices]),
+  tar_target(df_test, df[-train_indices]),
+  tar_target(imp_train, impute_data(df_train, m, maxit)),
+  tar_target(
+    train_models,
+    train_model(imp_train, timegroup_cuts, get_primary_formula)
+  ),
+  tar_target(
+    synth_comp_risk,
+    get_synth_risk(imp_train, synth_comps_filtered, train_models, final_time)
   )
 
   #### ESTIMATE RISK FOR IDEAL/WORST COMPS ####

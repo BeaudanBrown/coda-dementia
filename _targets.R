@@ -203,7 +203,21 @@ list(
     ),
     iteration = "list"
   ),
-  tar_target(primary_results, intervals(primary_ref_risk, primary_sub_risk)),
+  tar_map(
+    values = list(
+      short_sleepers = list(
+        filter_fn = function(df) {
+          df |> filter(avg_sleep < short_sleep_hours * 60)
+        }
+      )
+    ),
+    names = names,
+    tar_target(
+      primary_ref_avg_risks,
+      average_risks(primary_ref_risk, imp, filter_fn),
+      pattern = map(primary_ref_risk, imp)
+    )
+  ),
   tar_target(
     test_sub,
     get_sub_risk(

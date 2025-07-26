@@ -925,3 +925,7 @@ intervals <- function(ref, sub) {
     by = c("from_var", "to_var", "duration")
   ]
 }
+
+average_risks <- function(results, imp, filter_fn) {
+  merged <- merge(imp, results$resultsy, by = eid)
+}

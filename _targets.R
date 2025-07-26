@@ -17,8 +17,8 @@ mins_in_hour <- 60
 sub_steps <- 4
 sub_step_mins <- mins_in_hour / sub_steps
 m <- 1 # Number of imputed datasets
-maxit <- 5 # Number of MICE iterations
-n_boots <- 3
+maxit <- 10 # Number of MICE iterations
+n_boots <- 500
 
 # set target configs
 tar_config_set(store = cache_dir)

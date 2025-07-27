@@ -933,26 +933,27 @@ average_risks <- function(results, df, filter_fn) {
   risk <- mean(merged$risk)
   results$results <- NULL
   results$risk <- risk
-  results
+  as.data.frame(results)
 }
 
 merge_risks <- function(sub_risks, ref_risks) {
-  sub_risks |> rename(sub_risk = risk)
-  ref_risks |> rename(ref_risk = risk)
-  merged <- dplyr::left_join(sub_risks, ref_risks, by = "B")
-  merged$rr <- sub_risk / ref_risk
-  # sub_risks |> rename(sub_risk = risk)
-  # ref_risks |> rename(ref_risk = risk)
-  # merged <- merge(ref_risks, sub_risks, by = "B")
-  # merged[, RR := sub_risk / ref_risk]
-  # merged[,
-  #   list(
-  #     ref_risk = mean(ref_risk),
-  #     sub_risk = mean(sub_risk),
-  #     RR = mean(RR),
-  #     lower_RR = quantile(RR, 0.025),
-  #     upper_RR = quantile(RR, 0.975)
-  #   ),
-  #   by = c("from_var", "to_var", "duration")
-  # ]
+  sub_risks |>
+    rename("sub_risk" = "risk") |>
+    left_join(
+      ref_risks |> rename("ref_risk" = "risk"),
+      by = "B"
+    ) |>
+    mutate(
+      rr = sub_risk / ref_risk
+    ) |>
+    result |>
+    dplyr::group_by(from_var, to_var, duration) |>
+    dplyr::summarize(
+      mean_sub_risk = mean(sub_risk, na.rm = TRUE),
+      mean_ref_risk = mean(ref_risk, na.rm = TRUE),
+      mean_rr = mean(rr, na.rm = TRUE),
+      lower_rr = quantile(rr, 0.025),
+      upper_rr = quantile(rr, 0.975),
+      .groups = "drop"
+    )
 }

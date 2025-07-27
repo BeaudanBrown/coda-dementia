@@ -11,6 +11,7 @@ ncpus <- future::availableCores() - 1
 
 # Constants
 short_sleep_hours <- 6
+long_sleep_hours <- 8
 hrs_in_day <- 24
 mins_in_day <- 1440
 mins_in_hour <- 60
@@ -82,6 +83,22 @@ tar_source()
 data.table::setDTthreads(1)
 RhpcBLASctl::blas_set_num_threads(1)
 RhpcBLASctl::omp_set_num_threads(1)
+
+short_sleeper_filter_fn <- function(df) {
+  df |> filter(avg_sleep < short_sleep_hours * 60)
+}
+
+avg_sleeper_filter_fn <- function(df) {
+  df |>
+    filter(
+      avg_sleep >= short_sleep_hours * 60 & avg_sleep <= long_sleep_hours * 60
+    )
+}
+
+long_sleeper_filter_fn <- function(df) {
+  df |> filter(avg_sleep > long_sleep_hours * 60)
+}
+
 
 ## pipeline
 
@@ -205,30 +222,26 @@ list(
   ),
   tar_map(
     values = list(
-      short_sleepers = list(
-        filter_fn = function(df) {
-          df |> filter(avg_sleep < short_sleep_hours * 60)
-        }
-      )
+      filter_fn = rlang::syms(c(
+        "long_sleeper_filter_fn",
+        "avg_sleeper_filter_fn",
+        "short_sleeper_filter_fn"
+      ))
     ),
-    names = names,
     tar_target(
       primary_ref_avg_risks,
-      average_risks(primary_ref_risk, imp, filter_fn),
-      pattern = map(primary_ref_risk, imp)
-    )
-  ),
-  tar_target(
-    test_sub,
-    get_sub_risk(
-      imp,
-      "avg_mvpa",
-      "avg_sleep",
-      60,
-      primary_models,
-      final_time
+      average_risks(primary_ref_risk, df, filter_fn),
+      pattern = map(primary_ref_risk)
     ),
-    map(imp, primary_models)
+    tar_target(
+      primary_sub_avg_risks,
+      average_risks(primary_sub_risk, df, filter_fn),
+      pattern = map(primary_sub_risk)
+    ),
+    tar_target(
+      primary_risk_ratios,
+      merge_risks(primary_sub_avg_risks, primary_ref_avg_risks)
+    )
   ),
 
   #### FIND IDEAL/WORST COMPOSITION ####

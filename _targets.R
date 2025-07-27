@@ -68,7 +68,9 @@ tar_option_set(
     "lmtp",
     "extrafont",
     "RhpcBLASctl",
-    "ks"
+    "ks",
+    "grid",
+    "patchwork"
   ),
   format = "qs",
   controller = controller,
@@ -241,7 +243,39 @@ list(
     tar_target(
       primary_risk_ratios,
       merge_risks(primary_sub_avg_risks, primary_ref_avg_risks)
+    ),
+    tar_map(
+      values = list(
+        name = c("inactivity", "light_activity", "mvpa"),
+        from = c("avg_inactivity", "avg_light", "avg_mvpa"),
+        colour = c("#ff747b", "#6ed853", "#708ff9")
+      ),
+      names = name,
+      tar_target(
+        primary_plots,
+        make_plot(primary_risk_ratios, from, colour)
+      )
     )
+  ),
+  tar_target(
+    all_primary_plots,
+    list(
+      short_inactive = primary_plots_inactivity_short_sleeper_filter_fn,
+      short_light = primary_plots_light_activity_short_sleeper_filter_fn,
+      short_mvpa = primary_plots_mvpa_short_sleeper_filter_fn,
+      avg_inactive = primary_plots_inactivity_avg_sleeper_filter_fn,
+      avg_light = primary_plots_light_activity_avg_sleeper_filter_fn,
+      avg_mvpa = primary_plots_mvpa_avg_sleeper_filter_fn,
+      long_inactive = primary_plots_inactivity_long_sleeper_filter_fn,
+      long_light = primary_plots_light_activity_long_sleeper_filter_fn,
+      long_mvpa = primary_plots_mvpa_long_sleeper_filter_fn
+    )
+  ),
+  tar_target(
+    primary_grid,
+    {
+      make_plot_grid(all_primary_plots)
+    }
   ),
 
   #### FIND IDEAL/WORST COMPOSITION ####

@@ -46,6 +46,7 @@
                 [
                   R
                   quarto
+                  just
                 ]
                 ++ (with pkgsUnstable; [
                   air-formatter
@@ -112,6 +113,7 @@
                   RhpcBLASctl
                   autometric
                   ks
+                  patchwork
                 ]);
             };
       }

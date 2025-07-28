@@ -703,10 +703,10 @@ get_mri_model <- function(imp, outcome) {
 get_mri_ref <- function(imp, outcome, model) {
   RhpcBLASctl::blas_set_num_threads(1)
   RhpcBLASctl::omp_set_num_threads(1)
-
+  imp$estimate <- predict(model, newdata = imp)
   data.table(
     outcome = outcome,
-    ref_mean = mean(predict(model, newdata = imp)),
+    ref_result = list(result = imp |> select(eid, estimate)),
     B = unique(imp$tar_batch)
   )
 }
@@ -758,12 +758,11 @@ get_mri_subs <- function(imp, outcome, model, from_var, to_var, duration) {
 
   sub_df[, c("R1", "R2", "R3")] <- as.data.table(ilr_vars)
 
-  # estimate sub mean
-  sub_mean <- mean(predict(model, newdata = sub_df))
+  sub_df$estimate <- predict(model, newdata = sub_df)
 
   data.table(
     outcome = outcome,
-    sub_mean = sub_mean,
+    sub_result = list(result = sub_df |> select(eid, estimate)),
     B = unique(imp$tar_batch),
     from_var = from_var,
     to_var = to_var,
@@ -772,18 +771,164 @@ get_mri_subs <- function(imp, outcome, model, from_var, to_var, duration) {
   )
 }
 
-mri_intervals <- function(ref, sub) {
-  merged <- merge(ref, sub, by = c("B", "outcome"))
-  merged[, MD := sub_mean - ref_mean]
-  merged[,
-    list(
-      ref_mean = mean(ref_mean),
-      sub_mean = mean(sub_mean),
-      MD = mean(MD),
-      lower_MD = quantile(MD, 0.025),
-      upper_MD = quantile(MD, 0.975),
-      prop_substituted = mean(prop_substituted)
-    ),
-    by = c("from_var", "to_var", "duration", "outcome")
-  ]
+average_estimates <- function(results, df, filter_fn) {
+  df <- df |> select(eid, avg_sleep, avg_inactivity, avg_light, avg_mvpa)
+  merged <- dplyr::left_join(results$results, df, by = c("eid")) |>
+    filter_fn()
+  estimate <- mean(merged$estimate)
+  results$results <- NULL
+  results$estimate <- estimate
+  as.data.frame(results)
+}
+
+merge_estimates <- function(sub_estimates, ref_estimates) {
+  sub_estimates |>
+    rename("sub_estimate" = "estimate") |>
+    left_join(
+      ref_estimates |> rename("ref_estimate" = "estimate"),
+      by = "B"
+    ) |>
+    mutate(
+      md = sub_estimate - ref_estimate
+    ) |>
+    dplyr::group_by(from_var, to_var, duration) |>
+    dplyr::summarize(
+      prop_substituted = mean(prop_substituted, na.rm = TRUE),
+      mean_sub_estimate = mean(sub_estimate, na.rm = TRUE),
+      mean_ref_estimate = mean(ref_estimate, na.rm = TRUE),
+      md = mean(md, na.rm = TRUE),
+      lower_rr = quantile(md, 0.025),
+      upper_rr = quantile(md, 0.975),
+      .groups = "drop"
+    )
+}
+
+# get_mri_plot <- function(outcome_df, outcome, sub, refcomp, colour, ylabel) {
+make_mri_plot <- function(mri_results, ylabel, sub_name, colour) {
+  lower_lim <- mean(mri_results$MD, na.rm = TRUE) -
+    0.25 * sd(mri_results$MD, na.rm = TRUE)
+  upper_lim <- mean(mri_results$MD, na.rm = TRUE) +
+    0.25 * sd(mri_results$MD, na.rm = TRUE)
+
+  minutes_offset <- 0.2 * (upper_lim - lower_lim)
+  sleep_offset <- 0.275 * (upper_lim - lower_lim)
+  arrow_offset <- 0.325 * (upper_lim - lower_lim)
+  sub_offset <- 0.375 * (upper_lim - lower_lim)
+
+  mri_results |>
+    mutate(
+      swap = to_var != "avg_sleep",
+      duration = if_else(swap, duration * -1, duration),
+      tmp_from = if_else(swap, to_var, from_var),
+      tmp_to = if_else(swap, from_var, to_var),
+      from_var = tmp_from,
+      to_var = tmp_to
+    ) |>
+    select(-tmp_from, -tmp_to, -swap) |>
+    ggplot(aes(x = duration, y = MD)) +
+    geom_line(colour = colour) +
+    geom_ribbon(
+      aes(ymin = lower_MD, ymax = upper_MD),
+      alpha = 0.2,
+      fill = colour
+    ) +
+    xlab("") +
+    ylab(ylabel) +
+    annotate(
+      geom = "text",
+      x = 0,
+      y = lower_lim - minutes_offset,
+      hjust = 0.5,
+      fontface = 1,
+      size = 14 / .pt,
+      label = "Minutes",
+      family = "serif"
+    ) +
+    annotate(
+      geom = "text",
+      x = -20,
+      y = lower_lim - sleep_offset,
+      hjust = 1,
+      fontface = 1,
+      size = 12 / .pt,
+      label = "Less sleep",
+      family = "serif"
+    ) +
+    annotate(
+      geom = "text",
+      x = 20,
+      y = lower_lim - sleep_offset,
+      hjust = 0,
+      fontface = 1,
+      size = 12 / .pt,
+      label = "More sleep",
+      family = "serif"
+    ) +
+    geom_segment(
+      aes(
+        x = 1,
+        y = lower_lim - arrow_offset,
+        xend = 15,
+        yend = lower_lim - arrow_offset
+      ),
+      arrow = arrow(length = unit(0.15, "cm"))
+    ) +
+    geom_segment(
+      aes(
+        x = -1,
+        y = lower_lim - arrow_offset,
+        xend = -15,
+        yend = lower_lim - arrow_offset
+      ),
+      arrow = arrow(length = unit(0.15, "cm"))
+    ) +
+    annotate(
+      geom = "text",
+      x = -20,
+      y = lower_lim - sub_offset,
+      hjust = 1,
+      size = 12 / .pt,
+      label = paste("More", sub_name),
+      family = "serif",
+      fontface = 1,
+      size = 12 / .pt
+    ) +
+    annotate(
+      geom = "text",
+      x = 20,
+      y = lower_lim - sub_offset,
+      hjust = 0,
+      label = paste("Less", sub_name),
+      family = "serif",
+      fontface = 1,
+      size = 12 / .pt
+    ) +
+    coord_cartesian(
+      ylim = c(lower_lim, upper_lim),
+      expand = FALSE,
+      clip = "off"
+    ) +
+    cowplot::theme_cowplot(
+      font_size = 12,
+      font_family = "serif",
+      line_size = 0.25
+    ) +
+    theme(
+      plot.margin = unit(c(1, 1, 4, 1), "lines"),
+      strip.background = element_blank(),
+      strip.text.x = element_blank(),
+      panel.border = element_rect(fill = NA, colour = "#585656"),
+      panel.grid = element_line(colour = "grey92"),
+      panel.grid.minor = element_line(linewidth = rel(0.5)),
+      axis.ticks.y = element_blank(),
+      axis.line = element_line(color = "#585656"),
+      axis.title.y = element_text(
+        margin = margin(
+          t = 0,
+          r = 10,
+          b = 0,
+          l = 0
+        )
+      )
+    )
 }

@@ -336,31 +336,72 @@ list(
     pattern = map(mri_boots)
   ),
   tar_target(mri_outcomes, c("tbv", "wmv", "gmv", "hip", "log_wmh")),
-  tar_target(
-    mri_models,
-    get_mri_model(mri_imp, mri_outcomes),
-    pattern = cross(mri_imp, mri_outcomes),
-    iteration = "list"
-  ),
-  tar_target(
-    mri_ref_mean,
-    get_mri_ref(mri_imp, mri_outcomes, mri_models),
-    pattern = map(cross(mri_imp, mri_outcomes), mri_models)
-  ),
-  tar_target(
-    mri_sub_mean,
-    get_mri_subs(
-      mri_imp,
-      mri_outcomes,
-      mri_models,
-      substitutions$from_var,
-      substitutions$to_var,
-      sub_durations
+  tar_map(
+    values = list(
+      outcome = c("tbv", "wmv", "gmv", "hip", "log_wmh")
     ),
-    pattern = cross(
-      map(cross(mri_imp, mri_outcomes), mri_models),
-      cross(substitutions, sub_durations)
+    names = outcome,
+    tar_target(
+      mri_models,
+      get_mri_model(mri_imp, outcome),
+      pattern = map(mri_imp),
+      iteration = "list"
+    ),
+    tar_target(
+      mri_ref_results,
+      get_mri_ref(mri_imp, outcome, mri_models),
+      pattern = map(mri_imp, mri_models)
+    ),
+    tar_target(
+      mri_sub_results,
+      get_mri_subs(
+        mri_imp,
+        outcome,
+        mri_models,
+        substitutions$from_var,
+        substitutions$to_var,
+        sub_durations
+      ),
+      pattern = cross(
+        map(mri_imp, mri_models),
+        cross(substitutions, sub_durations)
+      )
+    ),
+    tar_map(
+      values = list(
+        filter_fn = rlang::syms(c(
+          "long_sleeper_filter_fn",
+          "avg_sleeper_filter_fn",
+          "short_sleeper_filter_fn"
+        ))
+      ),
+      tar_target(
+        mri_ref_avg_estimate,
+        average_estimates(mri_ref_results, df, filter_fn),
+        pattern = map(mri_ref_results)
+      ),
+      tar_target(
+        mri_sub_avg_estimate,
+        average_estimates(mri_sub_results, df, filter_fn),
+        pattern = map(mri_sub_results)
+      ),
+      tar_target(
+        mri_mean_diffs,
+        merge_estimates(mri_sub_avg_estimate, mri_ref_avg_estimate)
+      )
     )
-  ),
-  tar_target(mri_results, mri_intervals(mri_ref_mean, mri_sub_mean))
+  )
+  # tar_map(
+  #   values = list(
+  #     wmh = list(
+  #       ylabel = "",
+  #       ylabel = "",
+  #       ylabel = "",
+  #     ),
+  #   ),
+  #   tar_target(
+  #     plot,
+  #     make_mri_plot(mri_results, ylabel, sub_name, colour, mri_sub_results)
+  #   )
+  # )
 )

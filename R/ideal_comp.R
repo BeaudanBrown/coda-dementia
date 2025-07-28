@@ -1,22 +1,31 @@
-generate_compositions <- function() {
+generate_compositions <- function(df) {
   step_size <- 15
+
+  sleep_quants <- quantile(df$avg_sleep, probs = c(0.01, 0.99), na.rm = TRUE)
+  inactivity_quants <- quantile(
+    df$avg_inactivity,
+    probs = c(0.01, 0.99),
+    na.rm = TRUE
+  )
+  light_quants <- quantile(df$avg_light, probs = c(0.01, 0.99), na.rm = TRUE)
+  mvpa_quants <- quantile(df$avg_mvpa, probs = c(0.01, 0.99), na.rm = TRUE)
 
   comp_limits <- list(
     avg_sleep = list(
-      lower = ceiling(181 / step_size) * step_size,
-      upper = floor(544 / step_size) * step_size
+      lower = ceiling(sleep_quants[1] / step_size) * step_size,
+      upper = floor(sleep_quants[2] / step_size) * step_size
     ),
     avg_inactivity = list(
-      lower = ceiling(348 / step_size) * step_size,
-      upper = floor(1059 / step_size) * step_size
+      lower = ceiling(inactivity_quants[1] / step_size) * step_size,
+      upper = floor(inactivity_quants[2] / step_size) * step_size
     ),
     avg_light = list(
-      lower = ceiling(76 / step_size) * step_size,
-      upper = floor(511 / step_size) * step_size
+      lower = ceiling(light_quants[1] / step_size) * step_size,
+      upper = floor(light_quants[2] / step_size) * step_size
     ),
     avg_mvpa = list(
-      lower = ceiling(20 / step_size) * step_size,
-      upper = floor(384 / step_size) * step_size
+      lower = ceiling(mvpa_quants[1] / step_size) * step_size,
+      upper = floor(mvpa_quants[2] / step_size) * step_size
     )
   )
 

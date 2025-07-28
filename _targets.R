@@ -35,14 +35,6 @@ controller <- crew_controller_local(
   workers = ncpus
 )
 
-if (tar_active()) {
-  controller$start()
-  log_start(
-    path = "log.txt",
-    seconds = 30,
-    pids = controller$pids()
-  )
-}
 
 # Set target options:
 tar_option_set(
@@ -280,7 +272,7 @@ list(
 
   #### FIND IDEAL/WORST COMPOSITION ####
 
-  tar_target(synth_comps, generate_compositions()),
+  tar_target(synth_comps, generate_compositions(df)),
   tar_target(synth_comps_dens, add_density(df, synth_comps, 0.05)),
   tar_target(
     synth_comps_filtered,

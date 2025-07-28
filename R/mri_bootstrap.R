@@ -689,6 +689,22 @@ get_boot_contrasts <- function(offset) {
   ))
 }
 
+strip_lm <- function(cm) {
+  cm$y <- c()
+  cm$model <- c()
+
+  cm$residuals <- c()
+  cm$fitted.values <- c()
+  cm$effects <- c()
+  cm$qr$qr <- c()
+  cm$linear.predictors <- c()
+  cm$weights <- c()
+  cm$prior.weights <- c()
+  cm$data <- c()
+
+  return(cm)
+}
+
 get_mri_model <- function(imp, outcome) {
   RhpcBLASctl::blas_set_num_threads(1)
   RhpcBLASctl::omp_set_num_threads(1)
@@ -697,7 +713,7 @@ get_mri_model <- function(imp, outcome) {
   model_formula <- get_mri_formula(imp)
   model_formula <- update(model_formula, as.formula(paste(outcome, "~ .")))
   model <- lm(model_formula, imp)
-  model
+  strip_lm(model)
 }
 
 get_mri_ref <- function(imp, outcome, model) {

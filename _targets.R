@@ -138,6 +138,11 @@ list(
     file.path(data_dir, Sys.getenv("MRI_FILE")),
     format = "file"
   ),
+  tar_target(
+    mri_qc_file,
+    file.path(data_dir, Sys.getenv("MRI_QC_FILE")),
+    format = "file"
+  ),
 
   #### PREPARE DATA ####
   tar_target(
@@ -307,6 +312,16 @@ list(
       final_time
     ),
     pattern = map(synth_split)
+  ),
+  tar_target(
+    reference_comps,
+    {
+      list(
+        best = synth_comp_risk[order(risk), ][1],
+        worst = synth_comp_risk[order(-dens), ][1],
+        typical = synth_comp_risk[order(-risk), ][1]
+      )
+    }
   )
 
   #### ESTIMATE RISK FOR IDEAL/WORST COMPS ####

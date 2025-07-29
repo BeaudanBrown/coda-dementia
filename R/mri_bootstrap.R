@@ -825,12 +825,55 @@ merge_estimates <- function(sub_estimates, ref_estimates) {
     )
 }
 
-# get_mri_plot <- function(outcome_df, outcome, sub, refcomp, colour, ylabel) {
-make_mri_plot <- function(mri_results, ylabel, sub_name, colour) {
-  lower_lim <- mean(mri_results$MD, na.rm = TRUE) -
-    0.25 * sd(mri_results$MD, na.rm = TRUE)
-  upper_lim <- mean(mri_results$MD, na.rm = TRUE) +
-    0.25 * sd(mri_results$MD, na.rm = TRUE)
+get_mri_labels <- function(mri_results, outcome) {
+  list(
+    ylabel = case_when(
+      outcome == "tbv" ~
+        expression(paste(
+          "Total brain volume ",
+          (cm^{
+            "3"
+          })
+        )),
+      outcome == "wmv" ~
+        expression(paste(
+          "White matter volume ",
+          (cm^{
+            "3"
+          })
+        )),
+      outcome == "gmv" ~
+        expression(paste(
+          "Grey matter volume ",
+          (cm^{
+            "3"
+          })
+        )),
+      outcome == "hip" ~
+        expression(paste(
+          "Hippocampal volume ",
+          (cm^{
+            "3"
+          })
+        )),
+      outcome == "log_wmh" ~ "Log WMH",
+      .default = as.character(outcome)
+    ),
+    sub_name = case_when(
+      from_var == "avg_inactivity" ~ "Inactivity",
+      from_var == "avg_light" ~ "Light Activity",
+      from_var == "avg_mvpa" ~ "MVPA",
+      .default = as.character(from_var)
+    )
+  )
+}
+
+make_mri_plot <- function(mri_results, outcome, colour) {
+  labels <- get_mri_labels(mri_results, outcome)
+  lower_lim <- mean(mri_results$md, na.rm = TRUE) -
+    0.25 * sd(mri_results$md, na.rm = TRUE)
+  upper_lim <- mean(mri_results$md, na.rm = TRUE) +
+    0.25 * sd(mri_results$md, na.rm = TRUE)
 
   minutes_offset <- 0.2 * (upper_lim - lower_lim)
   sleep_offset <- 0.275 * (upper_lim - lower_lim)
@@ -838,24 +881,15 @@ make_mri_plot <- function(mri_results, ylabel, sub_name, colour) {
   sub_offset <- 0.375 * (upper_lim - lower_lim)
 
   mri_results |>
-    mutate(
-      swap = to_var != "avg_sleep",
-      duration = if_else(swap, duration * -1, duration),
-      tmp_from = if_else(swap, to_var, from_var),
-      tmp_to = if_else(swap, from_var, to_var),
-      from_var = tmp_from,
-      to_var = tmp_to
-    ) |>
-    select(-tmp_from, -tmp_to, -swap) |>
-    ggplot(aes(x = duration, y = MD)) +
+    ggplot(aes(x = duration, y = md)) +
     geom_line(colour = colour) +
     geom_ribbon(
-      aes(ymin = lower_MD, ymax = upper_MD),
+      aes(ymin = lower_md, ymax = upper_md),
       alpha = 0.2,
       fill = colour
     ) +
     xlab("") +
-    ylab(ylabel) +
+    ylab(labels$ylabel) +
     annotate(
       geom = "text",
       x = 0,
@@ -910,7 +944,7 @@ make_mri_plot <- function(mri_results, ylabel, sub_name, colour) {
       y = lower_lim - sub_offset,
       hjust = 1,
       size = 12 / .pt,
-      label = paste("More", sub_name),
+      label = paste("More ", labels$sub_name),
       family = "serif",
       fontface = 1,
       size = 12 / .pt
@@ -920,7 +954,7 @@ make_mri_plot <- function(mri_results, ylabel, sub_name, colour) {
       x = 20,
       y = lower_lim - sub_offset,
       hjust = 0,
-      label = paste("Less", sub_name),
+      label = paste("Less ", labels$sub_name),
       family = "serif",
       fontface = 1,
       size = 12 / .pt

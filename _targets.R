@@ -289,14 +289,6 @@ list(
   ),
   tar_target(covar_data, get_covar_data(imp_train)),
   tar_target(
-    synth_split,
-    split(
-      synth_comps_filtered[1:100],
-      seq_len(nrow(synth_comps_filtered[1:100]))
-    ),
-    iteration = "list"
-  ),
-  tar_target(
     synth_comp_risk,
     get_synth_risk(
       covar_data,
@@ -364,7 +356,8 @@ list(
         filter_fn = rlang::syms(c(
           "avg_sleeper_filter_fn",
           "short_sleeper_filter_fn"
-        ))
+        )),
+        colour = c("#708ff9", "#ff747b")
       ),
       tar_target(
         mri_ref_avg_estimate,
@@ -388,20 +381,16 @@ list(
       tar_target(
         mri_mean_diffs,
         merge_estimates(mri_sub_avg_estimate, mri_ref_avg_estimate)
+      ),
+      tar_target(
+        mri_plot,
+        make_mri_plot(
+          mri_mean_diffs,
+          outcome,
+          colour
+        ),
+        pattern = map(mri_mean_diffs)
       )
     )
   )
-  # tar_map(
-  #   values = list(
-  #     wmh = list(
-  #       ylabel = "",
-  #       ylabel = "",
-  #       ylabel = "",
-  #     ),
-  #   ),
-  #   tar_target(
-  #     plot,
-  #     make_mri_plot(mri_results, ylabel, sub_name, colour, mri_sub_results)
-  #   )
-  # )
 )

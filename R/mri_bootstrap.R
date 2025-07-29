@@ -805,9 +805,9 @@ get_mri_subs <- function(imp, outcome, model, from_var, to_var, duration) {
 
 merge_estimates <- function(sub_estimates, ref_estimates) {
   sub_estimates |>
-    rename("sub_estimate" = "estimate") |>
+    rename("sub_estimate" = "results") |>
     left_join(
-      ref_estimates |> rename("ref_estimate" = "estimate"),
+      ref_estimates |> rename("ref_estimate" = "results"),
       by = "B"
     ) |>
     mutate(

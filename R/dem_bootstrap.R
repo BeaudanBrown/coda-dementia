@@ -946,9 +946,9 @@ average_sub_results <- function(results, df, filter_fn, result_name = "risk") {
 
 merge_risks <- function(sub_risks, ref_risks) {
   sub_risks |>
-    rename("sub_risk" = "risk") |>
+    rename("sub_risk" = "results") |>
     left_join(
-      ref_risks |> rename("ref_risk" = "risk"),
+      ref_risks |> rename("ref_risk" = "results"),
       by = "B"
     ) |>
     mutate(

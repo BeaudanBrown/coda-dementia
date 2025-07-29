@@ -201,7 +201,7 @@ list(
   ),
   tar_target(
     primary_sub_risk,
-    apply(all_subs, 1, function(sub) {
+    bind_rows(apply(all_subs, 1, function(sub) {
       get_sub_risk(
         imp,
         sub["from_var"],
@@ -210,7 +210,7 @@ list(
         primary_models,
         final_time
       )
-    }),
+    })),
     pattern = map(imp, primary_models),
   ),
   tar_target(
@@ -354,7 +354,7 @@ list(
     ),
     tar_target(
       mri_sub_results,
-      apply(all_subs, 1, function(sub) {
+      bind_rows(apply(all_subs, 1, function(sub) {
         get_mri_subs(
           mri_imp,
           outcome,
@@ -363,7 +363,7 @@ list(
           sub["to_var"],
           as.numeric(sub["duration"])
         )
-      }),
+      })),
       pattern = map(mri_imp, mri_models)
     ),
     tar_target(

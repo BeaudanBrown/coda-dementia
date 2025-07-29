@@ -359,6 +359,7 @@ list(
         )),
         colour = c("#708ff9", "#ff747b")
       ),
+      names = filter_fn,
       tar_target(
         mri_ref_avg_estimate,
         average_sub_results(
@@ -382,14 +383,20 @@ list(
         mri_mean_diffs,
         merge_estimates(mri_sub_avg_estimate, mri_ref_avg_estimate)
       ),
-      tar_target(
-        mri_plot,
-        make_mri_plot(
-          mri_mean_diffs,
-          outcome,
-          colour
+      tar_map(
+        values = list(
+          sub_type = unique(substitutions$from_var)
         ),
-        pattern = map(mri_mean_diffs)
+        tar_target(
+          mri_plot,
+          {
+            make_mri_plot(
+              mri_mean_diffs |> filter(from_var == sub_type),
+              outcome,
+              colour
+            )
+          }
+        )
       )
     )
   )

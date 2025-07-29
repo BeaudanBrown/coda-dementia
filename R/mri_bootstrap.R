@@ -827,58 +827,63 @@ merge_estimates <- function(sub_estimates, ref_estimates) {
 
 get_mri_labels <- function(mri_results, outcome) {
   list(
-    ylabel = case_when(
-      outcome == "tbv" ~
-        expression(paste(
-          "Total brain volume ",
-          (cm^{
-            "3"
-          })
-        )),
-      outcome == "wmv" ~
-        expression(paste(
-          "White matter volume ",
-          (cm^{
-            "3"
-          })
-        )),
-      outcome == "gmv" ~
-        expression(paste(
-          "Grey matter volume ",
-          (cm^{
-            "3"
-          })
-        )),
-      outcome == "hip" ~
-        expression(paste(
-          "Hippocampal volume ",
-          (cm^{
-            "3"
-          })
-        )),
-      outcome == "log_wmh" ~ "Log WMH",
-      .default = as.character(outcome)
-    ),
+    ylabel = if (outcome == "tbv") {
+      ylabel <- expression(paste(
+        "Total brain volume ",
+        (cm^{
+          "3"
+        })
+      ))
+    } else if (outcome == "wmv") {
+      ylabel <- expression(paste(
+        "White matter volume ",
+        (cm^{
+          "3"
+        })
+      ))
+    } else if (outcome == "gmv") {
+      ylabel <- expression(paste(
+        "Grey matter volume ",
+        (cm^{
+          "3"
+        })
+      ))
+    } else if (outcome == "hip") {
+      ylabel <- expression(paste(
+        "Hippocampal volume ",
+        (cm^{
+          "3"
+        })
+      ))
+    } else if (outcome == "log_wmh") {
+      ylabel <- "Log WMH"
+    } else {
+      ylabel <- expression(as.character(outcome))
+    },
     sub_name = case_when(
-      from_var == "avg_inactivity" ~ "Inactivity",
-      from_var == "avg_light" ~ "Light Activity",
-      from_var == "avg_mvpa" ~ "MVPA",
-      .default = as.character(from_var)
+      mri_results$from_var == "avg_inactivity" ~ "Inactivity",
+      mri_results$from_var == "avg_light" ~ "Light Activity",
+      mri_results$from_var == "avg_mvpa" ~ "MVPA",
+      .default = as.character(mri_results$from_var)
     )
   )
 }
 
 make_mri_plot <- function(mri_results, outcome, colour) {
   labels <- get_mri_labels(mri_results, outcome)
-  lower_lim <- mean(mri_results$md, na.rm = TRUE) -
-    0.25 * sd(mri_results$md, na.rm = TRUE)
-  upper_lim <- mean(mri_results$md, na.rm = TRUE) +
-    0.25 * sd(mri_results$md, na.rm = TRUE)
 
-  minutes_offset <- 0.2 * (upper_lim - lower_lim)
-  sleep_offset <- 0.275 * (upper_lim - lower_lim)
-  arrow_offset <- 0.325 * (upper_lim - lower_lim)
-  sub_offset <- 0.375 * (upper_lim - lower_lim)
+  # Calculate y-axis limits and offsets
+  y_mean <- mean(mri_results$md, na.rm = TRUE)
+  y_sd <- sd(mri_results$md, na.rm = TRUE)
+  lower_lim <- y_mean - 0.25 * y_sd
+  upper_lim <- y_mean + 0.25 * y_sd
+
+  # Calculate offsets for annotations
+  y_range <- upper_lim - lower_lim
+  minutes_offset <- 0.2 * y_range
+  sleep_offset <- 0.275 * y_range
+  arrow_offset <- 0.325 * y_range
+  sub_offset <- 0.375 * y_range
 
   mri_results |>
     ggplot(aes(x = duration, y = md)) +
@@ -888,77 +893,86 @@ make_mri_plot <- function(mri_results, outcome, colour) {
       alpha = 0.2,
       fill = colour
     ) +
-    xlab("") +
-    ylab(labels$ylabel) +
+    labs(x = "", y = labels$ylabel) +
+
+    # Annotations
     annotate(
-      geom = "text",
+      "text",
       x = 0,
       y = lower_lim - minutes_offset,
-      hjust = 0.5,
-      fontface = 1,
-      size = 14 / .pt,
       label = "Minutes",
+      hjust = 0.5,
+      size = 14 / .pt,
+      fontface = 1,
       family = "serif"
     ) +
+
     annotate(
-      geom = "text",
+      "text",
       x = -20,
       y = lower_lim - sleep_offset,
-      hjust = 1,
-      fontface = 1,
-      size = 12 / .pt,
       label = "Less sleep",
+      hjust = 1,
+      size = 12 / .pt,
+      fontface = 1,
       family = "serif"
     ) +
+
     annotate(
-      geom = "text",
+      "text",
       x = 20,
       y = lower_lim - sleep_offset,
-      hjust = 0,
-      fontface = 1,
-      size = 12 / .pt,
       label = "More sleep",
+      hjust = 0,
+      size = 12 / .pt,
+      fontface = 1,
       family = "serif"
     ) +
+
+    annotate(
+      "text",
+      x = -20,
+      y = lower_lim - sub_offset,
+      label = paste("More", labels$sub_name),
+      hjust = 1,
+      size = 12 / .pt,
+      fontface = 1,
+      family = "serif"
+    ) +
+
+    annotate(
+      "text",
+      x = 20,
+      y = lower_lim - sub_offset,
+      label = paste("Less", labels$sub_name),
+      hjust = 0,
+      size = 12 / .pt,
+      fontface = 1,
+      family = "serif"
+    ) +
+
+    # Arrows
     geom_segment(
       aes(
         x = 1,
-        y = lower_lim - arrow_offset,
         xend = 15,
+        y = lower_lim - arrow_offset,
         yend = lower_lim - arrow_offset
       ),
       arrow = arrow(length = unit(0.15, "cm"))
     ) +
+
     geom_segment(
       aes(
         x = -1,
-        y = lower_lim - arrow_offset,
         xend = -15,
+        y = lower_lim - arrow_offset,
         yend = lower_lim - arrow_offset
       ),
       arrow = arrow(length = unit(0.15, "cm"))
     ) +
-    annotate(
-      geom = "text",
-      x = -20,
-      y = lower_lim - sub_offset,
-      hjust = 1,
-      size = 12 / .pt,
-      label = paste("More ", labels$sub_name),
-      family = "serif",
-      fontface = 1,
-      size = 12 / .pt
-    ) +
-    annotate(
-      geom = "text",
-      x = 20,
-      y = lower_lim - sub_offset,
-      hjust = 0,
-      label = paste("Less ", labels$sub_name),
-      family = "serif",
-      fontface = 1,
-      size = 12 / .pt
-    ) +
+
+    # Coordinate system and theme
     coord_cartesian(
       ylim = c(lower_lim, upper_lim),
       expand = FALSE,
@@ -978,13 +992,6 @@ make_mri_plot <- function(mri_results, outcome, colour) {
       panel.grid.minor = element_line(linewidth = rel(0.5)),
       axis.ticks.y = element_blank(),
       axis.line = element_line(color = "#585656"),
-      axis.title.y = element_text(
-        margin = margin(
-          t = 0,
-          r = 10,
-          b = 0,
-          l = 0
-        )
-      )
+      axis.title.y = element_text(margin = margin(r = 10))
     )
 }

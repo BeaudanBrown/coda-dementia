@@ -803,25 +803,6 @@ get_mri_subs <- function(imp, outcome, model, from_var, to_var, duration) {
   )
 }
 
-average_estimates <- function(results, df, filter_fn) {
-  eids <- filter_fn(df)[, .(eid)]
-
-  # 3) by-reference update of that column: each element of .SD[[1]] is one nested DT
-  results[,
-    "results" := sapply(.SD[[1]], function(inner) {
-      # sapply over the list‐column gives a numeric vector of length nrow(results)
-      inner <- as.data.table(inner) # coerce to DT if needed
-      tmp <- inner[eids, on = "eid", nomatch = 0L]
-      vec <- tmp[["estimate"]]
-      if (length(vec) == 0L) NA_real_ else mean(vec, na.rm = TRUE)
-    }),
-    .SDcols = "results"
-  ]
-
-  # 4) done—in .(sub_result) you now have your mean_estimate numbers
-  return(results)
-}
-
 merge_estimates <- function(sub_estimates, ref_estimates) {
   sub_estimates |>
     rename("sub_estimate" = "estimate") |>

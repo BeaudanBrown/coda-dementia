@@ -223,11 +223,11 @@ list(
     ),
     tar_target(
       primary_ref_avg_risks,
-      average_risks(primary_ref_risk, df, filter_fn)
+      average_sub_results(primary_ref_risk, df, filter_fn)
     ),
     tar_target(
       primary_sub_avg_risks,
-      average_risks(primary_sub_risk, df, filter_fn),
+      average_sub_results(primary_sub_risk, df, filter_fn),
       pattern = map(primary_sub_risk)
     ),
     tar_target(
@@ -368,11 +368,21 @@ list(
       ),
       tar_target(
         mri_ref_avg_estimate,
-        average_estimates(mri_ref_results, df, filter_fn)
+        average_sub_results(
+          mri_ref_results,
+          df,
+          filter_fn,
+          result_name = "estimate"
+        )
       ),
       tar_target(
         mri_sub_avg_estimate,
-        average_estimates(mri_sub_results, df, filter_fn),
+        average_sub_results(
+          mri_sub_results,
+          df,
+          filter_fn,
+          result_name = "estimate"
+        ),
         pattern = map(mri_sub_results)
       ),
       tar_target(

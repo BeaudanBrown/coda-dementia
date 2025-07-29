@@ -931,17 +931,13 @@ intervals <- function(ref, sub) {
   ]
 }
 
-average_risks <- function(results, df, filter_fn) {
-  # pull out the eids that survive the filter
+average_sub_results <- function(results, df, filter_fn, result_name = "risk") {
   eids <- filter_fn(df)[, .(eid)]
 
-  # for each nested-table in results[, result_col], join on eid and take mean(risk)
+  # replace the data table of results with the filtered mean
   results[,
     "results" := sapply(.SD[[1]], function(inner) {
-      inner <- as.data.table(inner)
-      tmp <- inner[eids, on = "eid", nomatch = 0L]
-      vec <- tmp[["risk"]]
-      if (length(vec) == 0L) NA_real_ else mean(vec, na.rm = TRUE)
+      mean(inner[eids, on = "eid", nomatch = 0L][[result_name]], na.rm = TRUE)
     }),
     .SDcols = "results"
   ]

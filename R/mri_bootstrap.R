@@ -215,10 +215,18 @@ process_mri_subs_output <- function(rds_path, mri_model_data) {
 
         # Store the plot data in the corresponding list
         plot_name <- paste0(reference, "_", activity_level)
-        if (outcomes[i] == "tbv") tbv_plot_list[[plot_name]] <- plot_data
-        if (outcomes[i] == "gmv") gmv_plot_list[[plot_name]] <- plot_data
-        if (outcomes[i] == "wmv") wmv_plot_list[[plot_name]] <- plot_data
-        if (outcomes[i] == "hip") hip_plot_list[[plot_name]] <- plot_data
+        if (outcomes[i] == "tbv") {
+          tbv_plot_list[[plot_name]] <- plot_data
+        }
+        if (outcomes[i] == "gmv") {
+          gmv_plot_list[[plot_name]] <- plot_data
+        }
+        if (outcomes[i] == "wmv") {
+          wmv_plot_list[[plot_name]] <- plot_data
+        }
+        if (outcomes[i] == "hip") {
+          hip_plot_list[[plot_name]] <- plot_data
+        }
         if (outcomes[i] == "log_wmh") {
           log_wmh_plot_list[[plot_name]] <- plot_data
         }
@@ -651,10 +659,18 @@ get_boot_contrasts <- function(offset) {
 
         # Store the contrast data in the corresponding list
         contrast_name <- paste0(reference, "_", activity_level)
-        if (outcomes[i] == "tbv") tbv_list[[contrast_name]] <- contrast_data
-        if (outcomes[i] == "gmv") gmv_list[[contrast_name]] <- contrast_data
-        if (outcomes[i] == "wmv") wmv_list[[contrast_name]] <- contrast_data
-        if (outcomes[i] == "hip") hip_list[[contrast_name]] <- contrast_data
+        if (outcomes[i] == "tbv") {
+          tbv_list[[contrast_name]] <- contrast_data
+        }
+        if (outcomes[i] == "gmv") {
+          gmv_list[[contrast_name]] <- contrast_data
+        }
+        if (outcomes[i] == "wmv") {
+          wmv_list[[contrast_name]] <- contrast_data
+        }
+        if (outcomes[i] == "hip") {
+          hip_list[[contrast_name]] <- contrast_data
+        }
         if (outcomes[i] == "log_wmh") {
           log_wmh_list[[contrast_name]] <- contrast_data
         }
@@ -722,7 +738,7 @@ get_mri_ref <- function(imp, outcome, model) {
   imp$estimate <- predict(model, newdata = imp)
   data.table(
     outcome = outcome,
-    ref_result = list(result = imp |> select(eid, estimate)),
+    results = list(result = imp |> select(eid, estimate)),
     B = unique(imp$tar_batch)
   )
 }
@@ -778,7 +794,7 @@ get_mri_subs <- function(imp, outcome, model, from_var, to_var, duration) {
 
   data.table(
     outcome = outcome,
-    sub_result = list(result = sub_df |> select(eid, estimate)),
+    results = list(result = sub_df |> select(eid, estimate)),
     B = unique(imp$tar_batch),
     from_var = from_var,
     to_var = to_var,
@@ -788,13 +804,22 @@ get_mri_subs <- function(imp, outcome, model, from_var, to_var, duration) {
 }
 
 average_estimates <- function(results, df, filter_fn) {
-  df <- df |> select(eid, avg_sleep, avg_inactivity, avg_light, avg_mvpa)
-  merged <- dplyr::left_join(results$results, df, by = c("eid")) |>
-    filter_fn()
-  estimate <- mean(merged$estimate)
-  results$results <- NULL
-  results$estimate <- estimate
-  as.data.frame(results)
+  eids <- filter_fn(df)[, .(eid)]
+
+  # 3) by-reference update of that column: each element of .SD[[1]] is one nested DT
+  results[,
+    "results" := sapply(.SD[[1]], function(inner) {
+      # sapply over the list‐column gives a numeric vector of length nrow(results)
+      inner <- as.data.table(inner) # coerce to DT if needed
+      tmp <- inner[eids, on = "eid", nomatch = 0L]
+      vec <- tmp[["estimate"]]
+      if (length(vec) == 0L) NA_real_ else mean(vec, na.rm = TRUE)
+    }),
+    .SDcols = "results"
+  ]
+
+  # 4) done—in .(sub_result) you now have your mean_estimate numbers
+  return(results)
 }
 
 merge_estimates <- function(sub_estimates, ref_estimates) {
@@ -813,8 +838,8 @@ merge_estimates <- function(sub_estimates, ref_estimates) {
       mean_sub_estimate = mean(sub_estimate, na.rm = TRUE),
       mean_ref_estimate = mean(ref_estimate, na.rm = TRUE),
       md = mean(md, na.rm = TRUE),
-      lower_rr = quantile(md, 0.025),
-      upper_rr = quantile(md, 0.975),
+      lower_md = quantile(md, 0.025),
+      upper_md = quantile(md, 0.975),
       .groups = "drop"
     )
 }

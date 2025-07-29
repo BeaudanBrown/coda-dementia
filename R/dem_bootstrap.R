@@ -809,11 +809,13 @@ get_ref_risk <- function(imp, models, final_time) {
     by = id
   ]
 
-  list(
-    results = imp_long_cuts[
-      timegroup == final_time,
-      .(eid, risk)
-    ],
+  data.table(
+    results = list(
+      result = imp_long_cuts[
+        timegroup == final_time,
+        .(eid, risk)
+      ]
+    ),
     B = unique(imp_long_cuts$tar_batch)
   )
 }
@@ -898,11 +900,13 @@ get_sub_risk <- function(
     by = id
   ]
 
-  list(
-    results = sub_long_cuts[
-      timegroup == final_time,
-      .(eid, risk)
-    ],
+  data.table(
+    results = list(
+      result = sub_long_cuts[
+        timegroup == final_time,
+        .(eid, risk)
+      ]
+    ),
     B = unique(sub_long_cuts$tar_batch),
     from_var = from_var,
     to_var = to_var,
@@ -928,13 +932,20 @@ intervals <- function(ref, sub) {
 }
 
 average_risks <- function(results, df, filter_fn) {
-  df <- df |> select(eid, avg_sleep, avg_inactivity, avg_light, avg_mvpa)
-  merged <- dplyr::left_join(results$results, df, by = c("eid")) |>
-    filter_fn()
-  risk <- mean(merged$risk)
-  results$results <- NULL
-  results$risk <- risk
-  as.data.frame(results)
+  # pull out the eids that survive the filter
+  eids <- filter_fn(df)[, .(eid)]
+
+  # for each nested-table in results[, result_col], join on eid and take mean(risk)
+  results[,
+    "results" := sapply(.SD[[1]], function(inner) {
+      inner <- as.data.table(inner)
+      tmp <- inner[eids, on = "eid", nomatch = 0L]
+      vec <- tmp[["risk"]]
+      if (length(vec) == 0L) NA_real_ else mean(vec, na.rm = TRUE)
+    }),
+    .SDcols = "results"
+  ]
+  results
 }
 
 merge_risks <- function(sub_risks, ref_risks) {

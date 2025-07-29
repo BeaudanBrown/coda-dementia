@@ -11,7 +11,8 @@ ncpus <- future::availableCores() - 1
 
 # Constants
 short_sleep_hours <- 6
-long_sleep_hours <- 8
+long_sleep_min_hours <- 8
+long_sleep_hours <- 9
 hrs_in_day <- 24
 mins_in_day <- 1440
 mins_in_hour <- 60
@@ -90,9 +91,20 @@ avg_sleeper_filter_fn <- function(df) {
 }
 
 long_sleeper_filter_fn <- function(df) {
-  df |> filter(avg_sleep > long_sleep_hours * 60)
+  df |> filter(avg_sleep > long_sleep_min_hours * 60)
 }
 
+substitutions <- expand.grid(
+  from_var = c("avg_mvpa", "avg_light", "avg_inactivity"),
+  to_var = "avg_sleep",
+  stringsAsFactors = FALSE
+)
+durations <- data.frame(
+  duration = seq(from = -60, to = 60, by = 15)[
+    seq(from = -60, to = 60, by = 15) != 0
+  ]
+)
+all_subs <- merge(substitutions, durations)
 
 ## pipeline
 
@@ -169,21 +181,6 @@ list(
     sub_names,
     c("avg_sleep", "avg_mvpa", "avg_light", "avg_inactivity")
   ),
-  tar_target(sub_durations, seq(from = 15, to = 60, by = 15)),
-  tar_target(
-    substitutions,
-    {
-      expand.grid(
-        from_var = sub_names,
-        to_var = sub_names,
-        stringsAsFactors = FALSE
-      ) |>
-        dplyr::filter(
-          !from_var == to_var &
-            (from_var == "avg_sleep" | to_var == "avg_sleep")
-        )
-    }
-  ),
   tar_target(timegroup_cuts, make_cuts(df)),
   tar_target(final_time, length(timegroup_cuts) - 1),
 
@@ -200,24 +197,28 @@ list(
   tar_target(
     primary_ref_risk,
     get_ref_risk(imp, primary_models, final_time),
-    pattern = map(imp, primary_models),
-    iteration = "list"
+    pattern = map(imp, primary_models)
   ),
   tar_target(
     primary_sub_risk,
-    get_sub_risk(
-      imp,
-      substitutions$from_var,
-      substitutions$to_var,
-      sub_durations,
-      primary_models,
-      final_time
-    ),
-    pattern = cross(
-      map(imp, primary_models),
-      cross(substitutions, sub_durations)
-    ),
-    iteration = "list"
+    apply(all_subs, 1, function(sub) {
+      get_sub_risk(
+        imp,
+        sub["from_var"],
+        sub["to_var"],
+        as.numeric(sub["duration"]),
+        primary_models,
+        final_time
+      )
+    }),
+    pattern = map(imp, primary_models),
+  ),
+  tar_target(
+    primary_sub_slices,
+    {
+      n <- nrow(primary_sub_risk)
+      split(primary_sub_risk, rep_len(seq_len(100), n))
+    }
   ),
   tar_map(
     values = list(
@@ -229,13 +230,12 @@ list(
     ),
     tar_target(
       primary_ref_avg_risks,
-      average_risks(primary_ref_risk, df, filter_fn),
-      pattern = map(primary_ref_risk)
+      average_risks(primary_ref_risk, df, filter_fn)
     ),
     tar_target(
       primary_sub_avg_risks,
-      average_risks(primary_sub_risk, df, filter_fn),
-      pattern = map(primary_sub_risk)
+      average_risks(primary_sub_slices, df, filter_fn),
+      pattern = map(primary_sub_slices)
     ),
     tar_target(
       primary_risk_ratios,
@@ -307,11 +307,11 @@ list(
     synth_comp_risk,
     get_synth_risk(
       covar_data,
-      synth_split,
+      synth_comps_filtered,
       train_models,
       final_time
     ),
-    pattern = map(synth_split)
+    pattern = map(synth_comps_filtered)
   ),
   tar_target(
     reference_comps,
@@ -354,36 +354,40 @@ list(
     ),
     tar_target(
       mri_sub_results,
-      get_mri_subs(
-        mri_imp,
-        outcome,
-        mri_models,
-        substitutions$from_var,
-        substitutions$to_var,
-        sub_durations
-      ),
-      pattern = cross(
-        map(mri_imp, mri_models),
-        cross(substitutions, sub_durations)
-      )
+      apply(all_subs, 1, function(sub) {
+        get_mri_subs(
+          mri_imp,
+          outcome,
+          mri_models,
+          sub["from_var"],
+          sub["to_var"],
+          as.numeric(sub["duration"])
+        )
+      }),
+      pattern = map(mri_imp, mri_models)
+    ),
+    tar_target(
+      mri_sub_slices,
+      {
+        n <- nrow(mri_sub_results)
+        split(mri_sub_results, rep_len(seq_len(100), n))
+      }
     ),
     tar_map(
       values = list(
         filter_fn = rlang::syms(c(
-          "long_sleeper_filter_fn",
           "avg_sleeper_filter_fn",
           "short_sleeper_filter_fn"
         ))
       ),
       tar_target(
         mri_ref_avg_estimate,
-        average_estimates(mri_ref_results, df, filter_fn),
-        pattern = map(mri_ref_results)
+        average_estimates(mri_ref_results, df, filter_fn)
       ),
       tar_target(
         mri_sub_avg_estimate,
-        average_estimates(mri_sub_results, df, filter_fn),
-        pattern = map(mri_sub_results)
+        average_estimates(mri_sub_slices, df, filter_fn),
+        pattern = map(mri_sub_slices)
       ),
       tar_target(
         mri_mean_diffs,

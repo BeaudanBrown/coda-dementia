@@ -213,13 +213,6 @@ list(
     })),
     pattern = map(imp, primary_models),
   ),
-  tar_target(
-    primary_sub_slices,
-    {
-      n <- nrow(primary_sub_risk)
-      split(primary_sub_risk, rep_len(seq_len(100), n))
-    }
-  ),
   tar_map(
     values = list(
       filter_fn = rlang::syms(c(
@@ -234,8 +227,8 @@ list(
     ),
     tar_target(
       primary_sub_avg_risks,
-      average_risks(primary_sub_slices, df, filter_fn),
-      pattern = map(primary_sub_slices)
+      average_risks(primary_sub_risk, df, filter_fn),
+      pattern = map(primary_sub_risk)
     ),
     tar_target(
       primary_risk_ratios,
@@ -366,13 +359,6 @@ list(
       })),
       pattern = map(mri_imp, mri_models)
     ),
-    tar_target(
-      mri_sub_slices,
-      {
-        n <- nrow(mri_sub_results)
-        split(mri_sub_results, rep_len(seq_len(100), n))
-      }
-    ),
     tar_map(
       values = list(
         filter_fn = rlang::syms(c(
@@ -386,8 +372,8 @@ list(
       ),
       tar_target(
         mri_sub_avg_estimate,
-        average_estimates(mri_sub_slices, df, filter_fn),
-        pattern = map(mri_sub_slices)
+        average_estimates(mri_sub_results, df, filter_fn),
+        pattern = map(mri_sub_results)
       ),
       tar_target(
         mri_mean_diffs,

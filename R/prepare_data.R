@@ -256,9 +256,12 @@ impute_data <- function(df, m, maxit) {
       "avg_inactivity",
       "avg_light",
       "avg_mvpa",
-      "eid"
+      "eid",
+      "id"
     )
   )
+  RhpcBLASctl::blas_set_num_threads(1)
+  RhpcBLASctl::omp_set_num_threads(1)
   imp <- mice(
     df,
     m = m,
@@ -266,8 +269,8 @@ impute_data <- function(df, m, maxit) {
     maxit = maxit
   )
   print(imp$loggedEvents)
-  imp <- complete(imp, "all")
-  imp <- lapply(imp, back_to_factor)
+  imp <- complete(imp)
+  imp <- back_to_factor(imp)
   return(imp)
 }
 
@@ -287,7 +290,7 @@ back_to_factor <- function(df) {
   df$highest_qual <- as.factor(df$highest_qual)
   df$smok_status <- as.factor(df$smok_status)
   levels(df$smok_status) <- c("current", "former", "never")
-  return(as_tibble(df))
+  return(as.data.table(df))
 }
 
 widen_data <- function(df, timegroup_cuts) {

@@ -767,51 +767,6 @@ process_dem_output <- function(result, intervals = TRUE) {
   return(list(plot, plot_data))
 }
 
-apply_substitution <- function(
-  df,
-  from_var,
-  to_var,
-  duration
-) {
-  # 1) compute 1st and 99th quantiles of the 'from' and 'to' cols
-  from_q <- quantile(df[[from_var]], probs = c(0.01, 0.99), na.rm = TRUE)
-  to_q <- quantile(df[[to_var]], probs = c(0.01, 0.99), na.rm = TRUE)
-
-  min_from <- from_q[1]
-  max_from <- from_q[2]
-  min_to <- to_q[1]
-  max_to <- to_q[2]
-
-  sub_df <- df |>
-    mutate(
-      new_from = .data[[from_var]] - duration,
-      # clamp it
-      "{from_var}" := pmin(pmax(new_from, min_from), max_from),
-      new_to = .data[[to_var]] + duration,
-      "{to_var}" := pmin(pmax(new_to, min_to), max_to),
-      sub_name = paste0(from_var, "_", to_var, "_", duration)
-    ) |>
-    select(-new_from, -new_to)
-
-  # 2) composition -> ILR
-  comp <- acomp(sub_df[, c(
-    "avg_sleep",
-    "avg_inactivity",
-    "avg_light",
-    "avg_mvpa"
-  )])
-  ilr_vars <- ilr(comp, V = v) |>
-    setNames(c("R1", "R2", "R3"))
-
-  sub_df[, c("R1", "R2", "R3")] <- as_tibble(ilr_vars)
-  sub_df <- mutate(sub_df, across(starts_with("censoring"), ~1))
-
-  list(
-    df = df,
-    shifted_df = sub_df
-  )
-}
-
 make_cuts <- function(df) {
   max_follow_up <- max(df$time_to_dem)
   timegroup_steps <- ceiling(max_follow_up / 365)
@@ -825,65 +780,355 @@ make_cuts <- function(df) {
   timegroup_cuts
 }
 
-estimate_lmtp_reference <- function(df, baseline_covars) {
-  cens <- grep("^censoring_", names(df), value = TRUE)
-  trt <- c("R1", "R2", "R3")
-  outcomes <- grep("^dem_", names(df), value = TRUE)
-  compete <- grep("^death_", names(df), value = TRUE)
-  df <- select(df, all_of(c(baseline_covars, trt, cens, outcomes, compete)))
-  trt <- list(c("R1", "R2", "R3"))
-
+get_ref_risk <- function(imp, models, final_time) {
   RhpcBLASctl::blas_set_num_threads(1)
   RhpcBLASctl::omp_set_num_threads(1)
+  imp_len <- nrow(imp)
+  imp_long_cuts <- imp[rep(seq_len(imp_len), each = final_time)]
+  imp_long_cuts[, timegroup := rep(1:final_time, imp_len)]
 
-  lmtp::lmtp_survival(
-    data = df,
-    trt = trt,
-    outcomes = outcomes,
-    cens = cens,
-    baseline = baseline_covars,
-    compete = compete,
-    folds = 1,
-    learners_outcome = "SL.glm.Q",
-    learners_trt = "SL.glm.g",
-    control = lmtp::lmtp_control(
-      .learners_outcome_folds = 2,
-      .learners_trt_folds = 2
+  imp_long_cuts[,
+    haz_dem := predict(
+      models[["model_dem"]],
+      newdata = .SD,
+      type = "response"
+    )
+  ]
+  imp_long_cuts[,
+    haz_death := predict(
+      models[["model_death"]],
+      newdata = .SD,
+      type = "response"
+    )
+  ]
+  setkey(imp_long_cuts, id, timegroup) # sort and set keys
+  imp_long_cuts[,
+    risk := cumsum(
+      haz_dem * cumprod((1 - lag(haz_dem, default = 0)) * (1 - haz_death))
     ),
-    mtp = TRUE
+    by = id
+  ]
+
+  data.table(
+    results = list(
+      result = imp_long_cuts[
+        timegroup == final_time,
+        .(eid, risk)
+      ]
+    ),
+    B = unique(imp_long_cuts$tar_batch)
   )
 }
 
-estimate_lmtp_subs <- function(df, sub_df, baseline_covars) {
-  cens <- grep("^censoring_", names(df), value = TRUE)
-  trt <- c("R1", "R2", "R3")
-  outcomes <- grep("^dem_", names(df), value = TRUE)
-  compete <- grep("^death_", names(df), value = TRUE)
-  df <- select(df, all_of(c(baseline_covars, trt, cens, outcomes, compete)))
-  sub_df <- select(
-    sub_df,
-    all_of(c(baseline_covars, trt, cens, outcomes, compete))
-  )
-  trt <- list(c("R1", "R2", "R3"))
-
+get_sub_risk <- function(
+  imp,
+  from_var,
+  to_var,
+  duration,
+  models,
+  final_time
+) {
   RhpcBLASctl::blas_set_num_threads(1)
   RhpcBLASctl::omp_set_num_threads(1)
-
-  lmtp::lmtp_survival(
-    data = df,
-    trt = trt,
-    outcomes = outcomes,
-    cens = cens,
-    baseline = baseline_covars,
-    compete = compete,
-    shifted = sub_df,
-    folds = 1,
-    learners_outcome = "SL.glm.Q",
-    learners_trt = "SL.glm.g",
-    control = lmtp::lmtp_control(
-      .learners_outcome_folds = 2,
-      .learners_trt_folds = 2
+  comp_limits <- list(
+    avg_sleep = list(
+      lower = 181,
+      upper = 544
     ),
-    mtp = TRUE
+    avg_inactivity = list(
+      lower = 348,
+      upper = 1059
+    ),
+    avg_light = list(
+      lower = 76,
+      upper = 511
+    ),
+    avg_mvpa = list(
+      lower = 20,
+      upper = 384
+    )
   )
+  lower_from <- comp_limits[[from_var]]$lower
+  upper_to <- comp_limits[[to_var]]$upper
+
+  max_from_change <- imp[[from_var]] - lower_from
+  max_to_change <- upper_to - imp[[to_var]]
+  can_substitute <- (max_from_change >= duration) & (max_to_change >= duration)
+  prop_substituted <- sum(can_substitute) / nrow(imp)
+
+  sub <- imp
+  sub[[from_var]] <- sub[[from_var]] - (can_substitute * duration)
+  sub[[to_var]] <- sub[[to_var]] + (can_substitute * duration)
+
+  comp <- acomp(sub[, c(
+    "avg_sleep",
+    "avg_inactivity",
+    "avg_light",
+    "avg_mvpa"
+  )])
+  ilr_vars <- ilr(comp, V = v) |>
+    setNames(c("R1", "R2", "R3"))
+
+  sub[, c("R1", "R2", "R3")] <- as.data.table(ilr_vars)
+
+  sub_len <- nrow(sub)
+  sub_long_cuts <- sub[rep(
+    seq_len(sub_len),
+    each = final_time
+  )]
+  sub_long_cuts[, timegroup := rep(1:final_time, sub_len)]
+
+  sub_long_cuts[,
+    haz_dem := predict(
+      models[["model_dem"]],
+      newdata = .SD,
+      type = "response"
+    )
+  ]
+  sub_long_cuts[,
+    haz_death := predict(
+      models[["model_death"]],
+      newdata = .SD,
+      type = "response"
+    )
+  ]
+  setkey(sub_long_cuts, id, timegroup) # sort and set keys
+  sub_long_cuts[,
+    risk := cumsum(
+      haz_dem * cumprod((1 - lag(haz_dem, default = 0)) * (1 - haz_death))
+    ),
+    by = id
+  ]
+
+  data.table(
+    results = list(
+      result = sub_long_cuts[
+        timegroup == final_time,
+        .(eid, risk)
+      ]
+    ),
+    B = unique(sub_long_cuts$tar_batch),
+    from_var = from_var,
+    to_var = to_var,
+    duration = duration,
+    prop_substituted = prop_substituted
+  )
+}
+
+intervals <- function(ref, sub) {
+  merged <- merge(ref, sub, by = "B")
+  merged[, RR := sub_risk / ref_risk]
+  merged[,
+    list(
+      ref_risk = mean(ref_risk),
+      sub_risk = mean(sub_risk),
+      RR = mean(RR),
+      lower_RR = quantile(RR, 0.025),
+      upper_RR = quantile(RR, 0.975),
+      prop_substituted = mean(prop_substituted)
+    ),
+    by = c("from_var", "to_var", "duration")
+  ]
+}
+
+average_sub_results <- function(results, df, filter_fn, result_name = "risk") {
+  eids <- filter_fn(df)[, .(eid)]
+
+  # replace the data table of results with the filtered mean
+  results[,
+    "results" := sapply(.SD[[1]], function(inner) {
+      mean(inner[eids, on = "eid", nomatch = 0L][[result_name]], na.rm = TRUE)
+    }),
+    .SDcols = "results"
+  ]
+  results
+}
+
+merge_risks <- function(sub_risks, ref_risks) {
+  sub_risks |>
+    rename("sub_risk" = "results") |>
+    left_join(
+      ref_risks |> rename("ref_risk" = "results"),
+      by = "B"
+    ) |>
+    mutate(
+      rr = sub_risk / ref_risk
+    ) |>
+    dplyr::group_by(from_var, to_var, duration) |>
+    dplyr::summarize(
+      prop_substituted = mean(prop_substituted, na.rm = TRUE),
+      mean_sub_risk = mean(sub_risk, na.rm = TRUE),
+      mean_ref_risk = mean(ref_risk, na.rm = TRUE),
+      mean_rr = mean(rr, na.rm = TRUE),
+      lower_rr = quantile(rr, 0.025),
+      upper_rr = quantile(rr, 0.975),
+      .groups = "drop"
+    )
+}
+
+make_plot <- function(df, from, colour) {
+  sub_name <-
+    ifelse(
+      from == "avg_inactivity",
+      "inactivity",
+      ifelse(from == "avg_light", "light activity", "MVPA")
+    )
+  to <- "avg_sleep"
+
+  df |>
+    dplyr::filter(from_var %in% c(from, to) & to_var %in% c(from, to)) |>
+    dplyr::mutate(
+      duration = dplyr::if_else(from_var == to, duration * -1, duration)
+    ) |>
+    dplyr::select(-from_var, -to_var) |>
+    ggplot(aes(x = duration, y = mean_rr)) +
+    geom_line(colour = colour) +
+    geom_hline(yintercept = 1, linetype = "dotted") +
+    xlab("") +
+    ylab("Risk ratio") +
+    annotate(
+      geom = "text",
+      x = 0,
+      y = -0.15,
+      hjust = 0.5,
+      fontface = 1,
+      size = 14 / .pt,
+      label = "Minutes",
+      family = "serif"
+    ) +
+    annotate(
+      geom = "text",
+      x = -20,
+      y = -0.5,
+      hjust = 1,
+      fontface = 1,
+      size = 12 / .pt,
+      label = "Less sleep",
+      family = "serif"
+    ) +
+    annotate(
+      geom = "text",
+      x = 20,
+      y = -0.5,
+      hjust = 0,
+      fontface = 1,
+      size = 12 / .pt,
+      label = "More sleep",
+      family = "serif"
+    ) +
+    geom_segment(
+      aes(
+        x = 1,
+        y = -0.625,
+        xend = 15,
+        yend = -0.625
+      ),
+      arrow = arrow(length = unit(0.15, "cm"))
+    ) +
+    geom_segment(
+      aes(
+        x = -1,
+        y = -0.625,
+        xend = -15,
+        yend = -0.625
+      ),
+      arrow = arrow(length = unit(0.15, "cm"))
+    ) +
+    annotate(
+      geom = "text",
+      x = -20,
+      y = -0.75,
+      hjust = 1,
+      size = 12 / .pt,
+      label = paste("More ", sub_name),
+      family = "serif",
+      fontface = 1,
+      size = 12 / .pt
+    ) +
+    annotate(
+      geom = "text",
+      x = 20,
+      y = -0.75,
+      hjust = 0,
+      label = paste("Less ", sub_name),
+      family = "serif",
+      fontface = 1,
+      size = 12 / .pt
+    ) +
+    coord_cartesian(ylim = c(0.33, 3), expand = FALSE, clip = "off") +
+    cowplot::theme_cowplot(
+      font_size = 12,
+      font_family = "serif",
+      line_size = 0.25
+    ) +
+    theme(
+      plot.margin = unit(c(1, 1, 4, 1), "lines"),
+      strip.background = element_blank(),
+      strip.text.x = element_blank(),
+      panel.border = element_rect(fill = NA, colour = "#585656"),
+      panel.grid = element_line(colour = "grey92"),
+      panel.grid.minor = element_line(linewidth = rel(0.5)),
+      axis.ticks.y = element_blank(),
+      axis.line = element_line(color = "#585656")
+    ) +
+    geom_ribbon(
+      aes(ymin = lower_rr, ymax = upper_rr),
+      alpha = 0.25,
+      fill = colour
+    )
+}
+
+make_plot_grid <- function(plots) {
+  plot_grid <- (plots[["short_inactive"]] |
+    plots[["avg_inactive"]] |
+    plots[["long_inactive"]]) /
+    (plots[["short_light"]] | plots[["avg_light"]] | plots[["long_light"]]) /
+    (plots[["short_mvpa"]] | plots[["avg_mvpa"]] | plots[["long_mvpa"]])
+
+  # Add column and row labels
+  row_labels <- c("Short Sleepers", "Average Sleepers", "Long Sleepers")
+  col_labels <- c("Inactivity", "Light Activity", "MVPA")
+
+  final_plot <- plot_grid(
+    # Row 1 (with row label)
+    plot_grid(
+      NULL,
+      plots[[1]],
+      plots[[2]],
+      plots[[3]],
+      nrow = 1,
+      rel_widths = c(0.12, 1, 1, 1),
+      label_size = 12,
+      label_x = 0.1,
+      hjust = 0
+    ),
+    plot_grid(
+      NULL,
+      plots[[4]],
+      plots[[5]],
+      plots[[6]],
+      nrow = 1,
+      rel_widths = c(0.12, 1, 1, 1)
+    ),
+    plot_grid(
+      NULL,
+      plots[[7]],
+      plots[[8]],
+      plots[[9]],
+      nrow = 1,
+      rel_widths = c(0.12, 1, 1, 1)
+    ),
+    ncol = 1,
+    rel_heights = c(1, 1, 1)
+  )
+
+  plot_grid(
+    NULL,
+    textGrob(col_labels[1], gp = gpar(fontsize = 14)),
+    textGrob(col_labels[2], gp = gpar(fontsize = 14)),
+    textGrob(col_labels[3], gp = gpar(fontsize = 14)),
+    nrow = 1,
+    rel_widths = c(0.12, 1, 1, 1)
+  ) |>
+    plot_grid(final_plot, ncol = 1, rel_heights = c(0.08, 1))
 }

@@ -1,4 +1,8 @@
-get_primary_outcome_formula <- function(data) {
+get_primary_formula <- function(data) {
+  knots_timegroup <- quantile(
+    data[["timegroup"]],
+    c(0.01, 0.5, 0.99)
+  )
   knots_age <- quantile(
     data[["age_accel"]],
     c(0.1, 0.5, 0.9)
@@ -13,72 +17,37 @@ get_primary_outcome_formula <- function(data) {
   )
 
   primary_formula <- as.formula(
-    ~ R1 +
-      R2 +
-      R3 +
-      I(R1^2) +
-      I(R2^2) +
-      I(R3^2) +
-      (rcs(age_accel, knots_age) +
-        sex +
-        retired +
-        highest_qual +
-        apoe_e4)^2 +
-      avg_total_household_income +
-      smok_status +
+    ~ poly(R1, 2) *
+      rcs(timegroup, knots_timegroup) +
+      poly(R2, 2) * rcs(timegroup, knots_timegroup) +
+      poly(R3, 2) * rcs(timegroup, knots_timegroup) +
+      poly(R1, 2) * as.numeric(avg_total_household_income) +
+      poly(R2, 2) * as.numeric(avg_total_household_income) +
+      poly(R3, 2) * as.numeric(avg_total_household_income) +
+      poly(R1, 2) * sex +
+      poly(R2, 2) * sex +
+      poly(R3, 2) * sex +
+      poly(R1, 2) * retired +
+      poly(R2, 2) * retired +
+      poly(R3, 2) * retired +
+      poly(R1, 2) * smok_status +
+      poly(R2, 2) * smok_status +
+      poly(R3, 2) * smok_status +
+      poly(R1, 2) * rcs(age_accel, knots_age) +
+      poly(R2, 2) * rcs(age_accel, knots_age) +
+      poly(R3, 2) * rcs(age_accel, knots_age) +
+      rcs(timegroup, knots_timegroup) * rcs(age_accel, knots_age) +
+      rcs(timegroup, knots_timegroup) * sex +
+      rcs(timegroup, knots_timegroup) * as.numeric(apoe_e4) +
+      highest_qual +
       rcs(fruit_veg, knots_fruit_veg) +
       alc_freq +
       shift +
-      apoe_e4 +
       rcs(townsend_deprivation_index, knots_deprivation) +
       psych_meds +
       ethnicity +
-      (R1 +
-        R2 +
-        R3):(age_accel +
-        sex +
-        retired +
-        avg_total_household_income +
-        highest_qual +
-        smok_status)
-  )
-
-  return(primary_formula)
-}
-
-get_primary_treatment_formula <- function(data) {
-  knots_age <- quantile(
-    data[["age_accel"]],
-    c(0.1, 0.5, 0.9)
-  )
-  knots_deprivation <- quantile(
-    data[["townsend_deprivation_index"]],
-    c(0.1, 0.5, 0.9)
-  )
-  knots_fruit_veg <- quantile(
-    data[["fruit_veg"]],
-    c(0.1, 0.5, 0.9)
-  )
-
-  primary_formula <- as.formula(
-    ~ R1 +
-      R2 +
-      R3 +
-      I(R1^2) +
-      I(R2^2) +
-      I(R3^2) +
-      (rcs(age_accel, knots_age) +
-        sex +
-        retired +
-        highest_qual +
-        smok_status)^2 +
-      rcs(fruit_veg, knots_fruit_veg) +
-      alc_freq +
-      shift +
-      apoe_e4 +
-      rcs(townsend_deprivation_index, knots_deprivation) +
-      psych_meds +
-      ethnicity
+      rcs(age_accel, knots_age) * sex +
+      rcs(age_accel, knots_age) * as.numeric(apoe_e4)
   )
 
   return(primary_formula)
@@ -204,63 +173,71 @@ get_s3_formula <- function(data) {
   return(s3_formula)
 }
 
-fit_model <- function(imp, timegroup_cuts, create_formula_fn) {
-  imp_long <- survSplit(
-    Surv(time = age_accel, event = dem, time2 = age_dem) ~ .,
+fit_models <- function(imp, timegroup_cuts, create_formula_fn) {
+  RhpcBLASctl::blas_set_num_threads(1)
+  RhpcBLASctl::omp_set_num_threads(1)
+  imp_survival <- survSplit(
+    Surv(time = time_to_dem, event = dem) ~ .,
     data = imp,
     cut = timegroup_cuts,
     episode = "timegroup",
-    end = "age_end",
+    end = "end",
     event = "dem",
-    start = "age_start"
+    start = "start"
   )
+
+  setDT(imp_survival)
+
+  # start timegroup at 1
+  imp_survival[, timegroup := timegroup - 1]
 
   # add indicators for death
-  setDT(imp_long)
+  imp_survival[,
+    death := fcase(
+      death == 1 & end > time_to_death,
+      1,
+      death == 0 & end > time_to_death,
+      NA,
+      default = 0
+    )
+  ]
 
-  imp_long$death <-
-    ifelse(imp_long$death == 1 & imp_long$age_at_death < imp_long$age_end, 1, 0)
+  imp_survival[, death := ifelse(dem == 1, NA, death)]
 
   # remove rows after death
-  imp_long[, sumdeath := cumsum(death), by = "eid"]
-  imp_long <- imp_long[sumdeath < 2, ]
-  model_formula <- create_formula_fn(imp_long)
+  imp_survival[, sumdeath := cumsum(death), by = "id"]
+  imp_survival <- imp_survival[sumdeath < 2 | is.na(sumdeath), ]
+  imp_survival[, sumdeath := NULL]
 
-  # predictor and outcome matrices for fastglm
-  Xdem <- model.matrix(
-    model_formula,
-    imp_long[death == 0, ]
-  )
-  Ydem <- as.matrix(imp_long[death == 0, ]$dem)
-
-  Xdeath <- model.matrix(
-    model_formula,
-    imp_long[dem == 0, ]
-  )
-  Ydeath <- as.matrix(imp_long[dem == 0, ]$death)
+  # model formula
+  model_formula <- create_formula_fn(imp_survival)
+  dem_model_formula <- update(model_formula, dem ~ .)
+  death_model_formula <- update(model_formula, death ~ .)
 
   # fit models
-  model_dem <- fastglm(
-    x = Xdem,
-    y = Ydem,
-    family = binomial(),
-    method = 3
+  model_dem <- glm(
+    dem_model_formula,
+    data = imp_survival[death == 0 | is.na(death), ],
+    family = binomial()
   )
-  model_death <- fastglm(
-    x = Xdeath,
-    y = Ydeath,
-    family = binomial,
-    method = 3
+
+  model_dem <- strip_glm(model_dem)
+
+  model_death <- glm(
+    death_model_formula,
+    data = imp_survival[dem == 0, ],
+    family = binomial()
   )
+
+  model_death <- strip_glm(model_death)
 
   return(list(
     model_dem = model_dem,
-    model_death = model_death,
-    model_formula = model_formula
+    model_death = model_death
   ))
 }
 
-predict_composition_risk <- function(
+get_risks <- function(
   composition,
   stacked_data_table,
   model_dem,

@@ -215,10 +215,18 @@ process_mri_subs_output <- function(rds_path, mri_model_data) {
 
         # Store the plot data in the corresponding list
         plot_name <- paste0(reference, "_", activity_level)
-        if (outcomes[i] == "tbv") tbv_plot_list[[plot_name]] <- plot_data
-        if (outcomes[i] == "gmv") gmv_plot_list[[plot_name]] <- plot_data
-        if (outcomes[i] == "wmv") wmv_plot_list[[plot_name]] <- plot_data
-        if (outcomes[i] == "hip") hip_plot_list[[plot_name]] <- plot_data
+        if (outcomes[i] == "tbv") {
+          tbv_plot_list[[plot_name]] <- plot_data
+        }
+        if (outcomes[i] == "gmv") {
+          gmv_plot_list[[plot_name]] <- plot_data
+        }
+        if (outcomes[i] == "wmv") {
+          wmv_plot_list[[plot_name]] <- plot_data
+        }
+        if (outcomes[i] == "hip") {
+          hip_plot_list[[plot_name]] <- plot_data
+        }
         if (outcomes[i] == "log_wmh") {
           log_wmh_plot_list[[plot_name]] <- plot_data
         }
@@ -651,10 +659,18 @@ get_boot_contrasts <- function(offset) {
 
         # Store the contrast data in the corresponding list
         contrast_name <- paste0(reference, "_", activity_level)
-        if (outcomes[i] == "tbv") tbv_list[[contrast_name]] <- contrast_data
-        if (outcomes[i] == "gmv") gmv_list[[contrast_name]] <- contrast_data
-        if (outcomes[i] == "wmv") wmv_list[[contrast_name]] <- contrast_data
-        if (outcomes[i] == "hip") hip_list[[contrast_name]] <- contrast_data
+        if (outcomes[i] == "tbv") {
+          tbv_list[[contrast_name]] <- contrast_data
+        }
+        if (outcomes[i] == "gmv") {
+          gmv_list[[contrast_name]] <- contrast_data
+        }
+        if (outcomes[i] == "wmv") {
+          wmv_list[[contrast_name]] <- contrast_data
+        }
+        if (outcomes[i] == "hip") {
+          hip_list[[contrast_name]] <- contrast_data
+        }
         if (outcomes[i] == "log_wmh") {
           log_wmh_list[[contrast_name]] <- contrast_data
         }
@@ -687,4 +703,295 @@ get_boot_contrasts <- function(offset) {
     ),
     .id = "outcome"
   ))
+}
+
+strip_lm <- function(cm) {
+  cm$y <- c()
+  cm$model <- c()
+
+  cm$residuals <- c()
+  cm$fitted.values <- c()
+  cm$effects <- c()
+  cm$qr$qr <- c()
+  cm$linear.predictors <- c()
+  cm$weights <- c()
+  cm$prior.weights <- c()
+  cm$data <- c()
+
+  return(cm)
+}
+
+get_mri_model <- function(imp, outcome) {
+  RhpcBLASctl::blas_set_num_threads(1)
+  RhpcBLASctl::omp_set_num_threads(1)
+
+  # Fit linear regression
+  model_formula <- get_mri_formula(imp)
+  model_formula <- update(model_formula, as.formula(paste(outcome, "~ .")))
+  model <- lm(model_formula, imp)
+  strip_lm(model)
+}
+
+get_mri_ref <- function(imp, outcome, model) {
+  RhpcBLASctl::blas_set_num_threads(1)
+  RhpcBLASctl::omp_set_num_threads(1)
+  imp$estimate <- predict(model, newdata = imp)
+  data.table(
+    outcome = outcome,
+    results = list(result = imp |> select(eid, estimate)),
+    B = unique(imp$tar_batch)
+  )
+}
+
+get_mri_subs <- function(imp, outcome, model, from_var, to_var, duration) {
+  RhpcBLASctl::blas_set_num_threads(1)
+  RhpcBLASctl::omp_set_num_threads(1)
+
+  # make substitution
+  comp_limits <- list(
+    avg_sleep = list(
+      lower = 181,
+      upper = 544
+    ),
+    avg_inactivity = list(
+      lower = 348,
+      upper = 1059
+    ),
+    avg_light = list(
+      lower = 76,
+      upper = 511
+    ),
+    avg_mvpa = list(
+      lower = 20,
+      upper = 384
+    )
+  )
+  lower_from <- comp_limits[[from_var]]$lower
+  upper_to <- comp_limits[[to_var]]$upper
+
+  max_from_change <- imp[[from_var]] - lower_from
+  max_to_change <- upper_to - imp[[to_var]]
+  can_substitute <- (max_from_change >= duration) & (max_to_change >= duration)
+  prop_substituted <- sum(can_substitute) / nrow(imp)
+
+  sub_df <- imp
+  sub_df[[from_var]] <- sub_df[[from_var]] - (can_substitute * duration)
+  sub_df[[to_var]] <- sub_df[[to_var]] + (can_substitute * duration)
+
+  # 2) composition -> ILR
+  comp <- acomp(sub_df[, c(
+    "avg_sleep",
+    "avg_inactivity",
+    "avg_light",
+    "avg_mvpa"
+  )])
+  ilr_vars <- ilr(comp, V = v) |>
+    setNames(c("R1", "R2", "R3"))
+
+  sub_df[, c("R1", "R2", "R3")] <- as.data.table(ilr_vars)
+
+  sub_df$estimate <- predict(model, newdata = sub_df)
+
+  data.table(
+    outcome = outcome,
+    results = list(result = sub_df |> select(eid, estimate)),
+    B = unique(imp$tar_batch),
+    from_var = from_var,
+    to_var = to_var,
+    duration = duration,
+    prop_substituted = prop_substituted
+  )
+}
+
+merge_estimates <- function(sub_estimates, ref_estimates) {
+  sub_estimates |>
+    rename("sub_estimate" = "results") |>
+    left_join(
+      ref_estimates |> rename("ref_estimate" = "results"),
+      by = "B"
+    ) |>
+    mutate(
+      md = sub_estimate - ref_estimate
+    ) |>
+    dplyr::group_by(from_var, to_var, duration) |>
+    dplyr::summarize(
+      prop_substituted = mean(prop_substituted, na.rm = TRUE),
+      mean_sub_estimate = mean(sub_estimate, na.rm = TRUE),
+      mean_ref_estimate = mean(ref_estimate, na.rm = TRUE),
+      md = mean(md, na.rm = TRUE),
+      lower_md = quantile(md, 0.025),
+      upper_md = quantile(md, 0.975),
+      .groups = "drop"
+    )
+}
+
+get_mri_labels <- function(mri_results, outcome) {
+  list(
+    ylabel = if (outcome == "tbv") {
+      ylabel <- expression(paste(
+        "Total brain volume ",
+        (cm^{
+          "3"
+        })
+      ))
+    } else if (outcome == "wmv") {
+      ylabel <- expression(paste(
+        "White matter volume ",
+        (cm^{
+          "3"
+        })
+      ))
+    } else if (outcome == "gmv") {
+      ylabel <- expression(paste(
+        "Grey matter volume ",
+        (cm^{
+          "3"
+        })
+      ))
+    } else if (outcome == "hip") {
+      ylabel <- expression(paste(
+        "Hippocampal volume ",
+        (cm^{
+          "3"
+        })
+      ))
+    } else if (outcome == "log_wmh") {
+      ylabel <- "Log WMH"
+    } else {
+      ylabel <- expression(as.character(outcome))
+    },
+    sub_name = case_when(
+      mri_results$from_var == "avg_inactivity" ~ "Inactivity",
+      mri_results$from_var == "avg_light" ~ "Light Activity",
+      mri_results$from_var == "avg_mvpa" ~ "MVPA",
+      .default = as.character(mri_results$from_var)
+    )
+  )
+}
+
+make_mri_plot <- function(mri_results, outcome, colour) {
+  labels <- get_mri_labels(mri_results, outcome)
+
+  # Calculate y-axis limits and offsets
+  y_mean <- mean(mri_results$md, na.rm = TRUE)
+  y_sd <- sd(mri_results$md, na.rm = TRUE)
+  lower_lim <- y_mean - 0.25 * y_sd
+  upper_lim <- y_mean + 0.25 * y_sd
+
+  # Calculate offsets for annotations
+  y_range <- upper_lim - lower_lim
+  minutes_offset <- 0.2 * y_range
+  sleep_offset <- 0.275 * y_range
+  arrow_offset <- 0.325 * y_range
+  sub_offset <- 0.375 * y_range
+
+  mri_results |>
+    ggplot(aes(x = duration, y = md)) +
+    geom_line(colour = colour) +
+    geom_ribbon(
+      aes(ymin = lower_md, ymax = upper_md),
+      alpha = 0.2,
+      fill = colour
+    ) +
+    labs(x = "", y = labels$ylabel) +
+
+    # Annotations
+    annotate(
+      "text",
+      x = 0,
+      y = lower_lim - minutes_offset,
+      label = "Minutes",
+      hjust = 0.5,
+      size = 14 / .pt,
+      fontface = 1,
+      family = "serif"
+    ) +
+
+    annotate(
+      "text",
+      x = -20,
+      y = lower_lim - sleep_offset,
+      label = "Less sleep",
+      hjust = 1,
+      size = 12 / .pt,
+      fontface = 1,
+      family = "serif"
+    ) +
+
+    annotate(
+      "text",
+      x = 20,
+      y = lower_lim - sleep_offset,
+      label = "More sleep",
+      hjust = 0,
+      size = 12 / .pt,
+      fontface = 1,
+      family = "serif"
+    ) +
+
+    annotate(
+      "text",
+      x = -20,
+      y = lower_lim - sub_offset,
+      label = paste("More", labels$sub_name),
+      hjust = 1,
+      size = 12 / .pt,
+      fontface = 1,
+      family = "serif"
+    ) +
+
+    annotate(
+      "text",
+      x = 20,
+      y = lower_lim - sub_offset,
+      label = paste("Less", labels$sub_name),
+      hjust = 0,
+      size = 12 / .pt,
+      fontface = 1,
+      family = "serif"
+    ) +
+
+    # Arrows
+    geom_segment(
+      aes(
+        x = 1,
+        xend = 15,
+        y = lower_lim - arrow_offset,
+        yend = lower_lim - arrow_offset
+      ),
+      arrow = arrow(length = unit(0.15, "cm"))
+    ) +
+
+    geom_segment(
+      aes(
+        x = -1,
+        xend = -15,
+        y = lower_lim - arrow_offset,
+        yend = lower_lim - arrow_offset
+      ),
+      arrow = arrow(length = unit(0.15, "cm"))
+    ) +
+
+    # Coordinate system and theme
+    coord_cartesian(
+      ylim = c(lower_lim, upper_lim),
+      expand = FALSE,
+      clip = "off"
+    ) +
+    cowplot::theme_cowplot(
+      font_size = 12,
+      font_family = "serif",
+      line_size = 0.25
+    ) +
+    theme(
+      plot.margin = unit(c(1, 1, 4, 1), "lines"),
+      strip.background = element_blank(),
+      strip.text.x = element_blank(),
+      panel.border = element_rect(fill = NA, colour = "#585656"),
+      panel.grid = element_line(colour = "grey92"),
+      panel.grid.minor = element_line(linewidth = rel(0.5)),
+      axis.ticks.y = element_blank(),
+      axis.line = element_line(color = "#585656"),
+      axis.title.y = element_text(margin = margin(r = 10))
+    )
 }

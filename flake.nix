@@ -46,6 +46,7 @@
                 [
                   R
                   quarto
+                  just
                 ]
                 ++ (with pkgsUnstable; [
                   air-formatter
@@ -54,10 +55,10 @@
                   (pkgs.rPackages.buildRPackage {
                     name = "lmtp";
                     src = pkgs.fetchFromGitHub{
-                      owner = "BeaudanBrown";
+                      owner = "nt-williams";
                       repo = "lmtp";
-                      rev = "264c3c817f541ce0b0bf4598886fb6d990d9305c";
-                      sha256 = "sha256-5bwkX6RCmWW02iuFc8PtkyWXB6eHgdc/afssFEuH9kI=";
+                      rev = "57b2064d234b66786b371340e64f76267ded0f31";
+                      sha256 = "sha256-O8NHAjl95nssX//y+UgjghxF5Bqnv4eQR3l5FbVNv/I=";
                     };
                     propagatedBuildInputs = with pkgs.rPackages; [
                       nnls
@@ -110,6 +111,9 @@
                   furrr
                   broom
                   RhpcBLASctl
+                  autometric
+                  ks
+                  patchwork
                 ]);
             };
       }

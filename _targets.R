@@ -301,7 +301,7 @@ list(
   #### FIND IDEAL/WORST COMPOSITION ####
 
   tar_target(synth_comps, generate_compositions(df)),
-  tar_target(synth_comps_dens, add_density(df, synth_comps, 0.05)),
+  tar_target(synth_comps_dens, add_density(df, synth_comps, 0.1)),
   tar_target(
     synth_comps_filtered,
     synth_comps_dens[dens > dens_threshold & !is.na(dens), ]
@@ -422,7 +422,7 @@ list(
           mri_plot,
           {
             make_mri_plot(
-              mri_mean_diffs |> filter(from_var == sub_type),
+              mri_results = mri_mean_diffs |> filter(from_var == sub_type),
               outcome,
               colour
             )
@@ -480,6 +480,47 @@ list(
         cum_avg_risks_Typical,
         cum_avg_risks_Best
       )
+    }
+  ),
+  tar_target(
+    cum_plot,
+    {
+      composition_colors <- c(
+        "Worst" = "#DC3912",
+        "Typical" = "#56B4E9",
+        "Best" = "#7AC36A"
+      )
+      cum_plot_data |>
+        ggplot(aes(x = timegroup, y = risk)) +
+        geom_ribbon(
+          aes(ymin = lower_risk, ymax = upper_risk, fill = composition),
+          alpha = 0.25
+        ) +
+        geom_line(aes(colour = composition)) +
+        labs(
+          x = "Time since baseline (years)",
+          y = "Cumulative all-cause dementia incidence"
+        ) +
+        scale_color_manual(
+          values = composition_colors
+        ) +
+        scale_fill_manual(
+          values = composition_colors
+        ) +
+        cowplot::theme_cowplot(
+          font_size = 16,
+          font_family = "serif",
+          line_size = 0.25
+        ) +
+        theme(
+          panel.border = element_rect(fill = NA, colour = "#585656"),
+          panel.grid = element_line(colour = "grey92"),
+          panel.grid.minor = element_line(linewidth = rel(0.5)),
+          axis.ticks.y = element_blank(),
+          axis.line = element_line(color = "#585656"),
+          axis.title.x = element_text(family = "serif", size = 20),
+          axis.title.y = element_text(family = "serif", size = 20)
+        )
     }
   )
 )

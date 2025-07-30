@@ -54,10 +54,10 @@
                   (pkgs.rPackages.buildRPackage {
                     name = "lmtp";
                     src = pkgs.fetchFromGitHub{
-                      owner = "nt-williams";
+                      owner = "BeaudanBrown";
                       repo = "lmtp";
-                      rev = "27d800aea3c321f5c7e0d1158bd2ad21c5396473";
-                      sha256 = "sha256-2q0w9PtJQKCvF0/xuGMuoFXztEOCcy6JJQD7JRGWnGQ=";
+                      rev = "264c3c817f541ce0b0bf4598886fb6d990d9305c";
+                      sha256 = "sha256-5bwkX6RCmWW02iuFc8PtkyWXB6eHgdc/afssFEuH9kI=";
                     };
                     propagatedBuildInputs = with pkgs.rPackages; [
                       nnls

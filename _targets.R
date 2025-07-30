@@ -15,7 +15,7 @@ mins_in_day <- 1440
 mins_in_hour <- 60
 sub_steps <- 4
 sub_step_mins <- mins_in_hour / sub_steps
-m <- 10 # Number of imputed datasets
+m <- 2 # Number of imputed datasets
 maxit <- 2 # Number of MICE iterations
 bootstrap_iterations <- 16 # For ideal/worst plots
 
@@ -46,8 +46,6 @@ tar_option_set(
     "mvtnorm",
     "lmtp",
     "extrafont",
-    "targets",
-    "tarchetypes",
     "RhpcBLASctl"
   ),
   format = "qs",
@@ -57,8 +55,6 @@ tar_option_set(
   ),
   seed = 5678
 )
-
-source("sub_targets.R")
 
 # Run the R scripts in the R/ folder
 tar_source()
@@ -129,8 +125,8 @@ list(
     format = "file"
   ),
   tar_target(df, prepare_dataset(df_raw, disease_file)),
-  tar_target(test_df, sample_frac(df, 0.03)),
-  tar_target(imp, impute_data(df, m, maxit), iteration = "list"),
+  tar_target(test_df, sample_frac(df, 0.25)),
+  tar_target(imp, impute_data(test_df, m, maxit), iteration = "list"),
   tar_target(
     timegroup_cuts,
     make_cuts(df)
@@ -140,5 +136,80 @@ list(
     widen_data(imp, timegroup_cuts),
     iteration = "list"
   ),
-  sub_targets
+  tar_target(
+    sub_names,
+    c("avg_sleep", "avg_mvpa", "avg_light", "avg_inactivity")
+  ),
+  tar_target(sub_durations, seq(from = 15, to = 60, by = 15)),
+  tar_target(
+    substitutions,
+    {
+      expand.grid(
+        from_var = sub_names,
+        to_var = sub_names,
+        stringsAsFactors = FALSE
+      ) |>
+        dplyr::filter(
+          !from_var == to_var &
+            (from_var == "avg_sleep" | to_var == "avg_sleep")
+        )
+    }
+  ),
+  tar_target(
+    substituted_dfs,
+    apply_substitution(
+      imp_wide,
+      substitutions$from_var,
+      substitutions$to_var,
+      sub_durations
+    ),
+    pattern = cross(imp_wide, substitutions, sub_durations)
+  ),
+  tar_target(
+    lmtp_reference,
+    estimate_lmtp_reference(
+      imp_wide,
+      baseline_covars = c(
+        "fruit_veg",
+        "alc_freq",
+        "sex",
+        "retired",
+        "shift",
+        "apoe_e4",
+        "highest_qual",
+        "townsend_deprivation_index",
+        "psych_meds",
+        "ethnicity",
+        "avg_total_household_income",
+        "smok_status",
+        "age_accel"
+      )
+    ),
+    pattern = map(imp_wide),
+    iteration = "list"
+  ),
+  tar_target(
+    lmtp_subs,
+    estimate_lmtp_subs(
+      substituted_dfs[[1]],
+      substituted_dfs[[2]],
+      baseline_covars = c(
+        "fruit_veg",
+        "alc_freq",
+        "sex",
+        "retired",
+        "shift",
+        "apoe_e4",
+        "highest_qual",
+        "townsend_deprivation_index",
+        "psych_meds",
+        "ethnicity",
+        "avg_total_household_income",
+        "smok_status",
+        "age_accel"
+      )
+    ),
+    pattern = map(substituted_dfs),
+    iteration = "list"
+  )
 )

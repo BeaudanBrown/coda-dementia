@@ -237,7 +237,8 @@ list(
         sub["to_var"],
         as.numeric(sub["duration"]),
         primary_models,
-        final_time
+        final_time,
+        comp_limits
       )
     })),
     pattern = map(imp, primary_models),
@@ -375,7 +376,8 @@ list(
           mri_models,
           sub["from_var"],
           sub["to_var"],
-          as.numeric(sub["duration"])
+          as.numeric(sub["duration"]),
+          comp_limits
         )
       })),
       pattern = map(mri_imp, mri_models)

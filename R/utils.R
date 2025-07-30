@@ -106,3 +106,29 @@ ordinal_to_numeric <- function(data) {
 
   data
 }
+
+apply_substitution <- function(imp, from_var, to_var, comp_limits) {
+  lower_from <- comp_limits[[from_var]]$lower
+  upper_to <- comp_limits[[to_var]]$upper
+
+  max_from_change <- imp[[from_var]] - lower_from
+  max_to_change <- upper_to - imp[[to_var]]
+  can_substitute <- (max_from_change >= duration) & (max_to_change >= duration)
+  prop_substituted <- sum(can_substitute) / nrow(imp)
+
+  sub <- imp
+  sub[[from_var]] <- sub[[from_var]] - (can_substitute * duration)
+  sub[[to_var]] <- sub[[to_var]] + (can_substitute * duration)
+
+  comp <- acomp(sub[, c(
+    "avg_sleep",
+    "avg_inactivity",
+    "avg_light",
+    "avg_mvpa"
+  )])
+  ilr_vars <- ilr(comp, V = v) |>
+    setNames(c("R1", "R2", "R3"))
+
+  sub[, c("R1", "R2", "R3")] <- as.data.table(ilr_vars)
+  sub
+}

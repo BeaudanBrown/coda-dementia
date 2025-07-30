@@ -183,6 +183,35 @@ list(
   ),
   tar_target(timegroup_cuts, make_cuts(df)),
   tar_target(final_time, length(timegroup_cuts) - 1),
+  tar_target(comp_limits, {
+    sleep_quants <- quantile(df$avg_sleep, probs = c(0.01, 0.99), na.rm = TRUE)
+    inactivity_quants <- quantile(
+      df$avg_inactivity,
+      probs = c(0.01, 0.99),
+      na.rm = TRUE
+    )
+    light_quants <- quantile(df$avg_light, probs = c(0.01, 0.99), na.rm = TRUE)
+    mvpa_quants <- quantile(df$avg_mvpa, probs = c(0.01, 0.99), na.rm = TRUE)
+
+    list(
+      avg_sleep = list(
+        lower = sleep_quants[1],
+        upper = sleep_quants[2]
+      ),
+      avg_inactivity = list(
+        lower = inactivity_quants[1],
+        upper = inactivity_quants[2]
+      ),
+      avg_light = list(
+        lower = light_quants[1],
+        upper = light_quants[2]
+      ),
+      avg_mvpa = list(
+        lower = mvpa_quants[1],
+        upper = mvpa_quants[2]
+      )
+    )
+  }),
 
   #### IMPUTATION ####
   tar_rep(boots, bootstrap_sample(df), batches = n_boots),

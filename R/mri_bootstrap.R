@@ -743,55 +743,19 @@ get_mri_ref <- function(imp, outcome, model) {
   )
 }
 
-get_mri_subs <- function(imp, outcome, model, from_var, to_var, duration) {
+get_mri_subs <- function(
+  imp,
+  outcome,
+  model,
+  from_var,
+  to_var,
+  duration,
+  comp_limits
+) {
   RhpcBLASctl::blas_set_num_threads(1)
   RhpcBLASctl::omp_set_num_threads(1)
-
-  # make substitution
-  comp_limits <- list(
-    avg_sleep = list(
-      lower = 181,
-      upper = 544
-    ),
-    avg_inactivity = list(
-      lower = 348,
-      upper = 1059
-    ),
-    avg_light = list(
-      lower = 76,
-      upper = 511
-    ),
-    avg_mvpa = list(
-      lower = 20,
-      upper = 384
-    )
-  )
-  lower_from <- comp_limits[[from_var]]$lower
-  upper_to <- comp_limits[[to_var]]$upper
-
-  max_from_change <- imp[[from_var]] - lower_from
-  max_to_change <- upper_to - imp[[to_var]]
-  can_substitute <- (max_from_change >= duration) & (max_to_change >= duration)
-  prop_substituted <- sum(can_substitute) / nrow(imp)
-
-  sub_df <- imp
-  sub_df[[from_var]] <- sub_df[[from_var]] - (can_substitute * duration)
-  sub_df[[to_var]] <- sub_df[[to_var]] + (can_substitute * duration)
-
-  # 2) composition -> ILR
-  comp <- acomp(sub_df[, c(
-    "avg_sleep",
-    "avg_inactivity",
-    "avg_light",
-    "avg_mvpa"
-  )])
-  ilr_vars <- ilr(comp, V = v) |>
-    setNames(c("R1", "R2", "R3"))
-
-  sub_df[, c("R1", "R2", "R3")] <- as.data.table(ilr_vars)
-
+  sub <- apply_substitution(imp, from_var, to_var, comp_limits)
   sub_df$estimate <- predict(model, newdata = sub_df)
-
   data.table(
     outcome = outcome,
     results = list(result = sub_df |> select(eid, estimate)),

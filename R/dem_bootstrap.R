@@ -780,9 +780,7 @@ make_cuts <- function(df) {
   timegroup_cuts
 }
 
-get_ref_risk <- function(imp, models, final_time) {
-  RhpcBLASctl::blas_set_num_threads(1)
-  RhpcBLASctl::omp_set_num_threads(1)
+get_risk <- function(imp, models, final_time) {
   imp_len <- nrow(imp)
   imp_long_cuts <- imp[rep(seq_len(imp_len), each = final_time)]
   imp_long_cuts[, timegroup := rep(1:final_time, imp_len)]
@@ -808,15 +806,20 @@ get_ref_risk <- function(imp, models, final_time) {
     ),
     by = id
   ]
+  imp_long_cuts[,
+    .(eid, risk, timegroup)
+  ]
+}
 
+get_ref_risk <- function(imp, models, final_time) {
+  RhpcBLASctl::blas_set_num_threads(1)
+  RhpcBLASctl::omp_set_num_threads(1)
+  risks <- get_risk(imp, models, final_time)
   data.table(
     results = list(
-      result = imp_long_cuts[
-        timegroup == final_time,
-        .(eid, risk)
-      ]
+      result = risks[timegroup == final_time, .(eid, risk)]
     ),
-    B = unique(imp_long_cuts$tar_batch)
+    B = unique(imp$tar_batch)
   )
 }
 
@@ -826,88 +829,19 @@ get_sub_risk <- function(
   to_var,
   duration,
   models,
-  final_time
+  final_time,
+  comp_limits
 ) {
   RhpcBLASctl::blas_set_num_threads(1)
   RhpcBLASctl::omp_set_num_threads(1)
-  comp_limits <- list(
-    avg_sleep = list(
-      lower = 181,
-      upper = 544
-    ),
-    avg_inactivity = list(
-      lower = 348,
-      upper = 1059
-    ),
-    avg_light = list(
-      lower = 76,
-      upper = 511
-    ),
-    avg_mvpa = list(
-      lower = 20,
-      upper = 384
-    )
-  )
-  lower_from <- comp_limits[[from_var]]$lower
-  upper_to <- comp_limits[[to_var]]$upper
+  sub <- apply_substitution(imp, from_var, to_var, comp_limits)
 
-  max_from_change <- imp[[from_var]] - lower_from
-  max_to_change <- upper_to - imp[[to_var]]
-  can_substitute <- (max_from_change >= duration) & (max_to_change >= duration)
-  prop_substituted <- sum(can_substitute) / nrow(imp)
-
-  sub <- imp
-  sub[[from_var]] <- sub[[from_var]] - (can_substitute * duration)
-  sub[[to_var]] <- sub[[to_var]] + (can_substitute * duration)
-
-  comp <- acomp(sub[, c(
-    "avg_sleep",
-    "avg_inactivity",
-    "avg_light",
-    "avg_mvpa"
-  )])
-  ilr_vars <- ilr(comp, V = v) |>
-    setNames(c("R1", "R2", "R3"))
-
-  sub[, c("R1", "R2", "R3")] <- as.data.table(ilr_vars)
-
-  sub_len <- nrow(sub)
-  sub_long_cuts <- sub[rep(
-    seq_len(sub_len),
-    each = final_time
-  )]
-  sub_long_cuts[, timegroup := rep(1:final_time, sub_len)]
-
-  sub_long_cuts[,
-    haz_dem := predict(
-      models[["model_dem"]],
-      newdata = .SD,
-      type = "response"
-    )
-  ]
-  sub_long_cuts[,
-    haz_death := predict(
-      models[["model_death"]],
-      newdata = .SD,
-      type = "response"
-    )
-  ]
-  setkey(sub_long_cuts, id, timegroup) # sort and set keys
-  sub_long_cuts[,
-    risk := cumsum(
-      haz_dem * cumprod((1 - lag(haz_dem, default = 0)) * (1 - haz_death))
-    ),
-    by = id
-  ]
-
+  risks <- get_risk(sub, models, final_time)
   data.table(
     results = list(
-      result = sub_long_cuts[
-        timegroup == final_time,
-        .(eid, risk)
-      ]
+      result = risks[timegroup == final_time, .(eid, risk)]
     ),
-    B = unique(sub_long_cuts$tar_batch),
+    B = unique(sub$tar_batch),
     from_var = from_var,
     to_var = to_var,
     duration = duration,

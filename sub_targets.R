@@ -57,8 +57,7 @@ sub_targets <- list(
           to_var,
           duration
         ),
-        pattern = map(imp_wide),
-        iteration = "list"
+        pattern = map(imp_wide)
       ),
       tar_target(
         lmtp,

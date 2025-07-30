@@ -798,8 +798,8 @@ apply_substitution <- function(
   max_to_change <- upper_to - df[[to_var]]
   can_substitute <- (max_from_change >= duration) & (max_to_change >= duration)
 
-  df[[from_var]] <- df[[from_var]] - (can_substitute * duration)
-  df[[to_var]] <- df[[to_var]] + (can_substitute * duration)
+  df[[from_var]] - (can_substitute * duration)
+  df[[to_var]] + (can_substitute * duration)
 
   comp_cols <- c("avg_sleep", "avg_inactivity", "avg_light", "avg_mvpa")
 

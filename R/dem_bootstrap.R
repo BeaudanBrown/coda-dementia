@@ -834,15 +834,13 @@ estimate_lmtp_reference <- function(df, baseline_covars) {
   RhpcBLASctl::blas_set_num_threads(1)
   RhpcBLASctl::omp_set_num_threads(1)
 
-  list(lmtp::lmtp_tmle(
+  list(lmtp::lmtp_survival(
     data = df,
     trt = trt,
-    outcome = outcomes,
-    outcome_type = "survival",
+    outcomes = outcomes,
     cens = cens,
     baseline = baseline_covars,
     compete = compete,
-    shifted = df |> mutate(across(starts_with("censoring"), ~1)),
     folds = 1,
     learners_outcome = "SL.glm.Q",
     learners_trt = "SL.glm.g",
@@ -869,11 +867,10 @@ estimate_lmtp_subs <- function(df, sub_df, baseline_covars) {
   RhpcBLASctl::blas_set_num_threads(1)
   RhpcBLASctl::omp_set_num_threads(1)
 
-  list(lmtp::lmtp_tmle(
+  list(lmtp::lmtp_survival(
     data = df,
     trt = trt,
-    outcome = outcomes,
-    outcome_type = "survival",
+    outcomes = outcomes,
     cens = cens,
     baseline = baseline_covars,
     compete = compete,

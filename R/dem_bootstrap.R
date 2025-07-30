@@ -809,6 +809,7 @@ get_risk <- function(imp, models, final_time) {
   imp_long_cuts[,
     .(eid, risk, timegroup)
   ]
+  imp_long_cuts
 }
 
 get_ref_risk <- function(imp, models, final_time) {
@@ -835,8 +836,8 @@ get_sub_risk <- function(
   RhpcBLASctl::blas_set_num_threads(1)
   RhpcBLASctl::omp_set_num_threads(1)
   subbed <- apply_substitution(imp, from_var, to_var, duration, comp_limits)
-  risks <- get_risk(subbed$results, models, final_time)
-  subbed$results <- risks[timegroup == final_time, .(eid, risk)]
+  risks <- get_risk(subbed$results[[1]], models, final_time)
+  subbed$results <- list(risks[timegroup == final_time, .(eid, risk)])
   subbed
 }
 

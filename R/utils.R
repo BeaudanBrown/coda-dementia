@@ -131,7 +131,7 @@ apply_substitution <- function(imp, from_var, to_var, duration, comp_limits) {
 
   sub[, c("R1", "R2", "R3")] <- as.data.table(ilr_vars)
   data.table(
-    results = sub,
+    results = list(sub),
     B = unique(imp$tar_batch),
     from_var = from_var,
     to_var = to_var,

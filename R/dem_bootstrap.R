@@ -834,7 +834,7 @@ get_sub_risk <- function(
 ) {
   RhpcBLASctl::blas_set_num_threads(1)
   RhpcBLASctl::omp_set_num_threads(1)
-  sub <- apply_substitution(imp, from_var, to_var, comp_limits)
+  sub <- apply_substitution(imp, from_var, to_var, duration, comp_limits)
 
   risks <- get_risk(sub, models, final_time)
   data.table(

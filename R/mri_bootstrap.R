@@ -754,7 +754,7 @@ get_mri_subs <- function(
 ) {
   RhpcBLASctl::blas_set_num_threads(1)
   RhpcBLASctl::omp_set_num_threads(1)
-  sub <- apply_substitution(imp, from_var, to_var, comp_limits)
+  sub <- apply_substitution(imp, from_var, to_var, duration, comp_limits)
   sub_df$estimate <- predict(model, newdata = sub_df)
   data.table(
     outcome = outcome,

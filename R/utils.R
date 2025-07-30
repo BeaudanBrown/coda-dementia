@@ -107,7 +107,7 @@ ordinal_to_numeric <- function(data) {
   data
 }
 
-apply_substitution <- function(imp, from_var, to_var, comp_limits) {
+apply_substitution <- function(imp, from_var, to_var, duration, comp_limits) {
   lower_from <- comp_limits[[from_var]]$lower
   upper_to <- comp_limits[[to_var]]$upper
 

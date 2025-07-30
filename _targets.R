@@ -332,9 +332,9 @@ list(
     reference_comps,
     {
       list(
-        best = synth_comp_risk[order(risk), ][1],
-        worst = synth_comp_risk[order(-dens), ][1],
-        typical = synth_comp_risk[order(-risk), ][1]
+        Best = synth_comp_risk[order(risk), ][1],
+        Worst = synth_comp_risk[order(-risk), ][1],
+        Typical = synth_comp_risk[order(-dens), ][1]
       )
     }
   ),
@@ -430,5 +430,56 @@ list(
         )
       )
     )
+  ),
+  tar_map(
+    values = list(
+      comp = c(
+        "Best",
+        "Typical",
+        "Worst"
+      )
+    ),
+    names = comp,
+    tar_target(
+      cum_risks,
+      {
+        imp[, c("R1", "R2", "R3")] <-
+          reference_comps[[comp]][, c("R1", "R2", "R3")]
+        risks <- get_risk(imp, primary_models, final_time)
+        risks <- risks[, .(eid, risk, timegroup)]
+        risks[,
+          .(
+            risk = mean(risk, na.rm = TRUE),
+            B = unique(imp$tar_batch)
+          ),
+          by = .(timegroup)
+        ]
+      },
+      pattern = map(imp, primary_models)
+    ),
+    tar_target(
+      cum_avg_risks,
+      {
+        cum_risks[,
+          .(
+            risk = mean(risk),
+            lower_risk = quantile(risk, 0.025),
+            upper_risk = quantile(risk, 0.975),
+            composition = comp
+          ),
+          by = timegroup
+        ]
+      }
+    )
+  ),
+  tar_target(
+    cum_plot_data,
+    {
+      bind_rows(
+        cum_avg_risks_Worst,
+        cum_avg_risks_Typical,
+        cum_avg_risks_Best
+      )
+    }
   )
 )

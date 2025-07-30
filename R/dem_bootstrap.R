@@ -834,19 +834,10 @@ get_sub_risk <- function(
 ) {
   RhpcBLASctl::blas_set_num_threads(1)
   RhpcBLASctl::omp_set_num_threads(1)
-  sub <- apply_substitution(imp, from_var, to_var, duration, comp_limits)
-
-  risks <- get_risk(sub, models, final_time)
-  data.table(
-    results = list(
-      result = risks[timegroup == final_time, .(eid, risk)]
-    ),
-    B = unique(sub$tar_batch),
-    from_var = from_var,
-    to_var = to_var,
-    duration = duration,
-    prop_substituted = prop_substituted
-  )
+  subbed <- apply_substitution(imp, from_var, to_var, duration, comp_limits)
+  risks <- get_risk(subbed$results, models, final_time)
+  subbed$results <- risks[timegroup == final_time, .(eid, risk)]
+  subbed
 }
 
 intervals <- function(ref, sub) {

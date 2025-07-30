@@ -754,17 +754,11 @@ get_mri_subs <- function(
 ) {
   RhpcBLASctl::blas_set_num_threads(1)
   RhpcBLASctl::omp_set_num_threads(1)
-  sub <- apply_substitution(imp, from_var, to_var, duration, comp_limits)
-  sub_df$estimate <- predict(model, newdata = sub_df)
-  data.table(
-    outcome = outcome,
-    results = list(result = sub_df |> select(eid, estimate)),
-    B = unique(imp$tar_batch),
-    from_var = from_var,
-    to_var = to_var,
-    duration = duration,
-    prop_substituted = prop_substituted
-  )
+  subbed <- apply_substitution(imp, from_var, to_var, duration, comp_limits)
+  subbed$results$estimate <- predict(model, newdata = subbed$results)
+  subbed$results <- subbed$results[, .(eid, estimate)]
+  subbed[, outcome := outcome]
+  subbed
 }
 
 merge_estimates <- function(sub_estimates, ref_estimates) {

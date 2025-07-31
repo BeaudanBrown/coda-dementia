@@ -283,15 +283,15 @@ list(
   tar_target(
     all_primary_plots,
     list(
-      short_inactive = primary_plots_inactivity_short_sleeper_filter_fn,
-      short_light = primary_plots_light_activity_short_sleeper_filter_fn,
-      short_mvpa = primary_plots_mvpa_short_sleeper_filter_fn,
-      avg_inactive = primary_plots_inactivity_avg_sleeper_filter_fn,
-      avg_light = primary_plots_light_activity_avg_sleeper_filter_fn,
-      avg_mvpa = primary_plots_mvpa_avg_sleeper_filter_fn,
-      long_inactive = primary_plots_inactivity_long_sleeper_filter_fn,
-      long_light = primary_plots_light_activity_long_sleeper_filter_fn,
-      long_mvpa = primary_plots_mvpa_long_sleeper_filter_fn
+      short_inactive = primary_plots_inactivity_short_sleeper,
+      short_light = primary_plots_light_activity_short_sleeper,
+      short_mvpa = primary_plots_mvpa_short_sleeper,
+      avg_inactive = primary_plots_inactivity_avg_sleeper,
+      avg_light = primary_plots_light_activity_avg_sleeper,
+      avg_mvpa = primary_plots_mvpa_avg_sleeper,
+      long_inactive = primary_plots_inactivity_long_sleeper,
+      long_light = primary_plots_light_activity_long_sleeper,
+      long_mvpa = primary_plots_mvpa_long_sleeper
     )
   ),
   tar_target(

@@ -155,3 +155,50 @@ apply_substitution <- function(imp, from_var, to_var, duration, comp_limits) {
     prop_substituted = prop_substituted
   )
 }
+
+save_plots <- function() {
+  ggplot2::ggsave(
+    "plots/cum_plot.png",
+    tar_read(cum_plot),
+    width = 12,
+    heigh = 12
+  )
+
+  ggplot2::ggsave(
+    "plots/mri_wmv_plot.png",
+    tar_read(mri_plot_grid_wmv),
+    width = 12,
+    heigh = 12
+  )
+  ggplot2::ggsave(
+    "plots/mri_gmv_plot.png",
+    tar_read(mri_plot_grid_gmv),
+    width = 12,
+    heigh = 12
+  )
+  ggplot2::ggsave(
+    "plots/mri_tbv_plot.png",
+    tar_read(mri_plot_grid_tbv),
+    width = 12,
+    heigh = 12
+  )
+  ggplot2::ggsave(
+    "plots/mri_hip_plot.png",
+    tar_read(mri_plot_grid_hip),
+    width = 12,
+    heigh = 12
+  )
+  ggplot2::ggsave(
+    "plots/mri_log_wmh_plot.png",
+    tar_read(mri_plot_grid_log_wmh),
+    width = 12,
+    heigh = 12
+  )
+
+  ggplot2::ggsave(
+    "plots/primary_grid_plot.png",
+    tar_read(primary_grid),
+    width = 12,
+    heigh = 12
+  )
+}

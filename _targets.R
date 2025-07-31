@@ -108,6 +108,16 @@ durations <- data.frame(
 )
 all_subs <- merge(substitutions, durations)
 
+cohorts <- list(
+  filter_fn = rlang::syms(c(
+    "long_sleeper_filter_fn",
+    "avg_sleeper_filter_fn",
+    "short_sleeper_filter_fn"
+  )),
+  cohort = c("long_sleeper", "avg_sleeper", "short_sleeper"),
+  colour = c("#ff747b", "#6ed853", "#708ff9")
+)
+
 ## pipeline
 
 list(
@@ -246,14 +256,7 @@ list(
     pattern = map(imp, primary_models),
   ),
   tar_map(
-    values = list(
-      filter_fn = rlang::syms(c(
-        "long_sleeper_filter_fn",
-        "avg_sleeper_filter_fn",
-        "short_sleeper_filter_fn"
-      )),
-      cohort = c("long_sleeper", "avg_sleeper", "short_sleeper")
-    ),
+    values = cohorts,
     names = cohort,
     tar_target(
       primary_ref_avg_risks,
@@ -265,39 +268,27 @@ list(
     ),
     tar_target(
       primary_risk_ratios,
-      merge_risks(primary_sub_avg_risks, primary_ref_avg_risks)
+      merge_risks(primary_sub_avg_risks, primary_ref_avg_risks, cohort)
     ),
-    tar_map(
-      values = list(
-        name = c("inactivity", "light_activity", "mvpa"),
-        from = c("avg_inactivity", "avg_light", "avg_mvpa"),
-        colour = c("#ff747b", "#6ed853", "#708ff9")
-      ),
-      names = name,
-      tar_target(
-        primary_plots,
-        make_plot(primary_risk_ratios, from, colour)
-      )
+    tar_target(
+      primary_plots,
+      make_plot(primary_risk_ratios, colour)
     )
   ),
   tar_target(
     all_primary_plots,
-    list(
-      short_inactive = primary_plots_inactivity_short_sleeper,
-      short_light = primary_plots_light_activity_short_sleeper,
-      short_mvpa = primary_plots_mvpa_short_sleeper,
-      avg_inactive = primary_plots_inactivity_avg_sleeper,
-      avg_light = primary_plots_light_activity_avg_sleeper,
-      avg_mvpa = primary_plots_mvpa_avg_sleeper,
-      long_inactive = primary_plots_inactivity_long_sleeper,
-      long_light = primary_plots_light_activity_long_sleeper,
-      long_mvpa = primary_plots_mvpa_long_sleeper
+    rbind(
+      primary_plots_short_sleeper,
+      primary_plots_avg_sleeper,
+      primary_plots_long_sleeper
     )
   ),
   tar_target(
     primary_grid,
     {
-      make_plot_grid(all_primary_plots)
+      cohort_order <- c("short_sleeper", "avg_sleeper", "long_sleeper")
+      subtype_order <- c("avg_inactivity", "avg_light", "avg_mvpa")
+      make_plot_grid(all_primary_plots, cohort_order, subtype_order)
     }
   ),
 
@@ -386,14 +377,7 @@ list(
       pattern = map(mri_imp, mri_models)
     ),
     tar_map(
-      values = list(
-        filter_fn = rlang::syms(c(
-          "avg_sleeper_filter_fn",
-          "short_sleeper_filter_fn"
-        )),
-        cohort = c("avg_sleeper", "short_sleeper"),
-        colour = c("#708ff9", "#ff747b")
-      ),
+      values = cohorts,
       names = cohort,
       tar_target(
         mri_ref_avg_estimate,
@@ -450,6 +434,18 @@ list(
   ),
   tar_map(
     values = list(
+      outcome_name = c("tbv", "wmv", "gmv", "hip", "log_wmh")
+    ),
+    names = outcome_name,
+    tar_target(mri_plot_grid, {
+      outcome_data <- all_mri_plots[outcome == outcome_name, ]
+      cohort_order <- c("short_sleeper", "avg_sleeper")
+      subtype_order <- c("avg_inactivity", "avg_light", "avg_mvpa")
+      make_plot_grid(outcome_data, cohort_order, subtype_order)
+    })
+  ),
+  tar_map(
+    values = list(
       comp = c(
         "Best",
         "Typical",
@@ -482,7 +478,7 @@ list(
             risk = mean(risk),
             lower_risk = quantile(risk, 0.025),
             upper_risk = quantile(risk, 0.975),
-            composition = comp
+            Composition = comp
           ),
           by = timegroup
         ]
@@ -511,10 +507,10 @@ list(
         # tar_read(cum_plot_data) |>
         ggplot(aes(x = timegroup, y = risk)) +
         geom_ribbon(
-          aes(ymin = lower_risk, ymax = upper_risk, fill = composition),
+          aes(ymin = lower_risk, ymax = upper_risk, fill = Composition),
           alpha = 0.25
         ) +
-        geom_line(aes(colour = composition)) +
+        geom_line(aes(colour = Composition)) +
         labs(
           x = "Time since baseline (years)",
           y = "Cumulative all-cause dementia incidence"

@@ -113,18 +113,19 @@ get_mri_labels <- function(mri_results) {
 
 make_mri_plots <- function(mri_results, colour) {
   sub_types <- c("avg_mvpa", "avg_light", "avg_inactivity")
+
+  y_mean <- mean(mri_results$md, na.rm = TRUE)
+  y_sd <- sd(mri_results$md, na.rm = TRUE)
+  limit <- max(abs(min(mri_results$lower_md)), abs(max(mri_results$upper_md)))
+  lower_lim <- -limit
+  upper_lim <- limit
+
   rbindlist(lapply(sub_types, function(sub_type) {
-    sub_results <- mri_results |> filter(from_var == sub_type)
+    sub_results <- mri_results |>
+      filter(from_var == sub_type) |>
+      filter(prop_substituted > 0.8)
     labels <- get_mri_labels(sub_results)
 
-    # Calculate y-axis limits and offsets
-    y_mean <- mean(sub_results$md, na.rm = TRUE)
-    y_sd <- sd(sub_results$md, na.rm = TRUE)
-    lower_lim <- 0 - 3 * y_sd
-    upper_lim <- 0 + 3 * y_sd
-
-    # Calculate offsets for annotations
-    # minutes_offset <- unit(-0.15, "cm")
     left_centre <- unit(0.4, "npc")
     right_centre <- unit(0.6, "npc")
 
@@ -132,6 +133,10 @@ make_mri_plots <- function(mri_results, colour) {
     sub_offset <- unit(-1.2, "cm")
     sleep_offset <- unit(-1.8, "cm")
     arrow_offset <- unit(-1.5, "cm")
+
+    left_arrow_xs <- unit(c(0.4, 0.2), "npc")
+    right_arrow_xs <- unit(c(0.6, 0.8), "npc")
+    arrow_ys <- unit(c(-1.5, -1.5), "cm")
 
     p <- sub_results |>
       ggplot(aes(x = duration, y = md)) +
@@ -142,10 +147,8 @@ make_mri_plots <- function(mri_results, colour) {
         alpha = 0.2,
         fill = colour
       ) +
-      labs(x = "", y = labels$ylabel) +
-
-      # Custom annotations using annotation_custom
-      ggplot2::annotation_custom(
+      labs(x = "", y = paste("Change in", labels$ylabel)) +
+      annotation_custom(
         textGrob(
           "Minutes",
           gp = gpar(fontsize = 14, fontfamily = "serif", fontface = 1),
@@ -194,8 +197,8 @@ make_mri_plots <- function(mri_results, colour) {
       # Arrows
       annotation_custom(
         grid::linesGrob(
-          x = unit(c(0.6, 0.8), "npc"),
-          y = unit(c(-1.5, -1.5), "cm"),
+          x = right_arrow_xs,
+          y = arrow_ys,
           arrow = grid::arrow(
             angle = 30,
             length = unit(0.15, "cm"),
@@ -205,8 +208,8 @@ make_mri_plots <- function(mri_results, colour) {
       ) +
       annotation_custom(
         grid::linesGrob(
-          x = unit(c(0.4, 0.2), "npc"),
-          y = unit(c(-1.5, -1.5), "cm"),
+          x = left_arrow_xs,
+          y = arrow_ys,
           arrow = grid::arrow(
             angle = 30,
             length = unit(0.15, "cm"),
@@ -217,6 +220,7 @@ make_mri_plots <- function(mri_results, colour) {
 
       # Coordinate system and theme
       coord_cartesian(
+        xlim = c(-60, 60),
         ylim = c(lower_lim, upper_lim),
         expand = FALSE,
         clip = "off"
@@ -244,4 +248,19 @@ make_mri_plots <- function(mri_results, colour) {
       outcome = labels$outcome
     )
   }))
+}
+
+make_plot_grid <- function(plot_data, cohort_order, subtype_order) {
+  plot_data[, cohort := factor(cohort, levels = cohort_order)]
+  plot_data[, sub_type := factor(sub_type, levels = subtype_order)]
+
+  # Reshape for grid
+  grid_list <- lapply(cohort_order, function(this_cohort) {
+    plots_row <- plot_data[cohort == this_cohort][order(sub_type), plot]
+    wrap_plots(plots_row, nrow = 1)
+  })
+
+  # Assemble rows into a grid
+  final_plot <- wrap_plots(grid_list, ncol = 1)
+  final_plot
 }

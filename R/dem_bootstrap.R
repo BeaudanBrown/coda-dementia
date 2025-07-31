@@ -873,7 +873,7 @@ average_sub_results <- function(results, df, filter_fn, result_name = "risk") {
   results
 }
 
-merge_risks <- function(sub_risks, ref_risks) {
+merge_risks <- function(sub_risks, ref_risks, cohort) {
   sub_risks |>
     rename("sub_risk" = "results") |>
     left_join(
@@ -891,184 +891,146 @@ merge_risks <- function(sub_risks, ref_risks) {
       mean_rr = mean(rr, na.rm = TRUE),
       lower_rr = quantile(rr, 0.025),
       upper_rr = quantile(rr, 0.975),
+      cohort = cohort,
       .groups = "drop"
     )
 }
 
-make_plot <- function(df, from, colour) {
-  sub_name <-
-    ifelse(
-      from == "avg_inactivity",
-      "inactivity",
-      ifelse(from == "avg_light", "light activity", "MVPA")
+make_plot <- function(df, colour) {
+  sub_name <- unique(case_when(
+    df$from_var == "avg_inactivity" ~ "Inactivity",
+    df$from_var == "avg_light" ~ "Light Activity",
+    df$from_var == "avg_mvpa" ~ "MVPA",
+    .default = as.character(df$from_var)
+  ))
+  cohort <- unique(df$cohort)
+
+  left_centre <- unit(0.4, "npc")
+  right_centre <- unit(0.6, "npc")
+
+  minutes_offset <- unit(-0.8, "cm")
+  sub_offset <- unit(-1.2, "cm")
+  sleep_offset <- unit(-1.8, "cm")
+  arrow_offset <- unit(-1.5, "cm")
+
+  left_arrow_xs <- unit(c(0.4, 0.2), "npc")
+  right_arrow_xs <- unit(c(0.6, 0.8), "npc")
+  arrow_ys <- unit(c(-1.5, -1.5), "cm")
+
+  sub_types <- c("avg_mvpa", "avg_light", "avg_inactivity")
+  rbindlist(lapply(sub_types, function(sub_type) {
+    sub_results <- df |>
+      filter(from_var == sub_type) |>
+      filter(prop_substituted > 0.8)
+    p <- sub_results |>
+      ggplot(aes(x = duration, y = mean_rr)) +
+      geom_line(colour = colour) +
+      geom_hline(yintercept = 1, linetype = "dotted") +
+      xlab("") +
+      ylab("Risk ratio") +
+      annotation_custom(
+        textGrob(
+          "Minutes",
+          gp = gpar(fontsize = 14, fontfamily = "serif", fontface = 1),
+          x = unit(0.5, "npc"),
+          y = minutes_offset,
+          hjust = 0.5
+        )
+      ) +
+      annotation_custom(
+        textGrob(
+          "Less sleep",
+          gp = gpar(fontsize = 12, fontfamily = "serif", fontface = 1),
+          x = left_centre,
+          y = sleep_offset,
+          hjust = 1
+        )
+      ) +
+      annotation_custom(
+        textGrob(
+          "More sleep",
+          gp = gpar(fontsize = 12, fontfamily = "serif", fontface = 1),
+          x = right_centre,
+          y = sleep_offset,
+          hjust = 0
+        )
+      ) +
+      annotation_custom(
+        textGrob(
+          paste("More ", sub_name),
+          gp = gpar(fontsize = 12, fontfamily = "serif", fontface = 1),
+          x = left_centre,
+          y = sub_offset,
+          hjust = 1
+        )
+      ) +
+      annotation_custom(
+        textGrob(
+          paste("Less ", sub_name),
+          gp = gpar(fontsize = 12, fontfamily = "serif", fontface = 1),
+          x = right_centre,
+          y = sub_offset,
+          hjust = 0
+        )
+      ) +
+
+      # Arrows
+      annotation_custom(
+        grid::linesGrob(
+          x = right_arrow_xs,
+          y = arrow_ys,
+          arrow = grid::arrow(
+            angle = 30,
+            length = unit(0.15, "cm"),
+            ends = "last"
+          )
+        )
+      ) +
+      annotation_custom(
+        grid::linesGrob(
+          x = left_arrow_xs,
+          y = arrow_ys,
+          arrow = grid::arrow(
+            angle = 30,
+            length = unit(0.15, "cm"),
+            ends = "last"
+          )
+        )
+      ) +
+      scale_y_log10(
+        breaks = c(0.5, 0.75, 1, 1.5, 2),
+        labels = scales::label_number()
+      ) +
+      coord_cartesian(
+        xlim = c(-60, 60),
+        ylim = c(0.4, 2),
+        expand = FALSE,
+        clip = "off"
+      ) +
+      cowplot::theme_cowplot(
+        font_size = 12,
+        font_family = "serif",
+        line_size = 0.25
+      ) +
+      theme(
+        plot.margin = unit(c(1, 1, 4, 1), "lines"),
+        strip.background = element_blank(),
+        strip.text.x = element_blank(),
+        panel.border = element_rect(fill = NA, colour = "#585656"),
+        panel.grid = element_line(colour = "grey92"),
+        panel.grid.minor = element_line(linewidth = rel(0.5)),
+        axis.ticks.y = element_blank(),
+        axis.line = element_line(color = "#585656")
+      ) +
+      geom_ribbon(
+        aes(ymin = lower_rr, ymax = upper_rr),
+        alpha = 0.25,
+        fill = colour
+      )
+    data.table(
+      sub_type = sub_type,
+      cohort = cohort,
+      plot = list(p)
     )
-  to <- "avg_sleep"
-
-  df |>
-    dplyr::filter(from_var %in% c(from, to) & to_var %in% c(from, to)) |>
-    dplyr::filter(prop_substituted > 0.8) |>
-    dplyr::mutate(
-      duration = dplyr::if_else(from_var == to, duration * -1, duration)
-    ) |>
-    dplyr::select(-from_var, -to_var) |>
-    ggplot(aes(x = duration, y = mean_rr)) +
-    geom_line(colour = colour) +
-    geom_hline(yintercept = 1, linetype = "dotted") +
-    xlab("") +
-    ylab("Risk ratio") +
-    annotate(
-      geom = "text",
-      x = 0,
-      y = -0.15,
-      hjust = 0.5,
-      fontface = 1,
-      size = 14 / .pt,
-      label = "Minutes",
-      family = "serif"
-    ) +
-    annotate(
-      geom = "text",
-      x = -20,
-      y = -0.5,
-      hjust = 1,
-      fontface = 1,
-      size = 12 / .pt,
-      label = "Less sleep",
-      family = "serif"
-    ) +
-    annotate(
-      geom = "text",
-      x = 20,
-      y = -0.5,
-      hjust = 0,
-      fontface = 1,
-      size = 12 / .pt,
-      label = "More sleep",
-      family = "serif"
-    ) +
-    geom_segment(
-      aes(
-        x = 1,
-        y = -0.625,
-        xend = 15,
-        yend = -0.625
-      ),
-      arrow = arrow(length = unit(0.15, "cm"))
-    ) +
-    geom_segment(
-      aes(
-        x = -1,
-        y = -0.625,
-        xend = -15,
-        yend = -0.625
-      ),
-      arrow = arrow(length = unit(0.15, "cm"))
-    ) +
-    annotate(
-      geom = "text",
-      x = -20,
-      y = -0.75,
-      hjust = 1,
-      size = 12 / .pt,
-      label = paste("More ", sub_name),
-      family = "serif",
-      fontface = 1,
-      size = 12 / .pt
-    ) +
-    annotate(
-      geom = "text",
-      x = 20,
-      y = -0.75,
-      hjust = 0,
-      label = paste("Less ", sub_name),
-      family = "serif",
-      fontface = 1,
-      size = 12 / .pt
-    ) +
-    # Add log scale:
-    scale_y_log10(
-      breaks = c(0.5, 0.75, 1, 1.5, 2),
-      labels = scales::label_number()
-    ) +
-    coord_cartesian(
-      xlim = c(-60, 60),
-      ylim = c(0.4, 2),
-      expand = FALSE,
-      clip = "off"
-    ) +
-    cowplot::theme_cowplot(
-      font_size = 12,
-      font_family = "serif",
-      line_size = 0.25
-    ) +
-    theme(
-      plot.margin = unit(c(1, 1, 4, 1), "lines"),
-      strip.background = element_blank(),
-      strip.text.x = element_blank(),
-      panel.border = element_rect(fill = NA, colour = "#585656"),
-      panel.grid = element_line(colour = "grey92"),
-      panel.grid.minor = element_line(linewidth = rel(0.5)),
-      axis.ticks.y = element_blank(),
-      axis.line = element_line(color = "#585656")
-    ) +
-    geom_ribbon(
-      aes(ymin = lower_rr, ymax = upper_rr),
-      alpha = 0.25,
-      fill = colour
-    )
-}
-
-make_plot_grid <- function(plots) {
-  plot_grid <- (plots[["short_inactive"]] |
-    plots[["avg_inactive"]] |
-    plots[["long_inactive"]]) /
-    (plots[["short_light"]] | plots[["avg_light"]] | plots[["long_light"]]) /
-    (plots[["short_mvpa"]] | plots[["avg_mvpa"]] | plots[["long_mvpa"]])
-
-  # Add column and row labels
-  row_labels <- c("Short Sleepers", "Average Sleepers", "Long Sleepers")
-  col_labels <- c("Inactivity", "Light Activity", "MVPA")
-
-  final_plot <- plot_grid(
-    # Row 1 (with row label)
-    plot_grid(
-      NULL,
-      plots[[1]],
-      plots[[2]],
-      plots[[3]],
-      nrow = 1,
-      rel_widths = c(0.12, 1, 1, 1),
-      label_size = 12,
-      label_x = 0.1,
-      hjust = 0
-    ),
-    plot_grid(
-      NULL,
-      plots[[4]],
-      plots[[5]],
-      plots[[6]],
-      nrow = 1,
-      rel_widths = c(0.12, 1, 1, 1)
-    ),
-    plot_grid(
-      NULL,
-      plots[[7]],
-      plots[[8]],
-      plots[[9]],
-      nrow = 1,
-      rel_widths = c(0.12, 1, 1, 1)
-    ),
-    ncol = 1,
-    rel_heights = c(1, 1, 1)
-  )
-
-  plot_grid(
-    NULL,
-    textGrob(col_labels[1], gp = gpar(fontsize = 14)),
-    textGrob(col_labels[2], gp = gpar(fontsize = 14)),
-    textGrob(col_labels[3], gp = gpar(fontsize = 14)),
-    nrow = 1,
-    rel_widths = c(0.12, 1, 1, 1)
-  ) |>
-    plot_grid(final_plot, ncol = 1, rel_heights = c(0.08, 1))
+  }))
 }

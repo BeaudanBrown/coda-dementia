@@ -116,12 +116,6 @@ merge_risks <- function(sub_risks, ref_risks, cohort) {
 }
 
 make_plot <- function(df, colour) {
-  sub_name <- unique(case_when(
-    df$from_var == "avg_inactivity" ~ "Inactivity",
-    df$from_var == "avg_light" ~ "Light Activity",
-    df$from_var == "avg_mvpa" ~ "MVPA",
-    .default = as.character(df$from_var)
-  ))
   cohort <- unique(df$cohort)
 
   left_centre <- unit(0.4, "npc")
@@ -141,6 +135,12 @@ make_plot <- function(df, colour) {
     sub_results <- df |>
       filter(from_var == sub_type) |>
       filter(prop_substituted > 0.8)
+    sub_name <- unique(case_when(
+      sub_type == "avg_inactivity" ~ "Inactivity",
+      sub_type == "avg_light" ~ "Light Activity",
+      sub_type == "avg_mvpa" ~ "MVPA",
+      .default = as.character(sub_type)
+    ))
     p <- sub_results |>
       ggplot(aes(x = duration, y = mean_rr)) +
       geom_line(colour = colour) +

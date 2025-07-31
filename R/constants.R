@@ -38,10 +38,10 @@ all_subs <- merge(substitutions, durations)
 
 cohorts <- list(
   filter_fn = rlang::syms(c(
-    "long_sleeper_filter_fn",
+    "short_sleeper_filter_fn",
     "avg_sleeper_filter_fn",
-    "short_sleeper_filter_fn"
+    "long_sleeper_filter_fn"
   )),
-  cohort = c("long_sleeper", "avg_sleeper", "short_sleeper"),
+  cohort = c("short_sleeper", "avg_sleeper", "long_sleeper"),
   colour = c("#ff747b", "#6ed853", "#708ff9")
 )

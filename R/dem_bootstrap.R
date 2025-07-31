@@ -903,6 +903,7 @@ make_plot <- function(df, from, colour) {
 
   df |>
     dplyr::filter(from_var %in% c(from, to) & to_var %in% c(from, to)) |>
+    dplyr::filter(prop_substituted > 0.8) |>
     dplyr::mutate(
       duration = dplyr::if_else(from_var == to, duration * -1, duration)
     ) |>
@@ -981,7 +982,17 @@ make_plot <- function(df, from, colour) {
       fontface = 1,
       size = 12 / .pt
     ) +
-    coord_cartesian(ylim = c(0.33, 3), expand = FALSE, clip = "off") +
+    # Add log scale:
+    scale_y_log10(
+      breaks = c(0.5, 0.75, 1, 1.5, 2),
+      labels = scales::label_number()
+    ) +
+    coord_cartesian(
+      xlim = c(-60, 60),
+      ylim = c(0.4, 2),
+      expand = FALSE,
+      clip = "off"
+    ) +
     cowplot::theme_cowplot(
       font_size = 12,
       font_family = "serif",

@@ -762,7 +762,7 @@ get_mri_subs <- function(
   subbed
 }
 
-merge_estimates <- function(sub_estimates, ref_estimates) {
+merge_estimates <- function(sub_estimates, ref_estimates, outcome, cohort) {
   sub_estimates |>
     rename("sub_estimate" = "results") |>
     left_join(
@@ -774,17 +774,21 @@ merge_estimates <- function(sub_estimates, ref_estimates) {
     ) |>
     dplyr::group_by(from_var, to_var, duration) |>
     dplyr::summarize(
+      cohort = cohort,
+      outcome = outcome,
       prop_substituted = mean(prop_substituted, na.rm = TRUE),
       mean_sub_estimate = mean(sub_estimate, na.rm = TRUE),
       mean_ref_estimate = mean(ref_estimate, na.rm = TRUE),
+      lower_md = quantile(md, 0.025, names = FALSE),
+      upper_md = quantile(md, 0.975, names = FALSE),
       md = mean(md, na.rm = TRUE),
-      lower_md = quantile(md, 0.025),
-      upper_md = quantile(md, 0.975),
       .groups = "drop"
     )
 }
 
-get_mri_labels <- function(mri_results, outcome) {
+get_mri_labels <- function(mri_results) {
+  outcome <- unique(mri_results$outcome)
+  cohort <- unique(mri_results$cohort)
   list(
     ylabel = if (outcome == "tbv") {
       ylabel <- expression(paste(
@@ -819,138 +823,157 @@ get_mri_labels <- function(mri_results, outcome) {
     } else {
       ylabel <- expression(as.character(outcome))
     },
-    sub_name = case_when(
+    sub_name = unique(case_when(
       mri_results$from_var == "avg_inactivity" ~ "Inactivity",
       mri_results$from_var == "avg_light" ~ "Light Activity",
       mri_results$from_var == "avg_mvpa" ~ "MVPA",
       .default = as.character(mri_results$from_var)
-    )
+    )),
+    outcome = outcome,
+    cohort = cohort
   )
 }
 
-make_mri_plot <- function(mri_results, outcome, colour) {
-  labels <- get_mri_labels(mri_results, outcome)
+make_mri_plots <- function(mri_results, colour) {
+  sub_types <- c("avg_mvpa", "avg_light", "avg_inactivity")
+  rbindlist(lapply(sub_types, function(sub_type) {
+    sub_results <- mri_results |> filter(from_var == sub_type)
+    labels <- get_mri_labels(sub_results)
 
-  # Calculate y-axis limits and offsets
-  y_mean <- mean(mri_results$md, na.rm = TRUE)
-  y_sd <- sd(mri_results$md, na.rm = TRUE)
-  lower_lim <- y_mean - 0.25 * y_sd
-  upper_lim <- y_mean + 0.25 * y_sd
+    # Calculate y-axis limits and offsets
+    y_mean <- mean(sub_results$md, na.rm = TRUE)
+    y_sd <- sd(sub_results$md, na.rm = TRUE)
+    # y_min <- min(sub_results$lower_md)
+    # y_max <- max(sub_results$upper_md)
 
-  # Calculate offsets for annotations
-  y_range <- upper_lim - lower_lim
-  minutes_offset <- 0.2 * y_range
-  sleep_offset <- 0.275 * y_range
-  arrow_offset <- 0.325 * y_range
-  sub_offset <- 0.375 * y_range
+    # lower_lim <- y_min - 0.25 * y_sd
+    # upper_lim <- y_max + 0.25 * y_sd
+    lower_lim <- 0 - 4 * y_sd
+    upper_lim <- 0 + 4 * y_sd
 
-  mri_results |>
-    ggplot(aes(x = duration, y = md)) +
-    geom_line(colour = colour) +
-    geom_ribbon(
-      aes(ymin = lower_md, ymax = upper_md),
-      alpha = 0.2,
-      fill = colour
-    ) +
-    labs(x = "", y = labels$ylabel) +
+    # Calculate offsets for annotations
+    y_range <- upper_lim - lower_lim
+    minutes_offset <- 0.07 * y_range
+    line_size <- 0.019 * y_range
+    sleep_offset <- minutes_offset + line_size
+    arrow_offset <- minutes_offset + 2 * line_size
+    sub_offset <- minutes_offset + 3 * line_size
 
-    # Annotations
-    annotate(
-      "text",
-      x = 0,
-      y = lower_lim - minutes_offset,
-      label = "Minutes",
-      hjust = 0.5,
-      size = 14 / .pt,
-      fontface = 1,
-      family = "serif"
-    ) +
+    p <- sub_results |>
+      ggplot(aes(x = duration, y = md)) +
+      geom_line(colour = colour) +
+      geom_hline(yintercept = 0, linetype = "dotted") +
+      geom_ribbon(
+        aes(ymin = lower_md, ymax = upper_md),
+        alpha = 0.2,
+        fill = colour
+      ) +
+      labs(x = "", y = labels$ylabel) +
 
-    annotate(
-      "text",
-      x = -20,
-      y = lower_lim - sleep_offset,
-      label = "Less sleep",
-      hjust = 1,
-      size = 12 / .pt,
-      fontface = 1,
-      family = "serif"
-    ) +
+      # Annotations
+      annotate(
+        "text",
+        x = 0,
+        y = lower_lim - minutes_offset,
+        label = "Minutes",
+        hjust = 0.5,
+        size = 14 / .pt,
+        fontface = 1,
+        family = "serif"
+      ) +
 
-    annotate(
-      "text",
-      x = 20,
-      y = lower_lim - sleep_offset,
-      label = "More sleep",
-      hjust = 0,
-      size = 12 / .pt,
-      fontface = 1,
-      family = "serif"
-    ) +
+      annotate(
+        "text",
+        x = -20,
+        y = lower_lim - sleep_offset,
+        label = "Less sleep",
+        hjust = 1,
+        size = 12 / .pt,
+        fontface = 1,
+        family = "serif"
+      ) +
 
-    annotate(
-      "text",
-      x = -20,
-      y = lower_lim - sub_offset,
-      label = paste("More", labels$sub_name),
-      hjust = 1,
-      size = 12 / .pt,
-      fontface = 1,
-      family = "serif"
-    ) +
+      annotate(
+        "text",
+        x = 20,
+        y = lower_lim - sleep_offset,
+        label = "More sleep",
+        hjust = 0,
+        size = 12 / .pt,
+        fontface = 1,
+        family = "serif"
+      ) +
 
-    annotate(
-      "text",
-      x = 20,
-      y = lower_lim - sub_offset,
-      label = paste("Less", labels$sub_name),
-      hjust = 0,
-      size = 12 / .pt,
-      fontface = 1,
-      family = "serif"
-    ) +
+      annotate(
+        "text",
+        x = -20,
+        y = lower_lim - sub_offset,
+        label = paste("More", labels$sub_name),
+        hjust = 1,
+        size = 12 / .pt,
+        fontface = 1,
+        family = "serif"
+      ) +
 
-    # Arrows
-    geom_segment(
-      aes(
-        x = 1,
-        xend = 15,
-        y = lower_lim - arrow_offset,
-        yend = lower_lim - arrow_offset
-      ),
-      arrow = arrow(length = unit(0.15, "cm"))
-    ) +
+      annotate(
+        "text",
+        x = 20,
+        y = lower_lim - sub_offset,
+        label = paste("Less", labels$sub_name),
+        hjust = 0,
+        size = 12 / .pt,
+        fontface = 1,
+        family = "serif"
+      ) +
 
-    geom_segment(
-      aes(
-        x = -1,
-        xend = -15,
-        y = lower_lim - arrow_offset,
-        yend = lower_lim - arrow_offset
-      ),
-      arrow = arrow(length = unit(0.15, "cm"))
-    ) +
+      # Arrows
+      geom_segment(
+        aes(
+          x = 1,
+          xend = 15,
+          y = lower_lim - arrow_offset,
+          yend = lower_lim - arrow_offset
+        ),
+        arrow = arrow(length = unit(0.15, "cm"))
+      ) +
 
-    # Coordinate system and theme
-    coord_cartesian(
-      ylim = c(lower_lim, upper_lim),
-      expand = FALSE,
-      clip = "off"
-    ) +
-    cowplot::theme_cowplot(
-      font_size = 12,
-      font_family = "serif",
-      line_size = 0.25
-    ) +
-    theme(
-      plot.margin = unit(c(1, 1, 4, 1), "lines"),
-      strip.background = element_blank(),
-      strip.text.x = element_blank(),
-      panel.border = element_rect(fill = NA, colour = "#585656"),
-      panel.grid = element_line(colour = "grey92"),
-      panel.grid.minor = element_line(linewidth = rel(0.5)),
-      axis.ticks.y = element_blank(),
-      axis.line = element_line(color = "#585656"),
-      axis.title.y = element_text(margin = margin(r = 10))
+      geom_segment(
+        aes(
+          x = -1,
+          xend = -15,
+          y = lower_lim - arrow_offset,
+          yend = lower_lim - arrow_offset
+        ),
+        arrow = arrow(length = unit(0.15, "cm"))
+      ) +
+
+      # Coordinate system and theme
+      coord_cartesian(
+        ylim = c(lower_lim, upper_lim),
+        expand = FALSE,
+        clip = "off"
+      ) +
+      cowplot::theme_cowplot(
+        font_size = 12,
+        font_family = "serif",
+        line_size = 0.25
+      ) +
+      theme(
+        plot.margin = unit(c(1, 1, 4, 1), "lines"),
+        strip.background = element_blank(),
+        strip.text.x = element_blank(),
+        panel.border = element_rect(fill = NA, colour = "#585656"),
+        panel.grid = element_line(colour = "grey92"),
+        panel.grid.minor = element_line(linewidth = rel(0.5)),
+        axis.ticks.y = element_blank(),
+        axis.line = element_line(color = "#585656"),
+        axis.title.y = element_text(margin = margin(r = 10))
+      )
+    data.table(
+      sub_type = sub_type,
+      plot = list(p),
+      cohort = labels$cohort,
+      outcome = labels$outcome
     )
+  }))
 }

@@ -388,9 +388,10 @@ list(
           "avg_sleeper_filter_fn",
           "short_sleeper_filter_fn"
         )),
+        cohort = c("avg_sleeper", "short_sleeper"),
         colour = c("#708ff9", "#ff747b")
       ),
-      names = filter_fn,
+      names = cohort,
       tar_target(
         mri_ref_avg_estimate,
         average_sub_results(
@@ -412,22 +413,21 @@ list(
       ),
       tar_target(
         mri_mean_diffs,
-        merge_estimates(mri_sub_avg_estimate, mri_ref_avg_estimate)
-      ),
-      tar_map(
-        values = list(
-          sub_type = unique(substitutions$from_var)
-        ),
-        tar_target(
-          mri_plot,
-          {
-            make_mri_plot(
-              mri_results = mri_mean_diffs |> filter(from_var == sub_type),
-              outcome,
-              colour
-            )
-          }
+        merge_estimates(
+          mri_sub_avg_estimate,
+          mri_ref_avg_estimate,
+          outcome,
+          cohort
         )
+      ),
+      tar_target(
+        mri_plots,
+        {
+          make_mri_plots(
+            mri_mean_diffs,
+            colour
+          )
+        }
       )
     )
   ),

@@ -3,9 +3,8 @@ reverse_causation_targets <- list(
   tar_target(
     imp_rc,
     {
-      imp[imp$time_to_dem > (3 * 365), ]
-    },
-    pattern = slice(imp, index = 1)
+      full_imp[full_imp$time_to_dem > (3 * 365), ]
+    }
   ),
   tar_target(
     reverse_causation_models,

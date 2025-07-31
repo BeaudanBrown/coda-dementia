@@ -173,6 +173,77 @@ get_s3_formula <- function(data) {
   return(s3_formula)
 }
 
+fit_filtered_models <- function(
+  imp,
+  timegroup_cuts,
+  create_formula_fn,
+  filter_fn
+) {
+  RhpcBLASctl::blas_set_num_threads(1)
+  RhpcBLASctl::omp_set_num_threads(1)
+  imp_survival <- survSplit(
+    Surv(time = time_to_dem, event = dem) ~ .,
+    data = imp,
+    cut = timegroup_cuts,
+    episode = "timegroup",
+    end = "end",
+    event = "dem",
+    start = "start"
+  )
+
+  setDT(imp_survival)
+
+  # start timegroup at 1
+  imp_survival[, timegroup := timegroup - 1]
+
+  # add indicators for death
+  imp_survival[,
+    death := fcase(
+      death == 1 & end > time_to_death,
+      1,
+      death == 0 & end > time_to_death,
+      NA,
+      default = 0
+    )
+  ]
+
+  imp_survival[, death := ifelse(dem == 1, NA, death)]
+
+  # remove rows after death
+  imp_survival[, sumdeath := cumsum(death), by = "id"]
+  imp_survival <- imp_survival[sumdeath < 2 | is.na(sumdeath), ]
+  imp_survival[, sumdeath := NULL]
+
+  imp_survival <- filter_fn(imp_survival)
+
+  # model formula
+  model_formula <- create_formula_fn(imp_survival)
+  dem_model_formula <- update(model_formula, dem ~ .)
+  death_model_formula <- update(model_formula, death ~ .)
+
+  # fit models
+  model_dem <- glm(
+    dem_model_formula,
+    data = imp_survival[death == 0 | is.na(death), ],
+    family = binomial()
+  )
+
+  model_dem <- strip_glm(model_dem)
+
+  model_death <- glm(
+    death_model_formula,
+    data = imp_survival[dem == 0, ],
+    family = binomial()
+  )
+
+  model_death <- strip_glm(model_death)
+
+  return(list(
+    model_dem = model_dem,
+    model_death = model_death
+  ))
+}
+
 fit_models <- function(imp, timegroup_cuts, create_formula_fn) {
   RhpcBLASctl::blas_set_num_threads(1)
   RhpcBLASctl::omp_set_num_threads(1)

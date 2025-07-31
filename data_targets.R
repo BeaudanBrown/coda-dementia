@@ -101,6 +101,10 @@ data_targets <- list(
   #### IMPUTATION ####
   tar_rep(boots, bootstrap_sample(df), batches = n_boots),
   tar_target(imp, impute_data(boots, m, maxit), pattern = map(boots)),
+  tar_target(full_imp, {
+    full_imp <- impute_data(df, m, maxit)[, id := .I]
+    full_imp[, tar_batch := 1]
+  }),
 
   #### MRI ANALYSIS ####
   tar_target(mri_raw, prepare_mri(df_raw, mri_file, mri_qc_file)),

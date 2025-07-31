@@ -5,27 +5,31 @@ representative_targets <- list(
     # shift covariates to match mean (continuous vars) or
     # probability (categorical vars)
     # of Schoeler et al pseudo-pop (see paper)
-    full_imp[, `:=`(
-      sex = sample(
-        c("female", "male"),
-        .N,
-        replace = TRUE,
-        prob = c(0.504, 0.496)
-      ),
-      retired = rbinom(.N, 1, prob = 0.193),
-      avg_total_household_income = sample(
-        c("<18", "18-30", "31-50", "52-100", ">100"),
-        .N,
-        replace = TRUE,
-        prob = c(0.264, 0.141, 0.205, 0.145, 0.245)
-      ),
-      smok_status = sample(
-        c("current", "former", "never"),
-        .N,
-        replace = TRUE,
-        prob = c(0.208, 0.359, 0.433)
+    full_imp |>
+      mutate(
+        sex = sample(
+          c("female", "male"),
+          n(),
+          replace = TRUE,
+          prob = c(0.504, 0.496)
+        ),
+        sex = as.factor(sex),
+        retired = rbinom(n(), 1, prob = 0.193),
+        avg_total_household_income = sample(
+          c("<18", "18-30", "31-50", "52-100", ">100"),
+          n(),
+          replace = TRUE,
+          prob = c(0.264, 0.141, 0.205, 0.145, 0.245)
+        ),
+        avg_total_household_income = as.factor(avg_total_household_income),
+        smok_status = sample(
+          c("current", "former", "never"),
+          n(),
+          replace = TRUE,
+          prob = c(0.208, 0.359, 0.433)
+        ),
+        smok_status = as.factor(smok_status),
       )
-    )]
   ),
   tar_target(
     representative_models,
@@ -43,18 +47,17 @@ representative_targets <- list(
   ),
   tar_target(
     representative_sub_risk,
-    {
+    bind_rows(apply(all_subs, 1, function(sub) {
       get_sub_risk(
         imp_rep,
-        all_subs_target$from_var,
-        all_subs_target$to_var,
-        as.numeric(all_subs_target$duration),
+        sub["from_var"],
+        sub["to_var"],
+        as.numeric(sub["duration"]),
         representative_models,
         final_time,
         comp_limits
       )
-    },
-    pattern = map(all_subs_target)
+    }))
   ),
   ### ANALYSIS ###
   tar_target(

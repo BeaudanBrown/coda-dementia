@@ -858,6 +858,9 @@ intervals <- function(ref, sub) {
 }
 
 average_sub_results <- function(results, df, filter_fn, result_name = "risk") {
+  data.table::setDTthreads(1)
+  RhpcBLASctl::blas_set_num_threads(1)
+  RhpcBLASctl::omp_set_num_threads(1)
   eids <- filter_fn(df)[, .(eid)]
 
   # replace the data table of results with the filtered mean

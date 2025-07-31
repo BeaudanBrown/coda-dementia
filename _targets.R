@@ -8,6 +8,7 @@ dotenv::load_dot_env()
 data_dir <- Sys.getenv("DATA_DIR")
 cache_dir <- Sys.getenv("CACHE_DIR")
 ncpus <- future::availableCores() - 1
+# ncpus <- 1
 
 # Constants
 short_sleep_hours <- 6
@@ -67,6 +68,7 @@ tar_option_set(
   ),
   format = "qs",
   controller = controller,
+  workspace_on_error = TRUE,
   seed = 5678
 )
 
@@ -249,8 +251,10 @@ list(
         "long_sleeper_filter_fn",
         "avg_sleeper_filter_fn",
         "short_sleeper_filter_fn"
-      ))
+      )),
+      cohort = c("long_sleeper", "avg_sleeper", "short_sleeper")
     ),
+    names = cohort,
     tar_target(
       primary_ref_avg_risks,
       average_sub_results(primary_ref_risk, df, filter_fn)
@@ -431,6 +435,36 @@ list(
       )
     )
   ),
+  # tar_target(all_mri_plots, {
+  #   plot_data <- c(
+  #     "mri_plots_avg_sleeper_filter_fn_hip",
+  #     "mri_plots_avg_sleeper_filter_fn_gmv",
+  #     "mri_plots_avg_sleeper_filter_fn_tbv",
+  #     "mri_plots_avg_sleeper_filter_fn_wmv",
+  #     "mri_plots_avg_sleeper_filter_fn_log_wmh",
+  #     "mri_plots_short_sleeper_filter_fn_hip",
+  #     "mri_plots_short_sleeper_filter_fn_gmv",
+  #     "mri_plots_short_sleeper_filter_fn_tbv",
+  #     "mri_plots_short_sleeper_filter_fn_wmv",
+  #     "mri_plots_short_sleeper_filter_fn_log_wmh"
+  #   )
+  #   dt_all <- rbindlist(
+  #     lapply(tables, function(name) {
+  #       dt <- get(name)
+  #       dt[,
+  #         sleeper_type := if (grepl("avg_sleeper", name)) {
+  #           "avg_sleeper"
+  #         } else {
+  #           "short_sleeper"
+  #         }
+  #       ]
+  #       dt[, outcome_type := sub("mri_plots_.*_filter_fn_(.*)", "\\1", name)]
+  #       dt[, source := name]
+  #       dt
+  #     }),
+  #     fill = TRUE
+  #   )
+  # }),
   tar_map(
     values = list(
       comp = c(
@@ -491,6 +525,7 @@ list(
         "Best" = "#7AC36A"
       )
       cum_plot_data |>
+        # tar_read(cum_plot_data) |>
         ggplot(aes(x = timegroup, y = risk)) +
         geom_ribbon(
           aes(ymin = lower_risk, ymax = upper_risk, fill = composition),

@@ -73,7 +73,7 @@ cum_targets <- list(
           by = .(timegroup)
         ]
       },
-      pattern = map(imp_test, primary_models)
+      pattern = map(imp_test, test_models)
     ),
     tar_target(
       cum_avg_risks,

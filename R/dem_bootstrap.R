@@ -12,9 +12,10 @@ make_cuts <- function(df) {
 }
 
 get_risk <- function(imp, models, final_time) {
-  data.table::setDTthreads(1)
+  setDTthreads(1)
   RhpcBLASctl::blas_set_num_threads(1)
   RhpcBLASctl::omp_set_num_threads(1)
+
   imp_len <- nrow(imp)
   imp_long_cuts <- imp[rep(seq_len(imp_len), each = final_time)]
   imp_long_cuts[, timegroup := rep(1:final_time, imp_len)]

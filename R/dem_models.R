@@ -237,53 +237,6 @@ fit_models <- function(imp, timegroup_cuts, create_formula_fn) {
   ))
 }
 
-get_risks <- function(
-  composition,
-  stacked_data_table,
-  model_dem,
-  model_death,
-  model_formula,
-  timegroup
-) {
-  ilr <- ilr(composition, V = v)
-
-  newx <- model.matrix(model_formula, stacked_data_table)
-
-  newx[, "R1"] <- ilr[1]
-  newx[, "I(R1^2)"] <- ilr[1]^2
-  newx[, "R2"] <- ilr[2]
-  newx[, "I(R2^2)"] <- ilr[2]^2
-  newx[, "R3"] <- ilr[3]
-  newx[, "I(R3^2)"] <- ilr[3]^2
-
-  stacked_data_table[,
-    haz_dem := predict(
-      model_dem,
-      newdata = newx,
-      type = "response"
-    )
-  ]
-  stacked_data_table[,
-    haz_death := predict(
-      model_death,
-      newdata = newx,
-      type = "response"
-    )
-  ]
-
-  setkey(stacked_data_table, id, timegroup) # sort and set keys
-  stacked_data_table[,
-    risk := cumsum(
-      haz_dem * cumprod((1 - lag(haz_dem, default = 0)) * (1 - haz_death))
-    ),
-    by = id
-  ]
-
-  risk <- stacked_data_table[timegroup == timegroup, .(mean = mean(risk))]
-
-  return(risk)
-}
-
 calc_substitution <- function(
   base_comp,
   imp_stacked_dt,

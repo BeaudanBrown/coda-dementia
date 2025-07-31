@@ -1,4 +1,4 @@
-file_targets <- list(
+data_targets <- list(
   #### FILES ####
   tar_target(
     core_file,

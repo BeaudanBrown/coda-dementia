@@ -261,8 +261,7 @@ list(
     ),
     tar_target(
       primary_sub_avg_risks,
-      average_sub_results(primary_sub_risk, df, filter_fn),
-      pattern = map(primary_sub_risk)
+      average_sub_results(primary_sub_risk, df, filter_fn)
     ),
     tar_target(
       primary_risk_ratios,
@@ -412,8 +411,7 @@ list(
           df,
           filter_fn,
           result_name = "estimate"
-        ),
-        pattern = map(mri_sub_results)
+        )
       ),
       tar_target(
         mri_mean_diffs,

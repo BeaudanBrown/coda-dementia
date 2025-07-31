@@ -9,6 +9,11 @@ short_sleep_hours <- 6
 long_sleep_min_hours <- 8
 long_sleep_hours <- 9
 
+no_filter_fn <- function(df) {
+  df
+}
+
+
 short_sleeper_filter_fn <- function(df) {
   df |> filter(avg_sleep < short_sleep_hours * 60)
 }

@@ -69,6 +69,7 @@ source("data_targets.R")
 source("primary_targets.R")
 source("mri_targets.R")
 source("cum_targets.R")
+source("sensitivity_reverse_causation_targets.R")
 
 list(
   #### DATA PREPARATION ####
@@ -78,5 +79,7 @@ list(
   #### MRI ANALYSIS ####
   mri_targets,
   #### CUMULATIVE ANALYSIS ####
-  cum_targets
+  cum_targets,
+  #### REVERSE CAUSATION SENSITIVITY ####
+  reverse_causation_targets
 )

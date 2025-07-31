@@ -1,29 +1,23 @@
 mri_targets <- list(
-  tar_target(mri_raw, prepare_mri(df_raw, mri_file, mri_qc_file)),
-  tar_target(mri_df, make_mri_df(mri_raw, df)),
-  tar_rep(mri_boots, bootstrap_sample(mri_df), batches = n_boots),
-  tar_target(
-    mri_imp,
-    impute_mri_data(mri_boots, m, maxit),
-    pattern = map(mri_boots)
-  ),
-  tar_target(mri_outcomes, c("tbv", "wmv", "gmv", "hip", "log_wmh")),
   tar_map(
     values = list(
       outcome = c("tbv", "wmv", "gmv", "hip", "log_wmh")
     ),
     names = outcome,
+    ### MODELS ###
     tar_target(
       mri_models,
       get_mri_model(mri_imp, outcome),
       pattern = map(mri_imp),
       iteration = "list"
     ),
+    ### REF ESTIMATE ###
     tar_target(
       mri_ref_results,
       get_mri_ref(mri_imp, outcome, mri_models),
       pattern = map(mri_imp, mri_models)
     ),
+    ### SUB ESTIMATE ###
     tar_target(
       mri_sub_results,
       bind_rows(apply(all_subs, 1, function(sub) {
@@ -42,6 +36,7 @@ mri_targets <- list(
     tar_map(
       values = cohorts,
       names = cohort,
+      ### FILTERED REF ESTIMATES ###
       tar_target(
         mri_ref_avg_estimate,
         average_sub_results(
@@ -51,6 +46,7 @@ mri_targets <- list(
           result_name = "estimate"
         )
       ),
+      ### FILTERED SUB ESTIMATES ###
       tar_target(
         mri_sub_avg_estimate,
         average_sub_results(
@@ -60,6 +56,7 @@ mri_targets <- list(
           result_name = "estimate"
         )
       ),
+      ### CONTRASTED ESTIMATES ###
       tar_target(
         mri_mean_diffs,
         merge_estimates(
@@ -80,6 +77,7 @@ mri_targets <- list(
       )
     )
   ),
+  ### PLOTS ###
   tar_target(
     all_mri_plots,
     rbind(

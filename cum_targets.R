@@ -1,4 +1,5 @@
 cum_targets <- list(
+  #### SYNTH COMPS ####
   tar_target(synth_comps, generate_compositions(df)),
   tar_target(synth_comps_dens, add_density(df, synth_comps, 0.1)),
   tar_target(
@@ -12,9 +13,20 @@ cum_targets <- list(
   tar_target(df_train, df[train_indices]),
   tar_target(df_test, df[-train_indices]),
   tar_target(imp_train, impute_data(df_train, m, maxit)),
+  tar_rep(boots_test, bootstrap_sample(df_test), batches = n_boots),
+  tar_target(
+    imp_test,
+    impute_data(boots_test, m, maxit),
+    pattern = map(boots_test)
+  ),
   tar_target(
     train_models,
     train_model(imp_train, timegroup_cuts, get_primary_formula)
+  ),
+  tar_target(
+    test_models,
+    train_model(imp_test, timegroup_cuts, get_primary_formula),
+    pattern = map(imp_test)
   ),
   tar_target(covar_data, get_covar_data(imp_train)),
   tar_target(
@@ -49,19 +61,19 @@ cum_targets <- list(
     tar_target(
       cum_risks,
       {
-        imp[, c("R1", "R2", "R3")] <-
+        imp_test[, c("R1", "R2", "R3")] <-
           reference_comps[[comp]][, c("R1", "R2", "R3")]
-        risks <- get_risk(imp, primary_models, final_time)
+        risks <- get_risk(imp_test, test_models, final_time)
         risks <- risks[, .(eid, risk, timegroup)]
         risks[,
           .(
             risk = mean(risk, na.rm = TRUE),
-            B = unique(imp$tar_batch)
+            B = unique(imp_test$tar_batch)
           ),
           by = .(timegroup)
         ]
       },
-      pattern = map(imp, primary_models)
+      pattern = map(imp_test, primary_models)
     ),
     tar_target(
       cum_avg_risks,

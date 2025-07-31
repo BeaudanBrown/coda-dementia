@@ -1,14 +1,17 @@
 primary_targets <- list(
+  ### MODELS ###
   tar_target(
     primary_models,
     fit_models(imp, timegroup_cuts, get_primary_formula),
     pattern = map(imp)
   ),
+  ### REF RISK ###
   tar_target(
     primary_ref_risk,
     get_ref_risk(imp, primary_models, final_time),
     pattern = map(imp, primary_models)
   ),
+  ### SUB RISK ###
   tar_target(
     primary_sub_risk,
     bind_rows(apply(all_subs, 1, function(sub) {
@@ -24,6 +27,7 @@ primary_targets <- list(
     })),
     pattern = map(imp, primary_models),
   ),
+  ### COHORT ANALYSES ###
   tar_map(
     values = cohorts,
     names = cohort,
@@ -44,6 +48,7 @@ primary_targets <- list(
       make_plot(primary_risk_ratios, colour)
     )
   ),
+  ### PLOTS ###
   tar_target(
     all_primary_plots,
     rbind(

@@ -69,28 +69,28 @@ get_mri_labels <- function(mri_results) {
   list(
     ylabel = if (outcome == "tbv") {
       ylabel <- expression(paste(
-        "Total brain volume ",
+        "Change in Total brain volume ",
         (cm^{
           "3"
         })
       ))
     } else if (outcome == "wmv") {
       ylabel <- expression(paste(
-        "White matter volume ",
+        "Change in White matter volume ",
         (cm^{
           "3"
         })
       ))
     } else if (outcome == "gmv") {
       ylabel <- expression(paste(
-        "Grey matter volume ",
+        "Change in Grey matter volume ",
         (cm^{
           "3"
         })
       ))
     } else if (outcome == "hip") {
       ylabel <- expression(paste(
-        "Hippocampal volume ",
+        "Change in Hippocampal volume ",
         (cm^{
           "3"
         })
@@ -147,7 +147,7 @@ make_mri_plots <- function(mri_results, colour) {
         alpha = 0.2,
         fill = colour
       ) +
-      labs(x = "", y = paste("Change in", labels$ylabel)) +
+      labs(x = "", y = labels$ylabel) +
       annotation_custom(
         textGrob(
           "Minutes",
@@ -248,19 +248,4 @@ make_mri_plots <- function(mri_results, colour) {
       outcome = labels$outcome
     )
   }))
-}
-
-make_plot_grid <- function(plot_data, cohort_order, subtype_order) {
-  plot_data[, cohort := factor(cohort, levels = cohort_order)]
-  plot_data[, sub_type := factor(sub_type, levels = subtype_order)]
-
-  # Reshape for grid
-  grid_list <- lapply(cohort_order, function(this_cohort) {
-    plots_row <- plot_data[cohort == this_cohort][order(sub_type), plot]
-    wrap_plots(plots_row, nrow = 1)
-  })
-
-  # Assemble rows into a grid
-  final_plot <- wrap_plots(grid_list, ncol = 1)
-  final_plot
 }

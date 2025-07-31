@@ -156,6 +156,21 @@ apply_substitution <- function(imp, from_var, to_var, duration, comp_limits) {
   )
 }
 
+make_plot_grid <- function(plot_data, cohort_order, subtype_order) {
+  plot_data[, cohort := factor(cohort, levels = cohort_order)]
+  plot_data[, sub_type := factor(sub_type, levels = subtype_order)]
+
+  # Reshape for grid
+  grid_list <- lapply(cohort_order, function(this_cohort) {
+    plots_row <- plot_data[cohort == this_cohort][order(sub_type), plot]
+    wrap_plots(plots_row, nrow = 1)
+  })
+
+  # Assemble rows into a grid
+  final_plot <- wrap_plots(grid_list, ncol = 1)
+  final_plot
+}
+
 save_plots <- function() {
   ggplot2::ggsave(
     "plots/cum_plot.png",

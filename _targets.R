@@ -433,36 +433,21 @@ list(
       )
     )
   ),
-  # tar_target(all_mri_plots, {
-  #   plot_data <- c(
-  #     "mri_plots_avg_sleeper_filter_fn_hip",
-  #     "mri_plots_avg_sleeper_filter_fn_gmv",
-  #     "mri_plots_avg_sleeper_filter_fn_tbv",
-  #     "mri_plots_avg_sleeper_filter_fn_wmv",
-  #     "mri_plots_avg_sleeper_filter_fn_log_wmh",
-  #     "mri_plots_short_sleeper_filter_fn_hip",
-  #     "mri_plots_short_sleeper_filter_fn_gmv",
-  #     "mri_plots_short_sleeper_filter_fn_tbv",
-  #     "mri_plots_short_sleeper_filter_fn_wmv",
-  #     "mri_plots_short_sleeper_filter_fn_log_wmh"
-  #   )
-  #   dt_all <- rbindlist(
-  #     lapply(tables, function(name) {
-  #       dt <- get(name)
-  #       dt[,
-  #         sleeper_type := if (grepl("avg_sleeper", name)) {
-  #           "avg_sleeper"
-  #         } else {
-  #           "short_sleeper"
-  #         }
-  #       ]
-  #       dt[, outcome_type := sub("mri_plots_.*_filter_fn_(.*)", "\\1", name)]
-  #       dt[, source := name]
-  #       dt
-  #     }),
-  #     fill = TRUE
-  #   )
-  # }),
+  tar_target(
+    all_mri_plots,
+    rbind(
+      mri_plots_short_sleeper_log_wmh,
+      mri_plots_short_sleeper_tbv,
+      mri_plots_short_sleeper_hip,
+      mri_plots_short_sleeper_gmv,
+      mri_plots_short_sleeper_wmv,
+      mri_plots_avg_sleeper_gmv,
+      mri_plots_avg_sleeper_hip,
+      mri_plots_avg_sleeper_wmv,
+      mri_plots_avg_sleeper_log_wmh,
+      mri_plots_avg_sleeper_tbv
+    )
+  ),
   tar_map(
     values = list(
       comp = c(

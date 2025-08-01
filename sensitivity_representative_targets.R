@@ -81,7 +81,7 @@ representative_targets <- list(
   ),
   tar_target(
     representative_plots,
-    make_plot(representative_risk_ratios, "#6ed853")
+    make_plot(representative_risk_ratios, "full_cohort")
   ),
   # ### PLOTS ###
   tar_target(

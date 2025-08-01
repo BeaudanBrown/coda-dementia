@@ -53,7 +53,7 @@ reverse_causation_targets <- list(
   ),
   tar_target(
     reverse_causation_plots,
-    make_plot(reverse_causation_risk_ratios, "#708ff9")
+    make_plot(reverse_causation_risk_ratios, "full_cohort")
   ),
   # ### PLOTS ###
   tar_target(

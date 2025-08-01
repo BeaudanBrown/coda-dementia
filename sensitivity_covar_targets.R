@@ -59,7 +59,7 @@ covar_sensitivity_targets <- list(
     ),
     tar_target(
       sensitivity_plots,
-      make_plot(sensitivity_risk_ratios, colour)
+      make_plot(sensitivity_risk_ratios, sens_name)
     )
   ),
   tar_target(

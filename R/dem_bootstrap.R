@@ -126,8 +126,8 @@ make_plot <- function(df, cohort) {
   dark_factor <- switch(
     cohort,
     short_sleeper = 1.2,
-    avg_sleeper = 0.7,
-    long_sleeper = 1.2
+    long_sleeper = 1.2,
+    0.7
   )
 
   left_centre <- unit(0.4, "npc")

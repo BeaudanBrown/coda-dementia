@@ -36,8 +36,7 @@ cum_targets <- list(
       synth_comps_filtered,
       train_models,
       final_time
-    ),
-    pattern = map(synth_comps_filtered)
+    )
   ),
   tar_target(
     reference_comps,

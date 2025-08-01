@@ -8,6 +8,9 @@ mins_in_day <- 1440
 short_sleep_hours <- 6
 long_sleep_min_hours <- 8
 long_sleep_hours <- 9
+intervention_threshold <- 0.75
+
+synth_threshold <- 0.05
 
 no_filter_fn <- function(df) {
   df

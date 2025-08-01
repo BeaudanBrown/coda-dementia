@@ -14,13 +14,15 @@ covar_sensitivity_targets <- list(
     names = sens_name,
     tar_target(
       sensitivity_models,
-      fit_models(full_imp, timegroup_cuts, create_formula_fn)
+      fit_models(half_imp, timegroup_cuts, create_formula_fn),
+      pattern = map(half_imp)
     ),
 
     ### REF RISK ###
     tar_target(
       sensitivity_ref_risk,
-      get_ref_risk(full_imp, sensitivity_models, final_time)
+      get_ref_risk(full_imp, sensitivity_models, final_time),
+      pattern = map(half_imp, sensitivity_models)
     ),
     ### SUB RISK ###
     tar_target(
@@ -35,7 +37,8 @@ covar_sensitivity_targets <- list(
           final_time,
           comp_limits
         )
-      }))
+      })),
+      pattern = map(half_imp, sensitivity_models)
     ),
     ### ANALYSIS ###
     tar_target(

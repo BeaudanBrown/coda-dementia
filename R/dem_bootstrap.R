@@ -134,7 +134,7 @@ make_plot <- function(df, colour) {
   rbindlist(lapply(sub_types, function(sub_type) {
     sub_results <- df |>
       filter(from_var == sub_type) |>
-      filter(prop_substituted > 0.8)
+      filter(prop_substituted > intervention_threshold)
     sub_name <- unique(case_when(
       sub_type == "avg_inactivity" ~ "Inactivity",
       sub_type == "avg_light" ~ "Light Activity",

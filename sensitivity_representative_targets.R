@@ -5,7 +5,7 @@ representative_targets <- list(
     # shift covariates to match mean (continuous vars) or
     # probability (categorical vars)
     # of Schoeler et al pseudo-pop (see paper)
-    full_imp |>
+    half_imp |>
       mutate(
         sex = sample(
           c("female", "male"),
@@ -29,16 +29,19 @@ representative_targets <- list(
           prob = c(0.208, 0.359, 0.433)
         ),
         smok_status = as.factor(smok_status),
-      )
+      ),
+    pattern = map(half_imp)
   ),
   tar_target(
     representative_models,
-    fit_models(full_imp, timegroup_cuts, get_primary_formula)
+    fit_models(imp_rep, timegroup_cuts, get_primary_formula),
+    pattern = map(imp_rep)
   ),
   ### REF RISK ###
   tar_target(
     representative_ref_risk,
-    get_ref_risk(imp_rep, representative_models, final_time)
+    get_ref_risk(imp_rep, representative_models, final_time),
+    pattern = map(imp_rep, representative_models)
   ),
   ### SUB RISK ###
   tar_target(

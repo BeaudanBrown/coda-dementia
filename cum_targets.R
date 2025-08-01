@@ -1,7 +1,7 @@
 cum_targets <- list(
   #### SYNTH COMPS ####
   tar_target(synth_comps, generate_compositions(df)),
-  tar_target(synth_comps_dens, add_density(df, synth_comps, 0.1)),
+  tar_target(synth_comps_dens, add_density(df, synth_comps, synth_threshold)),
   tar_target(
     synth_comps_filtered,
     synth_comps_dens[dens > dens_threshold & !is.na(dens), ]
@@ -104,12 +104,11 @@ cum_targets <- list(
     cum_plot,
     {
       composition_colors <- c(
-        "Worst" = "#DC3912",
-        "Typical" = "#56B4E9",
-        "Best" = "#7AC36A"
+        "Worst" = "#ff747b",
+        "Typical" = "#708ff9",
+        "Best" = "#6ed853"
       )
       cum_plot_data |>
-        # tar_read(cum_plot_data) |>
         ggplot(aes(x = timegroup, y = risk)) +
         geom_ribbon(
           aes(ymin = lower_risk, ymax = upper_risk, fill = Composition),

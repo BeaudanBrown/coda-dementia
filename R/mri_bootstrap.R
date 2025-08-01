@@ -123,7 +123,7 @@ make_mri_plots <- function(mri_results, colour) {
   rbindlist(lapply(sub_types, function(sub_type) {
     sub_results <- mri_results |>
       filter(from_var == sub_type) |>
-      filter(prop_substituted > 0.8)
+      filter(prop_substituted > intervention_threshold)
     labels <- get_mri_labels(sub_results)
 
     left_centre <- unit(0.4, "npc")

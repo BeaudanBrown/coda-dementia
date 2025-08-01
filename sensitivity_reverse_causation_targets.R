@@ -3,17 +3,20 @@ reverse_causation_targets <- list(
   tar_target(
     imp_rc,
     {
-      full_imp[full_imp$time_to_dem > (3 * 365), ]
-    }
+      half_imp[half_imp$time_to_dem > (3 * 365), ]
+    },
+    pattern = map(half_imp)
   ),
   tar_target(
     reverse_causation_models,
-    fit_models(imp_rc, timegroup_cuts, get_primary_formula)
+    fit_models(imp_rc, timegroup_cuts, get_primary_formula),
+    pattern = map(imp_rc)
   ),
   ### REF RISK ###
   tar_target(
     reverse_causation_ref_risk,
-    get_ref_risk(imp_rc, reverse_causation_models, final_time)
+    get_ref_risk(imp_rc, reverse_causation_models, final_time),
+    pattern = map(imp_rc, reverse_causation_models)
   ),
   ### SUB RISK ###
   tar_target(
@@ -28,7 +31,8 @@ reverse_causation_targets <- list(
         final_time,
         comp_limits
       )
-    }))
+    })),
+    pattern = map(imp_rc, reverse_causation_models)
   ),
   ### ANALYSIS ###
   tar_target(

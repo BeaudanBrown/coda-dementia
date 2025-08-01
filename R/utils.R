@@ -156,64 +156,81 @@ apply_substitution <- function(imp, from_var, to_var, duration, comp_limits) {
   )
 }
 
-make_plot_grid <- function(plot_data, cohort_order, subtype_order) {
-  plot_data[, cohort := factor(cohort, levels = cohort_order)]
-  plot_data[, sub_type := factor(sub_type, levels = subtype_order)]
+make_plot_grid <- function(
+  plot_data,
+  grid_layout
+) {
+  plot_data[, cohort := factor(cohort, levels = grid_layout$cohort_order)]
+  plot_data[, sub_type := factor(sub_type, levels = grid_layout$subtype_order)]
 
-  # Reshape for grid
-  grid_list <- lapply(cohort_order, function(this_cohort) {
-    plots_row <- plot_data[cohort == this_cohort][order(sub_type), plot]
-    wrap_plots(plots_row, nrow = 1)
+  title_row <- lapply(grid_layout$cohort_order, function(cohort) {
+    cohort_name <- ifelse(
+      cohort == "short_sleeper",
+      "Short Sleepers",
+      ifelse(cohort == "avg_sleeper", "Normal Sleepers", "Long Sleepers")
+    )
+    ggplot() +
+      annotate(
+        "text",
+        x = 0,
+        y = 0,
+        label = cohort_name,
+        size = 5,
+        vjust = 0,
+        hjust = 0.5
+      ) +
+      theme(plot.margin = margin(0, 0, 0, 0)) +
+      theme_void()
   })
-
-  # Assemble rows into a grid
-  final_plot <- wrap_plots(grid_list, ncol = 1)
-  final_plot
+  grid_list <- lapply(grid_layout$subtype_order, function(this_subtype) {
+    plots_row <- plot_data[sub_type == this_subtype][order(cohort), plot]
+    wrap_plots(c(plots_row), nrow = 1)
+  })
+  patchwork::wrap_plots(
+    c(list(wrap_plots(c(title_row), nrow = 1)), grid_list),
+    heights = c(0.2, rep(1, length(grid_list))),
+    ncol = 1
+  )
 }
 
-save_plots <- function() {
-  ggplot2::ggsave(
-    "plots/cum_plot.png",
-    tar_read(cum_plot),
-    width = 12,
-    heigh = 12
+save_plots <- function(
+  plot_dir = "plots",
+  plot_width = 15,
+  plot_height = 12,
+  plot_pattern = "plot_grid"
+) {
+  if (!dir.exists(plot_dir)) {
+    dir.create(plot_dir)
+  }
+  source("primary_targets.R")
+  source("mri_targets.R")
+  source("cum_targets.R")
+  source("sensitivity_reverse_causation_targets.R")
+  source("sensitivity_covar_targets.R")
+  source("sensitivity_representative_targets.R")
+  plot_targets <- tarchetypes::tar_select_names(
+    list(
+      primary_targets,
+      mri_targets,
+      cum_targets,
+      reverse_causation_targets,
+      covar_sensitivity_targets,
+      representative_targets
+    ),
+    tidyr::contains(plot_pattern)
   )
-
-  ggplot2::ggsave(
-    "plots/mri_wmv_plot.png",
-    tar_read(mri_plot_grid_wmv),
-    width = 12,
-    heigh = 12
-  )
-  ggplot2::ggsave(
-    "plots/mri_gmv_plot.png",
-    tar_read(mri_plot_grid_gmv),
-    width = 12,
-    heigh = 12
-  )
-  ggplot2::ggsave(
-    "plots/mri_tbv_plot.png",
-    tar_read(mri_plot_grid_tbv),
-    width = 12,
-    heigh = 12
-  )
-  ggplot2::ggsave(
-    "plots/mri_hip_plot.png",
-    tar_read(mri_plot_grid_hip),
-    width = 12,
-    heigh = 12
-  )
-  ggplot2::ggsave(
-    "plots/mri_log_wmh_plot.png",
-    tar_read(mri_plot_grid_log_wmh),
-    width = 12,
-    heigh = 12
-  )
-
-  ggplot2::ggsave(
-    "plots/primary_grid_plot.png",
-    tar_read(primary_grid),
-    width = 12,
-    heigh = 12
-  )
+  for (target in plot_targets) {
+    name_part <- sub(paste0(plot_pattern, "_"), "", target)
+    if (name_part == "") {
+      name_part <- target
+    }
+    file_path <- file.path(plot_dir, paste0(name_part, ".png"))
+    plot_obj <- tar_read_raw(target)
+    ggplot2::ggsave(
+      file_path,
+      plot_obj,
+      width = plot_width,
+      height = plot_height
+    )
+  }
 }

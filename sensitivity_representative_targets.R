@@ -86,10 +86,13 @@ representative_targets <- list(
   # ### PLOTS ###
   tar_target(
     representative_plots_grid,
-    {
-      cohort_order <- c("full_cohort")
-      subtype_order <- c("avg_inactivity", "avg_light", "avg_mvpa")
-      make_plot_grid(representative_plots, cohort_order, subtype_order)
-    }
+    make_plot_grid(
+      representative_plots,
+      list(
+        cohort_order = c("full_cohort"),
+        color_order = c("#708ff9"),
+        subtype_order = c("avg_inactivity", "avg_light", "avg_mvpa")
+      )
+    )
   )
 )

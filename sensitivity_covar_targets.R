@@ -72,10 +72,13 @@ covar_sensitivity_targets <- list(
   # ### PLOTS ###
   tar_target(
     sensitivity_plots_grid,
-    {
-      cohort_order <- c("s1", "s2")
-      subtype_order <- c("avg_inactivity", "avg_light", "avg_mvpa")
-      make_plot_grid(all_sensitivity_plots, cohort_order, subtype_order)
-    }
+    make_plot_grid(
+      all_sensitivity_plots,
+      list(
+        cohort_order = c("s1", "s2"),
+        color_order = c("#ff747b", "#708ff9"),
+        subtype_order = c("avg_inactivity", "avg_light", "avg_mvpa")
+      )
+    )
   )
 )

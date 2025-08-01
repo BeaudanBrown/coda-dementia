@@ -45,7 +45,7 @@ primary_targets <- list(
     ),
     tar_target(
       primary_plots,
-      make_plot(primary_risk_ratios, colour)
+      make_plot(primary_risk_ratios, cohort)
     )
   ),
   ### PLOTS ###
@@ -53,16 +53,18 @@ primary_targets <- list(
     all_primary_plots,
     rbind(
       primary_plots_short_sleeper,
-      primary_plots_avg_sleeper,
-      primary_plots_long_sleeper
+      primary_plots_avg_sleeper
     )
   ),
   tar_target(
-    primary_grid,
-    {
-      cohort_order <- c("short_sleeper", "avg_sleeper", "long_sleeper")
-      subtype_order <- c("avg_inactivity", "avg_light", "avg_mvpa")
-      make_plot_grid(all_primary_plots, cohort_order, subtype_order)
-    }
+    primary_plot_grid,
+    make_plot_grid(
+      all_primary_plots,
+      list(
+        cohort_order = c("avg_sleeper", "short_sleeper"),
+        color_order = c("#708ff9", "#ff747b"),
+        subtype_order = c("avg_inactivity", "avg_light", "avg_mvpa")
+      )
+    )
   )
 )

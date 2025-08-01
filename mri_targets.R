@@ -98,11 +98,16 @@ mri_targets <- list(
       outcome_name = c("tbv", "wmv", "gmv", "hip", "log_wmh")
     ),
     names = outcome_name,
-    tar_target(mri_plot_grid, {
-      outcome_data <- all_mri_plots[outcome == outcome_name, ]
-      cohort_order <- c("short_sleeper", "avg_sleeper")
-      subtype_order <- c("avg_inactivity", "avg_light", "avg_mvpa")
-      make_plot_grid(outcome_data, cohort_order, subtype_order)
-    })
+    tar_target(
+      mri_plot_grid,
+      make_plot_grid(
+        all_mri_plots[outcome == outcome_name, ],
+        list(
+          cohort_order = c("short_sleeper", "avg_sleeper"),
+          color_order = c("#ff747b", "#6ed853"),
+          subtype_order = c("avg_inactivity", "avg_light", "avg_mvpa")
+        )
+      )
+    )
   )
 )

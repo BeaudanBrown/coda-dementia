@@ -85,6 +85,6 @@ get_synth_risk <- function(pred_data, synth_comps, models, final_time) {
       weighted.mean(risk, prop)
     ]
 
-    this_comp[, .(R1, R2, R3)][, risk := final_risk]
+    this_comp[, risk := final_risk]
   }))
 }

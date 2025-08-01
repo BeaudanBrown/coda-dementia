@@ -111,141 +111,146 @@ get_mri_labels <- function(mri_results) {
   )
 }
 
-make_mri_plots <- function(mri_results, colour) {
+make_mri_plots <- function(mri_results, cohort) {
+  dark_factor <- switch(cohort, short_sleeper = 1.2, long_sleeper = 1.2, 0.7)
   sub_types <- c("avg_mvpa", "avg_light", "avg_inactivity")
+  colours <- c("#708ff9", "#6ed853", "#ff747b")
 
-  y_mean <- mean(mri_results$md, na.rm = TRUE)
-  y_sd <- sd(mri_results$md, na.rm = TRUE)
+  left_centre <- unit(0.4, "npc")
+  right_centre <- unit(0.6, "npc")
+
+  minutes_offset <- unit(-0.8, "cm")
+  sub_offset <- unit(-1.2, "cm")
+  sleep_offset <- unit(-1.8, "cm")
+  arrow_offset <- unit(-1.5, "cm")
+
+  left_arrow_xs <- unit(c(0.4, 0.2), "npc")
+  right_arrow_xs <- unit(c(0.6, 0.8), "npc")
+  arrow_ys <- unit(c(-1.5, -1.5), "cm")
+
   limit <- max(abs(min(mri_results$lower_md)), abs(max(mri_results$upper_md)))
   lower_lim <- -limit
   upper_lim <- limit
 
-  rbindlist(lapply(sub_types, function(sub_type) {
-    sub_results <- mri_results |>
-      filter(from_var == sub_type) |>
-      filter(prop_substituted > intervention_threshold)
-    labels <- get_mri_labels(sub_results)
+  rbindlist(Map(
+    function(sub_type, colour) {
+      colour <- adjust_colour(colour, dark_factor)
+      sub_results <- mri_results |>
+        filter(from_var == sub_type) |>
+        filter(prop_substituted > intervention_threshold)
+      labels <- get_mri_labels(sub_results)
 
-    left_centre <- unit(0.4, "npc")
-    right_centre <- unit(0.6, "npc")
-
-    minutes_offset <- unit(-0.8, "cm")
-    sub_offset <- unit(-1.2, "cm")
-    sleep_offset <- unit(-1.8, "cm")
-    arrow_offset <- unit(-1.5, "cm")
-
-    left_arrow_xs <- unit(c(0.4, 0.2), "npc")
-    right_arrow_xs <- unit(c(0.6, 0.8), "npc")
-    arrow_ys <- unit(c(-1.5, -1.5), "cm")
-
-    p <- sub_results |>
-      ggplot(aes(x = duration, y = md)) +
-      geom_line(colour = colour) +
-      geom_hline(yintercept = 0, linetype = "dotted") +
-      geom_ribbon(
-        aes(ymin = lower_md, ymax = upper_md),
-        alpha = 0.2,
-        fill = colour
-      ) +
-      labs(x = "", y = labels$ylabel) +
-      annotation_custom(
-        textGrob(
-          "Minutes",
-          gp = gpar(fontsize = 14, fontfamily = "serif", fontface = 1),
-          x = unit(0.5, "npc"),
-          y = minutes_offset,
-          hjust = 0.5
-        )
-      ) +
-      annotation_custom(
-        textGrob(
-          "Less sleep",
-          gp = gpar(fontsize = 12, fontfamily = "serif", fontface = 1),
-          x = left_centre,
-          y = sleep_offset,
-          hjust = 1
-        )
-      ) +
-      annotation_custom(
-        textGrob(
-          "More sleep",
-          gp = gpar(fontsize = 12, fontfamily = "serif", fontface = 1),
-          x = right_centre,
-          y = sleep_offset,
-          hjust = 0
-        )
-      ) +
-      annotation_custom(
-        textGrob(
-          paste("More", labels$sub_name),
-          gp = gpar(fontsize = 12, fontfamily = "serif", fontface = 1),
-          x = left_centre,
-          y = sub_offset,
-          hjust = 1
-        )
-      ) +
-      annotation_custom(
-        textGrob(
-          paste("Less", labels$sub_name),
-          gp = gpar(fontsize = 12, fontfamily = "serif", fontface = 1),
-          x = right_centre,
-          y = sub_offset,
-          hjust = 0
-        )
-      ) +
-
-      # Arrows
-      annotation_custom(
-        grid::linesGrob(
-          x = right_arrow_xs,
-          y = arrow_ys,
-          arrow = grid::arrow(
-            angle = 30,
-            length = unit(0.15, "cm"),
-            ends = "last"
+      p <- sub_results |>
+        ggplot(aes(x = duration, y = md)) +
+        geom_line(colour = colour) +
+        geom_hline(yintercept = 0, linetype = "dotted") +
+        geom_ribbon(
+          aes(ymin = lower_md, ymax = upper_md),
+          alpha = 0.2,
+          fill = colour
+        ) +
+        labs(x = "", y = labels$ylabel) +
+        annotation_custom(
+          textGrob(
+            "Minutes",
+            gp = gpar(fontsize = 14, fontfamily = "serif", fontface = 1),
+            x = unit(0.5, "npc"),
+            y = minutes_offset,
+            hjust = 0.5
           )
-        )
-      ) +
-      annotation_custom(
-        grid::linesGrob(
-          x = left_arrow_xs,
-          y = arrow_ys,
-          arrow = grid::arrow(
-            angle = 30,
-            length = unit(0.15, "cm"),
-            ends = "last"
+        ) +
+        annotation_custom(
+          textGrob(
+            "Less sleep",
+            gp = gpar(fontsize = 12, fontfamily = "serif", fontface = 1),
+            x = left_centre,
+            y = sleep_offset,
+            hjust = 1
           )
-        )
-      ) +
+        ) +
+        annotation_custom(
+          textGrob(
+            "More sleep",
+            gp = gpar(fontsize = 12, fontfamily = "serif", fontface = 1),
+            x = right_centre,
+            y = sleep_offset,
+            hjust = 0
+          )
+        ) +
+        annotation_custom(
+          textGrob(
+            paste("More", labels$sub_name),
+            gp = gpar(fontsize = 12, fontfamily = "serif", fontface = 1),
+            x = left_centre,
+            y = sub_offset,
+            hjust = 1
+          )
+        ) +
+        annotation_custom(
+          textGrob(
+            paste("Less", labels$sub_name),
+            gp = gpar(fontsize = 12, fontfamily = "serif", fontface = 1),
+            x = right_centre,
+            y = sub_offset,
+            hjust = 0
+          )
+        ) +
 
-      # Coordinate system and theme
-      coord_cartesian(
-        xlim = c(-60, 60),
-        ylim = c(lower_lim, upper_lim),
-        expand = FALSE,
-        clip = "off"
-      ) +
-      cowplot::theme_cowplot(
-        font_size = 12,
-        font_family = "serif",
-        line_size = 0.25
-      ) +
-      theme(
-        plot.margin = unit(c(1, 1, 4, 1), "lines"),
-        strip.background = element_blank(),
-        strip.text.x = element_blank(),
-        panel.border = element_rect(fill = NA, colour = "#585656"),
-        panel.grid = element_line(colour = "grey92"),
-        panel.grid.minor = element_line(linewidth = rel(0.5)),
-        axis.ticks.y = element_blank(),
-        axis.line = element_line(color = "#585656"),
-        axis.title.y = element_text(margin = margin(r = 10))
+        # Arrows
+        annotation_custom(
+          grid::linesGrob(
+            x = right_arrow_xs,
+            y = arrow_ys,
+            arrow = grid::arrow(
+              angle = 30,
+              length = unit(0.15, "cm"),
+              ends = "last"
+            )
+          )
+        ) +
+        annotation_custom(
+          grid::linesGrob(
+            x = left_arrow_xs,
+            y = arrow_ys,
+            arrow = grid::arrow(
+              angle = 30,
+              length = unit(0.15, "cm"),
+              ends = "last"
+            )
+          )
+        ) +
+
+        # Coordinate system and theme
+        coord_cartesian(
+          xlim = c(-60, 60),
+          ylim = c(lower_lim, upper_lim),
+          expand = FALSE,
+          clip = "off"
+        ) +
+        cowplot::theme_cowplot(
+          font_size = 12,
+          font_family = "serif",
+          line_size = 0.25
+        ) +
+        theme(
+          plot.margin = unit(c(1, 1, 4, 1), "lines"),
+          strip.background = element_blank(),
+          strip.text.x = element_blank(),
+          panel.border = element_rect(fill = NA, colour = "#585656"),
+          panel.grid = element_line(colour = "grey92"),
+          panel.grid.minor = element_line(linewidth = rel(0.5)),
+          axis.ticks.y = element_blank(),
+          axis.line = element_line(color = "#585656"),
+          axis.title.y = element_text(margin = margin(r = 10))
+        )
+      data.table(
+        sub_type = sub_type,
+        plot = list(p),
+        cohort = labels$cohort,
+        outcome = labels$outcome
       )
-    data.table(
-      sub_type = sub_type,
-      plot = list(p),
-      cohort = labels$cohort,
-      outcome = labels$outcome
-    )
-  }))
+    },
+    sub_types,
+    colours
+  ))
 }

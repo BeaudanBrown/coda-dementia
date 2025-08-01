@@ -57,12 +57,11 @@ reverse_causation_targets <- list(
   ),
   # ### PLOTS ###
   tar_target(
-    reverse_causation_plots_grid,
+    reverse_causation_plot_grid,
     make_plot_grid(
       reverse_causation_plots,
       list(
         cohort_order = c("full_cohort"),
-        color_order = c("#708ff9"),
         subtype_order = c("avg_inactivity", "avg_light", "avg_mvpa")
       )
     )

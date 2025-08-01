@@ -164,10 +164,18 @@ make_plot_grid <- function(
   plot_data[, sub_type := factor(sub_type, levels = grid_layout$subtype_order)]
 
   title_row <- lapply(grid_layout$cohort_order, function(cohort) {
-    cohort_name <- ifelse(
-      cohort == "short_sleeper",
-      "Short Sleepers",
-      ifelse(cohort == "avg_sleeper", "Normal Sleepers", "Long Sleepers")
+    cohort_name <- switch(
+      cohort,
+      short_sleeper = "Short Sleepers",
+      avg_sleeper = "Normal Sleepers",
+      long_sleeper = "Long Sleepers",
+      full_cohort = "Full Cohort",
+      s1 = "WASO Adjusted",
+      s2 = "Comorbidity Adjusted",
+      s3 = "Interactions Adjusted",
+      representative = "Representative Covar Adjusted",
+      reverse_causation = "Reverse Causation Adjusted",
+      cohort
     )
     ggplot() +
       annotate(
@@ -193,32 +201,48 @@ make_plot_grid <- function(
   )
 }
 
-save_plots <- function(
-  plot_dir = "plots",
-  plot_width = 15,
-  plot_height = 12,
-  plot_pattern = "plot_grid"
-) {
-  if (!dir.exists(plot_dir)) {
-    dir.create(plot_dir)
-  }
+save_plots <- function(plot_pattern = "plot_grid", sc = TRUE) {
   source("primary_targets.R")
   source("mri_targets.R")
   source("cum_targets.R")
   source("sensitivity_reverse_causation_targets.R")
   source("sensitivity_covar_targets.R")
   source("sensitivity_representative_targets.R")
-  plot_targets <- tarchetypes::tar_select_names(
+  quad_targets <- tarchetypes::tar_select_names(
     list(
-      primary_targets,
-      mri_targets,
-      cum_targets,
-      reverse_causation_targets,
-      covar_sensitivity_targets,
-      representative_targets
+      covar_sensitivity_targets
     ),
     tidyr::contains(plot_pattern)
   )
+  double_targets <- tarchetypes::tar_select_names(
+    list(
+      primary_targets,
+      mri_targets
+    ),
+    tidyr::contains(plot_pattern)
+  )
+  single_targets <- tarchetypes::tar_select_names(
+    list(
+      cum_targets
+    ),
+    tidyr::contains(plot_pattern)
+  )
+  save_plots_cust(plot_width = 20, plot_targets = quad_targets, sc = sc)
+  save_plots_cust(plot_width = 10, plot_targets = double_targets, sc = sc)
+  save_plots_cust(plot_width = 5, plot_targets = single_targets, sc = sc)
+}
+
+save_plots_cust <- function(
+  plot_dir = "plots",
+  plot_width = 15,
+  plot_height = 12,
+  plot_targets,
+  sc = TRUE
+) {
+  if (!dir.exists(plot_dir)) {
+    dir.create(plot_dir)
+  }
+  tar_make(names = plot_targets, shortcut = sc)
   for (target in plot_targets) {
     name_part <- sub(paste0(plot_pattern, "_"), "", target)
     if (name_part == "") {

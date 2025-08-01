@@ -62,7 +62,6 @@ primary_targets <- list(
       all_primary_plots,
       list(
         cohort_order = c("avg_sleeper", "short_sleeper"),
-        color_order = c("#708ff9", "#ff747b"),
         subtype_order = c("avg_inactivity", "avg_light", "avg_mvpa")
       )
     )

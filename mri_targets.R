@@ -71,7 +71,7 @@ mri_targets <- list(
         {
           make_mri_plots(
             mri_mean_diffs,
-            colour
+            cohort
           )
         }
       )
@@ -103,8 +103,7 @@ mri_targets <- list(
       make_plot_grid(
         all_mri_plots[outcome == outcome_name, ],
         list(
-          cohort_order = c("short_sleeper", "avg_sleeper"),
-          color_order = c("#ff747b", "#6ed853"),
+          cohort_order = c("avg_sleeper", "short_sleeper"),
           subtype_order = c("avg_inactivity", "avg_light", "avg_mvpa")
         )
       )

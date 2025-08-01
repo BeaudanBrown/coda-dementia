@@ -52,8 +52,9 @@ primary_targets <- list(
   tar_target(
     all_primary_plots,
     rbind(
-      primary_plots_short_sleeper,
-      primary_plots_avg_sleeper
+      primary_plots_full_cohort,
+      primary_plots_avg_sleeper,
+      primary_plots_short_sleeper
     )
   ),
   tar_target(
@@ -61,7 +62,7 @@ primary_targets <- list(
     make_plot_grid(
       all_primary_plots,
       list(
-        cohort_order = c("avg_sleeper", "short_sleeper"),
+        cohort_order = c("full_cohort", "avg_sleeper", "short_sleeper"),
         subtype_order = c("avg_inactivity", "avg_light", "avg_mvpa")
       )
     )

@@ -65,6 +65,7 @@ covar_sensitivity_targets <- list(
   tar_target(
     all_sensitivity_plots,
     rbind(
+      primary_plots_full_cohort,
       sensitivity_plots_s1,
       sensitivity_plots_s2,
       representative_plots,
@@ -77,7 +78,13 @@ covar_sensitivity_targets <- list(
     make_plot_grid(
       all_sensitivity_plots,
       list(
-        cohort_order = c("s1", "s2", "representative", "reverse_causation"),
+        cohort_order = c(
+          "full_cohort",
+          "s1",
+          "s2",
+          "representative",
+          "reverse_causation"
+        ),
         subtype_order = c("avg_inactivity", "avg_light", "avg_mvpa")
       )
     )

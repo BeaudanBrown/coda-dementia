@@ -122,7 +122,6 @@ adjust_colour <- function(col, factor = 1.2) {
 }
 
 make_plot <- function(df, cohort) {
-  cohort <- unique(df$cohort)
   dark_factor <- switch(
     cohort,
     short_sleeper = 1.2,

@@ -77,12 +77,12 @@ representative_targets <- list(
     merge_risks(
       representative_sub_avg_risks,
       representative_ref_avg_risks,
-      "full_cohort"
+      "representative"
     )
   ),
   tar_target(
     representative_plots,
-    make_plot(representative_risk_ratios, "full_cohort")
+    make_plot(representative_risk_ratios, "representative")
   ),
   # ### PLOTS ###
   tar_target(
@@ -90,7 +90,7 @@ representative_targets <- list(
     make_plot_grid(
       representative_plots,
       list(
-        cohort_order = c("full_cohort"),
+        cohort_order = c("representative"),
         subtype_order = c("avg_inactivity", "avg_light", "avg_mvpa")
       )
     )

@@ -48,12 +48,12 @@ reverse_causation_targets <- list(
     merge_risks(
       reverse_causation_sub_avg_risks,
       reverse_causation_ref_avg_risks,
-      "full_cohort"
+      "reverse_causation"
     )
   ),
   tar_target(
     reverse_causation_plots,
-    make_plot(reverse_causation_risk_ratios, "full_cohort")
+    make_plot(reverse_causation_risk_ratios, "reverse_causation")
   ),
   # ### PLOTS ###
   tar_target(
@@ -61,7 +61,7 @@ reverse_causation_targets <- list(
     make_plot_grid(
       reverse_causation_plots,
       list(
-        cohort_order = c("full_cohort"),
+        cohort_order = c("reverse_causation"),
         subtype_order = c("avg_inactivity", "avg_light", "avg_mvpa")
       )
     )

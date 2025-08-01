@@ -65,32 +65,30 @@ mri_targets <- list(
           outcome,
           cohort
         )
-      ),
-      tar_target(
-        mri_plots,
-        {
-          make_mri_plots(
-            mri_mean_diffs,
-            cohort
-          )
-        }
       )
+    ),
+    tar_target(
+      mri_plot_data,
+      rbind(
+        mri_mean_diffs_short_sleeper,
+        mri_mean_diffs_avg_sleeper,
+        mri_mean_diffs_full_cohort
+      )
+    ),
+    tar_target(
+      mri_plots,
+      make_mri_plots(mri_plot_data)
     )
   ),
   ### PLOTS ###
   tar_target(
     all_mri_plots,
     rbind(
-      mri_plots_short_sleeper_log_wmh,
-      mri_plots_short_sleeper_tbv,
-      mri_plots_short_sleeper_hip,
-      mri_plots_short_sleeper_gmv,
-      mri_plots_short_sleeper_wmv,
-      mri_plots_avg_sleeper_gmv,
-      mri_plots_avg_sleeper_hip,
-      mri_plots_avg_sleeper_wmv,
-      mri_plots_avg_sleeper_log_wmh,
-      mri_plots_avg_sleeper_tbv
+      mri_plots_log_wmh,
+      mri_plots_tbv,
+      mri_plots_hip,
+      mri_plots_gmv,
+      mri_plots_wmv
     )
   ),
   tar_map(
@@ -103,7 +101,7 @@ mri_targets <- list(
       make_plot_grid(
         all_mri_plots[outcome == outcome_name, ],
         list(
-          cohort_order = c("avg_sleeper", "short_sleeper"),
+          cohort_order = c("full_cohort", "avg_sleeper", "short_sleeper"),
           subtype_order = c("avg_inactivity", "avg_light", "avg_mvpa")
         )
       )

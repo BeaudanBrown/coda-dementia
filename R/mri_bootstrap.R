@@ -112,7 +112,6 @@ get_mri_labels <- function(mri_results) {
 }
 
 make_mri_plots <- function(mri_results, cohort) {
-  dark_factor <- switch(cohort, short_sleeper = 1.2, long_sleeper = 1.2, 0.7)
   sub_types <- c("avg_mvpa", "avg_light", "avg_inactivity")
   colours <- c("#708ff9", "#6ed853", "#ff747b")
 
@@ -132,123 +131,136 @@ make_mri_plots <- function(mri_results, cohort) {
   lower_lim <- -limit
   upper_lim <- limit
 
+  unique_cohorts <- unique(mri_results$cohort)
+
   rbindlist(Map(
     function(sub_type, colour) {
-      colour <- adjust_colour(colour, dark_factor)
       sub_results <- mri_results |>
         filter(from_var == sub_type) |>
         filter(prop_substituted > intervention_threshold)
-      labels <- get_mri_labels(sub_results)
 
-      p <- sub_results |>
-        ggplot(aes(x = duration, y = md)) +
-        geom_line(colour = colour) +
-        geom_hline(yintercept = 0, linetype = "dotted") +
-        geom_ribbon(
-          aes(ymin = lower_md, ymax = upper_md),
-          alpha = 0.2,
-          fill = colour
-        ) +
-        labs(x = "", y = labels$ylabel) +
-        annotation_custom(
-          textGrob(
-            "Minutes",
-            gp = gpar(fontsize = 14, fontfamily = "serif", fontface = 1),
-            x = unit(0.5, "npc"),
-            y = minutes_offset,
-            hjust = 0.5
-          )
-        ) +
-        annotation_custom(
-          textGrob(
-            "Less sleep",
-            gp = gpar(fontsize = 12, fontfamily = "serif", fontface = 1),
-            x = left_centre,
-            y = sleep_offset,
-            hjust = 1
-          )
-        ) +
-        annotation_custom(
-          textGrob(
-            "More sleep",
-            gp = gpar(fontsize = 12, fontfamily = "serif", fontface = 1),
-            x = right_centre,
-            y = sleep_offset,
-            hjust = 0
-          )
-        ) +
-        annotation_custom(
-          textGrob(
-            paste("More", labels$sub_name),
-            gp = gpar(fontsize = 12, fontfamily = "serif", fontface = 1),
-            x = left_centre,
-            y = sub_offset,
-            hjust = 1
-          )
-        ) +
-        annotation_custom(
-          textGrob(
-            paste("Less", labels$sub_name),
-            gp = gpar(fontsize = 12, fontfamily = "serif", fontface = 1),
-            x = right_centre,
-            y = sub_offset,
-            hjust = 0
-          )
-        ) +
-
-        # Arrows
-        annotation_custom(
-          grid::linesGrob(
-            x = right_arrow_xs,
-            y = arrow_ys,
-            arrow = grid::arrow(
-              angle = 30,
-              length = unit(0.15, "cm"),
-              ends = "last"
-            )
-          )
-        ) +
-        annotation_custom(
-          grid::linesGrob(
-            x = left_arrow_xs,
-            y = arrow_ys,
-            arrow = grid::arrow(
-              angle = 30,
-              length = unit(0.15, "cm"),
-              ends = "last"
-            )
-          )
-        ) +
-
-        # Coordinate system and theme
-        coord_cartesian(
-          xlim = c(-60, 60),
-          ylim = c(lower_lim, upper_lim),
-          expand = FALSE,
-          clip = "off"
-        ) +
-        cowplot::theme_cowplot(
-          font_size = 12,
-          font_family = "serif",
-          line_size = 0.25
-        ) +
-        theme(
-          plot.margin = unit(c(1, 1, 4, 1), "lines"),
-          strip.background = element_blank(),
-          strip.text.x = element_blank(),
-          panel.border = element_rect(fill = NA, colour = "#585656"),
-          panel.grid = element_line(colour = "grey92"),
-          panel.grid.minor = element_line(linewidth = rel(0.5)),
-          axis.ticks.y = element_blank(),
-          axis.line = element_line(color = "#585656"),
-          axis.title.y = element_text(margin = margin(r = 10))
+      lapply(unique_cohorts, function(cohort_name) {
+        cohort_data <- sub_results |> filter(cohort == cohort_name)
+        labels <- get_mri_labels(sub_results)
+        dark_factor <- switch(
+          cohort_name,
+          short_sleeper = 1.2,
+          long_sleeper = 1.2,
+          0.7
         )
-      data.table(
-        sub_type = sub_type,
-        plot = list(p),
-        cohort = labels$cohort,
-        outcome = labels$outcome
-      )
+        colour <- adjust_colour(colour, dark_factor)
+
+        p <- cohort_data |>
+          ggplot(aes(x = duration, y = md)) +
+          geom_line(colour = colour) +
+          geom_hline(yintercept = 0, linetype = "dotted") +
+          geom_ribbon(
+            aes(ymin = lower_md, ymax = upper_md),
+            alpha = 0.2,
+            fill = colour
+          ) +
+          labs(x = "", y = labels$ylabel) +
+          annotation_custom(
+            textGrob(
+              "Minutes",
+              gp = gpar(fontsize = 14, fontfamily = "serif", fontface = 1),
+              x = unit(0.5, "npc"),
+              y = minutes_offset,
+              hjust = 0.5
+            )
+          ) +
+          annotation_custom(
+            textGrob(
+              "Less sleep",
+              gp = gpar(fontsize = 12, fontfamily = "serif", fontface = 1),
+              x = left_centre,
+              y = sleep_offset,
+              hjust = 1
+            )
+          ) +
+          annotation_custom(
+            textGrob(
+              "More sleep",
+              gp = gpar(fontsize = 12, fontfamily = "serif", fontface = 1),
+              x = right_centre,
+              y = sleep_offset,
+              hjust = 0
+            )
+          ) +
+          annotation_custom(
+            textGrob(
+              paste("More", labels$sub_name),
+              gp = gpar(fontsize = 12, fontfamily = "serif", fontface = 1),
+              x = left_centre,
+              y = sub_offset,
+              hjust = 1
+            )
+          ) +
+          annotation_custom(
+            textGrob(
+              paste("Less", labels$sub_name),
+              gp = gpar(fontsize = 12, fontfamily = "serif", fontface = 1),
+              x = right_centre,
+              y = sub_offset,
+              hjust = 0
+            )
+          ) +
+
+          # Arrows
+          annotation_custom(
+            grid::linesGrob(
+              x = right_arrow_xs,
+              y = arrow_ys,
+              arrow = grid::arrow(
+                angle = 30,
+                length = unit(0.15, "cm"),
+                ends = "last"
+              )
+            )
+          ) +
+          annotation_custom(
+            grid::linesGrob(
+              x = left_arrow_xs,
+              y = arrow_ys,
+              arrow = grid::arrow(
+                angle = 30,
+                length = unit(0.15, "cm"),
+                ends = "last"
+              )
+            )
+          ) +
+
+          # Coordinate system and theme
+          coord_cartesian(
+            xlim = c(-60, 60),
+            ylim = c(lower_lim, upper_lim),
+            expand = FALSE,
+            clip = "off"
+          ) +
+          cowplot::theme_cowplot(
+            font_size = 12,
+            font_family = "serif",
+            line_size = 0.25
+          ) +
+          theme(
+            plot.margin = unit(c(1, 1, 4, 1), "lines"),
+            strip.background = element_blank(),
+            strip.text.x = element_blank(),
+            panel.border = element_rect(fill = NA, colour = "#585656"),
+            panel.grid = element_line(colour = "grey92"),
+            panel.grid.minor = element_line(linewidth = rel(0.5)),
+            axis.ticks.y = element_blank(),
+            axis.line = element_line(color = "#585656"),
+            axis.title.y = element_text(margin = margin(r = 10))
+          )
+        data.table(
+          sub_type = sub_type,
+          plot = list(p),
+          cohort = cohort_name,
+          outcome = labels$outcome
+        )
+      }) |>
+        rbindlist()
     },
     sub_types,
     colours

@@ -208,28 +208,62 @@ save_plots <- function(plot_pattern = "plot_grid", sc = TRUE) {
   source("sensitivity_reverse_causation_targets.R")
   source("sensitivity_covar_targets.R")
   source("sensitivity_representative_targets.R")
-  quad_targets <- tarchetypes::tar_select_names(
+  quint_targets <- tarchetypes::tar_select_names(
     list(
       covar_sensitivity_targets
     ),
     tidyr::contains(plot_pattern)
   )
-  double_targets <- tarchetypes::tar_select_names(
+  triple_targets <- tarchetypes::tar_select_names(
     list(
       primary_targets,
       mri_targets
     ),
     tidyr::contains(plot_pattern)
   )
+  # double_targets <- tarchetypes::tar_select_names(
+  #   list(
+  #     primary_targets,
+  #     mri_targets
+  #   ),
+  #   tidyr::contains(plot_pattern)
+  # )
   single_targets <- tarchetypes::tar_select_names(
     list(
       cum_targets
     ),
     tidyr::contains(plot_pattern)
   )
-  save_plots_cust(plot_width = 20, plot_targets = quad_targets, sc = sc)
-  save_plots_cust(plot_width = 10, plot_targets = double_targets, sc = sc)
-  save_plots_cust(plot_width = 5, plot_targets = single_targets, sc = sc)
+  save_plots_cust(
+    plot_width = 25,
+    plot_targets = quint_targets,
+    sc = sc,
+    plot_pattern = plot_pattern
+  )
+  save_plots_cust(
+    plot_width = 15,
+    plot_targets = triple_targets,
+    sc = sc,
+    plot_pattern = plot_pattern
+  )
+  # save_plots_cust(
+  #   plot_width = 20,
+  #   plot_targets = quad_targets,
+  #   sc = sc,
+  #   plot_pattern = plot_pattern
+  # )
+  # save_plots_cust(
+  #   plot_width = 10,
+  #   plot_targets = double_targets,
+  #   sc = sc,
+  #   plot_pattern = plot_pattern
+  # )
+  save_plots_cust(
+    plot_width = 5,
+    plot_targets = single_targets,
+    sc = sc,
+    plot_pattern = plot_pattern
+  )
 }
 
 save_plots_cust <- function(
@@ -237,6 +271,7 @@ save_plots_cust <- function(
   plot_width = 15,
   plot_height = 12,
   plot_targets,
+  plot_pattern = "plot_grid",
   sc = TRUE
 ) {
   if (!dir.exists(plot_dir)) {

@@ -16,7 +16,6 @@ no_filter_fn <- function(df) {
   df
 }
 
-
 short_sleeper_filter_fn <- function(df) {
   df |> filter(avg_sleep < short_sleep_hours * 60)
 }
@@ -37,6 +36,7 @@ substitutions <- expand.grid(
   to_var = "avg_sleep",
   stringsAsFactors = FALSE
 )
+
 durations <- data.frame(
   duration = seq(from = -60, to = 60, by = 15)[
     seq(from = -60, to = 60, by = 15) != 0
@@ -48,8 +48,9 @@ cohorts <- list(
   filter_fn = rlang::syms(c(
     "short_sleeper_filter_fn",
     "avg_sleeper_filter_fn",
-    "long_sleeper_filter_fn"
+    "long_sleeper_filter_fn",
+    "no_filter_fn"
   )),
-  cohort = c("short_sleeper", "avg_sleeper", "long_sleeper"),
-  colour = c("#ff747b", "#6ed853", "#708ff9")
+  cohort = c("short_sleeper", "avg_sleeper", "long_sleeper", "full_cohort"),
+  colour = c("#ff747b", "#6ed853", "#708ff9", "#f39c12")
 )

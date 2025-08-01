@@ -55,36 +55,41 @@ get_covar_data <- function(train_data) {
 get_synth_risk <- function(pred_data, synth_comps, models, final_time) {
   setDT(pred_data)
   setDT(synth_comps)
+  future::plan("multicore", workers = RhpcBLASctl::blas_get_num_procs())
+  rbindlist(future.apply::future_lapply(
+    seq_len(nrow(synth_comps)),
+    function(i) {
+      this_comp <- synth_comps[i]
+      pred_data <- cbind(pred_data, this_comp[, .(R1, R2, R3)])
+      pred_data_long_cuts <- pred_data[rep(
+        seq_len(nrow(pred_data)),
+        each = final_time
+      )]
+      pred_data_long_cuts[, timegroup := rep(1:final_time, nrow(pred_data))]
 
-  rbindlist(lapply(seq_len(nrow(synth_comps)), function(i) {
-    this_comp <- synth_comps[i]
-    pred_data <- cbind(pred_data, this_comp[, .(R1, R2, R3)])
-    pred_data_long_cuts <- pred_data[rep(
-      seq_len(nrow(pred_data)),
-      each = final_time
-    )]
-    pred_data_long_cuts[, timegroup := rep(1:final_time, nrow(pred_data))]
+      pred_data_long_cuts[, `:=`(
+        haz_dem = predict(models$model_dem, newdata = .SD, type = "response"),
+        haz_death = predict(
+          models$model_death,
+          newdata = .SD,
+          type = "response"
+        )
+      )]
 
-    pred_data_long_cuts[,
-      haz_dem := predict(models$model_dem, newdata = .SD, type = "response")
-    ]
-    pred_data_long_cuts[,
-      haz_death := predict(models$model_death, newdata = .SD, type = "response")
-    ]
+      setkey(pred_data_long_cuts, id, timegroup)
+      pred_data_long_cuts[,
+        risk := cumsum(
+          haz_dem *
+            cumprod((1 - shift(haz_dem, 1, 0)) * (1 - haz_death))
+        ),
+        by = id
+      ]
+      final_risk <- pred_data_long_cuts[
+        timegroup == final_time,
+        weighted.mean(risk, prop)
+      ]
 
-    setkey(pred_data_long_cuts, id, timegroup)
-    pred_data_long_cuts[,
-      risk := cumsum(
-        haz_dem *
-          cumprod((1 - shift(haz_dem, 1, 0)) * (1 - haz_death))
-      ),
-      by = id
-    ]
-    final_risk <- pred_data_long_cuts[
-      timegroup == final_time,
-      weighted.mean(risk, prop)
-    ]
-
-    this_comp[, risk := final_risk]
-  }))
+      this_comp[, risk := final_risk]
+    }
+  ))
 }

@@ -101,7 +101,7 @@ data_targets <- list(
   #### IMPUTATION ####
   tar_rep(boots, bootstrap_sample(df), batches = n_boots),
   tar_target(imp, impute_data(boots, m, maxit), pattern = map(boots)),
-  tar_target(half_imp, imp[tar_batch < n_boots / 2]),
+  tar_target(half_imp, imp, pattern = head(imp, 250)),
   tar_target(full_imp, {
     full_imp <- impute_data(df, m, maxit)[, id := .I]
     full_imp[, tar_batch := 1]

@@ -60,7 +60,8 @@ representative_targets <- list(
         final_time,
         comp_limits
       )
-    }))
+    })),
+    pattern = map(imp_rep, representative_models)
   ),
   ### ANALYSIS ###
   tar_target(

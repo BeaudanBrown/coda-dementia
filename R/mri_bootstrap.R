@@ -151,9 +151,9 @@ make_mri_plots <- function(mri_results, cohort) {
             prop_substituted = 1,
             mean_sub_estimate = 1,
             mean_ref_estimate = 1,
-            md = 1.0,
-            lower_md = 1.0,
-            upper_md = 1.0,
+            md = 0,
+            lower_md = 0,
+            upper_md = 0,
             cohort = labels$cohort,
             outcome = labels$outcome
           ))

@@ -108,7 +108,7 @@ data_targets <- list(
   }),
 
   #### MRI ANALYSIS ####
-  tar_target(mri_raw, prepare_mri(df_raw, mri_file, mri_qc_file)),
+  tar_target(mri_raw, prepare_mri(df_raw$df, mri_file, mri_qc_file)),
   tar_target(mri_df, make_mri_df(mri_raw, df)),
   tar_rep(mri_boots, bootstrap_sample(mri_df), batches = n_boots),
   tar_target(

@@ -21,7 +21,7 @@ covar_sensitivity_targets <- list(
     ### REF RISK ###
     tar_target(
       sensitivity_ref_risk,
-      get_ref_risk(full_imp, sensitivity_models, final_time),
+      get_ref_risk(half_imp, sensitivity_models, final_time),
       pattern = map(half_imp, sensitivity_models)
     ),
     ### SUB RISK ###
@@ -29,7 +29,7 @@ covar_sensitivity_targets <- list(
       sensitivity_sub_risk,
       bind_rows(apply(all_subs, 1, function(sub) {
         get_sub_risk(
-          full_imp,
+          half_imp,
           sub["from_var"],
           sub["to_var"],
           as.numeric(sub["duration"]),

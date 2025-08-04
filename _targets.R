@@ -69,6 +69,7 @@ source("data_targets.R")
 source("primary_targets.R")
 source("mri_targets.R")
 source("cum_targets.R")
+source("cum_test.R")
 source("sensitivity_reverse_causation_targets.R")
 source("sensitivity_covar_targets.R")
 source("sensitivity_representative_targets.R")
@@ -85,5 +86,6 @@ list(
   #### SENSITIVITIES ####
   reverse_causation_targets,
   covar_sensitivity_targets,
-  representative_targets
+  representative_targets,
+  cum_test_targets
 )

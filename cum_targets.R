@@ -153,9 +153,9 @@ cum_targets <- list(
     old_cum_plot_data,
     {
       bind_rows(
-        cum_avg_risks_Worst,
-        cum_avg_risks_Typical,
-        cum_avg_risks_Best
+        old_cum_avg_risks_Worst,
+        old_cum_avg_risks_Typical,
+        old_cum_avg_risks_Best
       )
     }
   ),

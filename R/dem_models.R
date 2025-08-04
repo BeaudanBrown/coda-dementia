@@ -15,27 +15,39 @@ get_primary_formula <- function(data) {
     data[["fruit_veg"]],
     c(0.1, 0.5, 0.9)
   )
+  knots_R1 <- quantile(
+    data[["R1"]],
+    c(0.1, 0.5, 0.9)
+  )
+  knots_R2 <- quantile(
+    data[["R2"]],
+    c(0.1, 0.5, 0.9)
+  )
+  knots_R3 <- quantile(
+    data[["R3"]],
+    c(0.1, 0.5, 0.9)
+  )
 
   primary_formula <- as.formula(
-    ~ poly(R1, 2) *
+    ~ rcs(R1, knots_R1) *
       rcs(timegroup, knots_timegroup) +
-      poly(R2, 2) * rcs(timegroup, knots_timegroup) +
-      poly(R3, 2) * rcs(timegroup, knots_timegroup) +
-      poly(R1, 2) * as.numeric(avg_total_household_income) +
-      poly(R2, 2) * as.numeric(avg_total_household_income) +
-      poly(R3, 2) * as.numeric(avg_total_household_income) +
-      poly(R1, 2) * sex +
-      poly(R2, 2) * sex +
-      poly(R3, 2) * sex +
-      poly(R1, 2) * retired +
-      poly(R2, 2) * retired +
-      poly(R3, 2) * retired +
-      poly(R1, 2) * smok_status +
-      poly(R2, 2) * smok_status +
-      poly(R3, 2) * smok_status +
-      poly(R1, 2) * rcs(age_accel, knots_age) +
-      poly(R2, 2) * rcs(age_accel, knots_age) +
-      poly(R3, 2) * rcs(age_accel, knots_age) +
+      rcs(R2, knots_R2) * rcs(timegroup, knots_timegroup) +
+      rcs(R3, knots_R3) * rcs(timegroup, knots_timegroup) +
+      rcs(R1, knots_R1) * as.numeric(avg_total_household_income) +
+      rcs(R2, knots_R2) * as.numeric(avg_total_household_income) +
+      rcs(R3, knots_R3) * as.numeric(avg_total_household_income) +
+      rcs(R1, knots_R1) * sex +
+      rcs(R2, knots_R2) * sex +
+      rcs(R3, knots_R3) * sex +
+      rcs(R1, knots_R1) * retired +
+      rcs(R2, knots_R2) * retired +
+      rcs(R3, knots_R3) * retired +
+      rcs(R1, knots_R1) * smok_status +
+      rcs(R2, knots_R2) * smok_status +
+      rcs(R3, knots_R3) * smok_status +
+      rcs(R1, knots_R1) * rcs(age_accel, knots_age) +
+      rcs(R2, knots_R2) * rcs(age_accel, knots_age) +
+      rcs(R3, knots_R3) * rcs(age_accel, knots_age) +
       rcs(timegroup, knots_timegroup) * rcs(age_accel, knots_age) +
       rcs(timegroup, knots_timegroup) * sex +
       rcs(timegroup, knots_timegroup) * as.numeric(apoe_e4) +
@@ -56,36 +68,66 @@ get_primary_formula <- function(data) {
 get_s1_formula <- function(data) {
   knots_timegroup <- quantile(
     data[["timegroup"]],
-    c(0.05, 0.275, 0.5, 0.725, 0.95)
+    c(0.01, 0.5, 0.99)
+  )
+  knots_age <- quantile(
+    data[["age_accel"]],
+    c(0.1, 0.5, 0.9)
   )
   knots_deprivation <- quantile(
     data[["townsend_deprivation_index"]],
     c(0.1, 0.5, 0.9)
   )
+  knots_fruit_veg <- quantile(
+    data[["fruit_veg"]],
+    c(0.1, 0.5, 0.9)
+  )
+  knots_R1 <- quantile(
+    data[["R1"]],
+    c(0.1, 0.5, 0.9)
+  )
+  knots_R2 <- quantile(
+    data[["R2"]],
+    c(0.1, 0.5, 0.9)
+  )
+  knots_R3 <- quantile(
+    data[["R3"]],
+    c(0.1, 0.5, 0.9)
+  )
   knots_waso <- quantile(data[["avg_WASO"]], c(0.1, 0.5, 0.9))
-  knots_fruit_veg <- quantile(data[["fruit_veg"]], c(0.1, 0.5, 0.9))
 
   s1_formula <- as.formula(
-    ~ -1 +
+    ~ rcs(R1, knots_R1) *
       rcs(timegroup, knots_timegroup) +
-      R1 +
-      I(R1^2) +
-      R2 +
-      I(R2^2) +
-      R3 +
-      I(R3^2) +
+      rcs(R2, knots_R2) * rcs(timegroup, knots_timegroup) +
+      rcs(R3, knots_R3) * rcs(timegroup, knots_timegroup) +
+      rcs(R1, knots_R1) * as.numeric(avg_total_household_income) +
+      rcs(R2, knots_R2) * as.numeric(avg_total_household_income) +
+      rcs(R3, knots_R3) * as.numeric(avg_total_household_income) +
+      rcs(R1, knots_R1) * sex +
+      rcs(R2, knots_R2) * sex +
+      rcs(R3, knots_R3) * sex +
+      rcs(R1, knots_R1) * retired +
+      rcs(R2, knots_R2) * retired +
+      rcs(R3, knots_R3) * retired +
+      rcs(R1, knots_R1) * smok_status +
+      rcs(R2, knots_R2) * smok_status +
+      rcs(R3, knots_R3) * smok_status +
+      rcs(R1, knots_R1) * rcs(age_accel, knots_age) +
+      rcs(R2, knots_R2) * rcs(age_accel, knots_age) +
+      rcs(R3, knots_R3) * rcs(age_accel, knots_age) +
+      rcs(timegroup, knots_timegroup) * rcs(age_accel, knots_age) +
+      rcs(timegroup, knots_timegroup) * sex +
+      rcs(timegroup, knots_timegroup) * as.numeric(apoe_e4) +
+      highest_qual +
       rcs(fruit_veg, knots_fruit_veg) +
       alc_freq +
-      sex +
-      retired +
       shift +
-      apoe_e4 +
-      highest_qual +
       rcs(townsend_deprivation_index, knots_deprivation) +
       psych_meds +
       ethnicity +
-      avg_total_household_income +
-      smok_status +
+      rcs(age_accel, knots_age) * sex +
+      rcs(age_accel, knots_age) * as.numeric(apoe_e4) +
       rcs(avg_WASO, knots_waso)
   )
   return(s1_formula)
@@ -94,37 +136,67 @@ get_s1_formula <- function(data) {
 get_s2_formula <- function(data) {
   knots_timegroup <- quantile(
     data[["timegroup"]],
-    c(0.05, 0.275, 0.5, 0.725, 0.95)
+    c(0.01, 0.5, 0.99)
+  )
+  knots_age <- quantile(
+    data[["age_accel"]],
+    c(0.1, 0.5, 0.9)
   )
   knots_deprivation <- quantile(
     data[["townsend_deprivation_index"]],
     c(0.1, 0.5, 0.9)
   )
+  knots_fruit_veg <- quantile(
+    data[["fruit_veg"]],
+    c(0.1, 0.5, 0.9)
+  )
+  knots_R1 <- quantile(
+    data[["R1"]],
+    c(0.1, 0.5, 0.9)
+  )
+  knots_R2 <- quantile(
+    data[["R2"]],
+    c(0.1, 0.5, 0.9)
+  )
+  knots_R3 <- quantile(
+    data[["R3"]],
+    c(0.1, 0.5, 0.9)
+  )
   knots_bmi <- quantile(data[["BMI"]], c(0.1, 0.5, 0.9))
   knots_bp <- quantile(data[["bp_syst_avg"]], c(0.1, 0.5, 0.9))
-  knots_fruit_veg <- quantile(data[["fruit_veg"]], c(0.1, 0.5, 0.9))
 
   s2_formula <- as.formula(
-    ~ -1 +
+    ~ rcs(R1, knots_R1) *
       rcs(timegroup, knots_timegroup) +
-      R1 +
-      I(R1^2) +
-      R2 +
-      I(R2^2) +
-      R3 +
-      I(R3^2) +
+      rcs(R2, knots_R2) * rcs(timegroup, knots_timegroup) +
+      rcs(R3, knots_R3) * rcs(timegroup, knots_timegroup) +
+      rcs(R1, knots_R1) * as.numeric(avg_total_household_income) +
+      rcs(R2, knots_R2) * as.numeric(avg_total_household_income) +
+      rcs(R3, knots_R3) * as.numeric(avg_total_household_income) +
+      rcs(R1, knots_R1) * sex +
+      rcs(R2, knots_R2) * sex +
+      rcs(R3, knots_R3) * sex +
+      rcs(R1, knots_R1) * retired +
+      rcs(R2, knots_R2) * retired +
+      rcs(R3, knots_R3) * retired +
+      rcs(R1, knots_R1) * smok_status +
+      rcs(R2, knots_R2) * smok_status +
+      rcs(R3, knots_R3) * smok_status +
+      rcs(R1, knots_R1) * rcs(age_accel, knots_age) +
+      rcs(R2, knots_R2) * rcs(age_accel, knots_age) +
+      rcs(R3, knots_R3) * rcs(age_accel, knots_age) +
+      rcs(timegroup, knots_timegroup) * rcs(age_accel, knots_age) +
+      rcs(timegroup, knots_timegroup) * sex +
+      rcs(timegroup, knots_timegroup) * as.numeric(apoe_e4) +
+      highest_qual +
       rcs(fruit_veg, knots_fruit_veg) +
       alc_freq +
-      sex +
-      retired +
       shift +
-      apoe_e4 +
-      highest_qual +
       rcs(townsend_deprivation_index, knots_deprivation) +
       psych_meds +
       ethnicity +
-      avg_total_household_income +
-      smok_status +
+      rcs(age_accel, knots_age) * sex +
+      rcs(age_accel, knots_age) * as.numeric(apoe_e4) +
       sick_disabled +
       prev_diabetes +
       prev_cancer +
@@ -136,112 +208,6 @@ get_s2_formula <- function(data) {
       rcs(bp_syst_avg, knots_bp)
   )
   return(s2_formula)
-}
-
-get_s3_formula <- function(data) {
-  knots_timegroup <- quantile(
-    data[["timegroup"]],
-    c(0.05, 0.275, 0.5, 0.725, 0.95)
-  )
-  knots_deprivation <- quantile(
-    data[["townsend_deprivation_index"]],
-    c(0.1, 0.5, 0.9)
-  )
-  knots_fruit_veg <- quantile(
-    data[["fruit_veg"]],
-    c(0.1, 0.5, 0.9)
-  )
-
-  s3_formula <- as.formula(
-    ~ -1 +
-      rcs(timegroup, knots_timegroup) +
-      (sex + retired + avg_total_household_income + smok_status) *
-        (R1 + I(R1^2)) +
-      (sex + retired + avg_total_household_income + smok_status) *
-        (R2 + I(R2^2)) +
-      (sex + retired + avg_total_household_income + smok_status) *
-        (R3 + I(R3^2)) +
-      shift +
-      rcs(fruit_veg, knots_fruit_veg) +
-      alc_freq +
-      apoe_e4 +
-      highest_qual +
-      rcs(townsend_deprivation_index, knots_deprivation) +
-      psych_meds +
-      ethnicity
-  )
-  return(s3_formula)
-}
-
-fit_filtered_models <- function(
-  imp,
-  timegroup_cuts,
-  create_formula_fn,
-  filter_fn
-) {
-  RhpcBLASctl::blas_set_num_threads(1)
-  RhpcBLASctl::omp_set_num_threads(1)
-  imp_survival <- survSplit(
-    Surv(time = time_to_dem, event = dem) ~ .,
-    data = imp,
-    cut = timegroup_cuts,
-    episode = "timegroup",
-    end = "end",
-    event = "dem",
-    start = "start"
-  )
-
-  setDT(imp_survival)
-
-  # start timegroup at 1
-  imp_survival[, timegroup := timegroup - 1]
-
-  # add indicators for death
-  imp_survival[,
-    death := fcase(
-      death == 1 & end > time_to_death,
-      1,
-      death == 0 & end > time_to_death,
-      NA,
-      default = 0
-    )
-  ]
-
-  imp_survival[, death := ifelse(dem == 1, NA, death)]
-
-  # remove rows after death
-  imp_survival[, sumdeath := cumsum(death), by = "id"]
-  imp_survival <- imp_survival[sumdeath < 2 | is.na(sumdeath), ]
-  imp_survival[, sumdeath := NULL]
-
-  imp_survival <- filter_fn(imp_survival)
-
-  # model formula
-  model_formula <- create_formula_fn(imp_survival)
-  dem_model_formula <- update(model_formula, dem ~ .)
-  death_model_formula <- update(model_formula, death ~ .)
-
-  # fit models
-  model_dem <- glm(
-    dem_model_formula,
-    data = imp_survival[death == 0 | is.na(death), ],
-    family = binomial()
-  )
-
-  model_dem <- strip_glm(model_dem)
-
-  model_death <- glm(
-    death_model_formula,
-    data = imp_survival[dem == 0, ],
-    family = binomial()
-  )
-
-  model_death <- strip_glm(model_death)
-
-  return(list(
-    model_dem = model_dem,
-    model_death = model_death
-  ))
 }
 
 fit_models <- function(imp, timegroup_cuts, create_formula_fn) {

@@ -8,9 +8,11 @@ dotenv::load_dot_env()
 data_dir <- Sys.getenv("DATA_DIR")
 cache_dir <- Sys.getenv("CACHE_DIR")
 ncpus <- future::availableCores() - 1
-data.table::setDTthreads(1)
-RhpcBLASctl::blas_set_num_threads(1)
-RhpcBLASctl::omp_set_num_threads(1)
+
+Sys.setenv(R_DATATABLE_NUM_THREADS = 1)
+Sys.setenv(OMP_NUM_THREADS = 1)
+Sys.setenv(MKL_NUM_THREADS = 1)
+Sys.setenv(OPENBLAS_NUM_THREADS = 1)
 
 # set target configs
 tar_config_set(store = cache_dir)
@@ -86,6 +88,5 @@ list(
   #### SENSITIVITIES ####
   reverse_causation_targets,
   covar_sensitivity_targets,
-  representative_targets,
-  cum_test_targets
+  representative_targets
 )

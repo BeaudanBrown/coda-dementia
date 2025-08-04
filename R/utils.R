@@ -216,20 +216,13 @@ save_plots <- function(plot_pattern = "plot_grid", sc = TRUE) {
     ),
     tidyr::contains(plot_pattern)
   )
-  triple_targets <- tarchetypes::tar_select_names(
+  double_targets <- tarchetypes::tar_select_names(
     list(
-      primary_targets,
-      mri_targets
+      mri_targets,
+      primary_targets
     ),
     tidyr::contains(plot_pattern)
   )
-  # double_targets <- tarchetypes::tar_select_names(
-  #   list(
-  #     primary_targets,
-  #     mri_targets
-  #   ),
-  #   tidyr::contains(plot_pattern)
-  # )
   single_targets <- tarchetypes::tar_select_names(
     list(
       cum_targets
@@ -243,23 +236,11 @@ save_plots <- function(plot_pattern = "plot_grid", sc = TRUE) {
     plot_pattern = plot_pattern
   )
   save_plots_cust(
-    plot_width = 15,
-    plot_targets = triple_targets,
+    plot_width = 10,
+    plot_targets = double_targets,
     sc = sc,
     plot_pattern = plot_pattern
   )
-  # save_plots_cust(
-  #   plot_width = 20,
-  #   plot_targets = quad_targets,
-  #   sc = sc,
-  #   plot_pattern = plot_pattern
-  # )
-  # save_plots_cust(
-  #   plot_width = 10,
-  #   plot_targets = double_targets,
-  #   sc = sc,
-  #   plot_pattern = plot_pattern
-  # )
   save_plots_cust(
     plot_width = 5,
     plot_targets = single_targets,

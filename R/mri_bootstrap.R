@@ -140,8 +140,22 @@ make_mri_plots <- function(mri_results, cohort) {
         filter(prop_substituted > intervention_threshold)
 
       lapply(unique_cohorts, function(cohort_name) {
-        cohort_data <- sub_results |> filter(cohort == cohort_name)
         labels <- get_mri_labels(sub_results)
+        cohort_data <- sub_results |> filter(cohort == cohort_name)
+        # Add in the pretend zero
+        bind_rows(data.frame(
+          from_var = sub_type,
+          to_var = "avg_sleep",
+          duration = 0,
+          prop_substituted = 1,
+          mean_sub_estimate = 1,
+          mean_ref_estimate = 1,
+          md = 1.0,
+          lower_md = 1.0,
+          upper_md = 1.0,
+          cohort = labels$cohort,
+          outcome = labels$outcome
+        ))
         dark_factor <- switch(
           cohort_name,
           short_sleeper = 1.2,

@@ -148,7 +148,20 @@ make_plot <- function(df, cohort) {
       colour <- adjust_colour(colour, dark_factor)
       sub_results <- df |>
         filter(from_var == sub_type) |>
-        filter(prop_substituted > intervention_threshold)
+        filter(prop_substituted > intervention_threshold) |>
+        # Add in the pretend zero
+        bind_rows(data.frame(
+          from_var = sub_type,
+          to_var = "avg_sleep",
+          duration = 0,
+          prop_substituted = 1,
+          mean_sub_risk = 1,
+          mean_ref_risk = 1,
+          mean_rr = 1.0,
+          lower_rr = 1.0,
+          upper_rr = 1.0,
+          cohort = cohort
+        ))
       sub_name <- unique(case_when(
         sub_type == "avg_inactivity" ~ "Inactivity",
         sub_type == "avg_light" ~ "Light Activity",

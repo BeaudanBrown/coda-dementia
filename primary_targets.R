@@ -48,13 +48,46 @@ primary_targets <- list(
       make_plot(primary_risk_ratios, cohort)
     )
   ),
+  ### RETIRED ANALYSES ###
+  tar_map(
+    values = retired_cohorts,
+    names = cohort,
+    tar_target(
+      retired_ref_avg_risks,
+      average_sub_results(primary_ref_risk, df, filter_fn)
+    ),
+    tar_target(
+      retired_sub_avg_risks,
+      average_sub_results(primary_sub_risk, df, filter_fn)
+    ),
+    tar_target(
+      retired_risk_ratios,
+      merge_risks(retired_sub_avg_risks, retired_ref_avg_risks, cohort)
+    ),
+    tar_target(
+      primary_plots,
+      make_plot(retired_risk_ratios, cohort)
+    )
+  ),
   ### PLOTS ###
   tar_target(
     all_primary_plots,
     rbind(
-      primary_plots_full_cohort,
       primary_plots_avg_sleeper,
       primary_plots_short_sleeper
+    )
+  ),
+  tar_target(
+    retired_plot_grid,
+    make_plot_grid(
+      rbind(
+        primary_plots_retired,
+        primary_plots_not_retired
+      ),
+      list(
+        cohort_order = c("retired", "not_retired"),
+        subtype_order = c("avg_inactivity", "avg_light", "avg_mvpa")
+      )
     )
   ),
   tar_target(
@@ -62,7 +95,7 @@ primary_targets <- list(
     make_plot_grid(
       all_primary_plots,
       list(
-        cohort_order = c("full_cohort", "avg_sleeper", "short_sleeper"),
+        cohort_order = c("avg_sleeper", "short_sleeper"),
         subtype_order = c("avg_inactivity", "avg_light", "avg_mvpa")
       )
     )

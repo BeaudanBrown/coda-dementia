@@ -175,6 +175,8 @@ make_plot_grid <- function(
       s3 = "Interactions Adjusted",
       representative = "Representative Covar Adjusted",
       reverse_causation = "Reverse Causation Adjusted",
+      retired = "Retired",
+      not_retired = "Not Retired",
       cohort
     )
     ggplot() +

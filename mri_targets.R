@@ -71,8 +71,7 @@ mri_targets <- list(
       mri_plot_data,
       rbind(
         mri_mean_diffs_short_sleeper,
-        mri_mean_diffs_avg_sleeper,
-        mri_mean_diffs_full_cohort
+        mri_mean_diffs_avg_sleeper
       )
     ),
     tar_target(
@@ -101,7 +100,7 @@ mri_targets <- list(
       make_plot_grid(
         all_mri_plots[outcome == outcome_name, ],
         list(
-          cohort_order = c("full_cohort", "avg_sleeper", "short_sleeper"),
+          cohort_order = c("avg_sleeper", "short_sleeper"),
           subtype_order = c("avg_inactivity", "avg_light", "avg_mvpa")
         )
       )

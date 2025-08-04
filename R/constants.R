@@ -16,6 +16,15 @@ no_filter_fn <- function(df) {
   df
 }
 
+not_retired_filter_fn <- function(df) {
+  df |> filter(retired == 0)
+}
+
+retired_filter_fn <- function(df) {
+  df |> filter(retired == 1)
+}
+
+
 short_sleeper_filter_fn <- function(df) {
   df |> filter(avg_sleep < short_sleep_hours * 60)
 }
@@ -43,6 +52,16 @@ durations <- data.frame(
   ]
 )
 all_subs <- merge(substitutions, durations)
+
+
+retired_cohorts <- list(
+  filter_fn = rlang::syms(c(
+    "not_retired_filter_fn",
+    "retired_filter_fn"
+  )),
+  cohort = c("not_retired", "retired"),
+  colour = c("#ff747b", "#6ed853")
+)
 
 cohorts <- list(
   filter_fn = rlang::syms(c(

@@ -11,6 +11,7 @@ long_sleep_hours <- 9
 intervention_threshold <- 0.75
 
 synth_threshold <- 0.05
+uni_threshold <- 0.025
 
 no_filter_fn <- function(df) {
   df

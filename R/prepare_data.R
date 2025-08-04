@@ -257,8 +257,6 @@ impute_data <- function(df, m, maxit) {
       "id"
     )
   )
-  RhpcBLASctl::blas_set_num_threads(1)
-  RhpcBLASctl::omp_set_num_threads(1)
   imp <- mice(
     df,
     m = m,

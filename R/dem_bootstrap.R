@@ -12,10 +12,6 @@ make_cuts <- function(df) {
 }
 
 get_risk <- function(imp, models, final_time) {
-  setDTthreads(1)
-  RhpcBLASctl::blas_set_num_threads(1)
-  RhpcBLASctl::omp_set_num_threads(1)
-
   imp_len <- nrow(imp)
   imp_long_cuts <- imp[rep(seq_len(imp_len), each = final_time)]
   imp_long_cuts[, timegroup := rep(1:final_time, imp_len)]
@@ -48,8 +44,6 @@ get_risk <- function(imp, models, final_time) {
 }
 
 get_ref_risk <- function(imp, models, final_time) {
-  RhpcBLASctl::blas_set_num_threads(1)
-  RhpcBLASctl::omp_set_num_threads(1)
   risks <- get_risk(imp, models, final_time)
   data.table(
     results = list(
@@ -68,8 +62,6 @@ get_sub_risk <- function(
   final_time,
   comp_limits
 ) {
-  RhpcBLASctl::blas_set_num_threads(1)
-  RhpcBLASctl::omp_set_num_threads(1)
   subbed <- apply_substitution(imp, from_var, to_var, duration, comp_limits)
   risks <- get_risk(subbed$results[[1]], models, final_time)
   subbed$results <- list(risks[timegroup == final_time, .(eid, risk)])
@@ -77,9 +69,6 @@ get_sub_risk <- function(
 }
 
 average_sub_results <- function(results, df, filter_fn, result_name = "risk") {
-  data.table::setDTthreads(1)
-  RhpcBLASctl::blas_set_num_threads(1)
-  RhpcBLASctl::omp_set_num_threads(1)
   eids <- filter_fn(df)[, .(eid)]
 
   # replace the data table of results with the filtered mean

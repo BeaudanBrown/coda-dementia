@@ -211,8 +211,6 @@ get_s2_formula <- function(data) {
 }
 
 fit_models <- function(imp, timegroup_cuts, create_formula_fn) {
-  RhpcBLASctl::blas_set_num_threads(1)
-  RhpcBLASctl::omp_set_num_threads(1)
   imp_survival <- survSplit(
     Surv(time = time_to_dem, event = dem) ~ .,
     data = imp,

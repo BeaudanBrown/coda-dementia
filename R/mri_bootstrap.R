@@ -1,7 +1,4 @@
 get_mri_model <- function(imp, outcome) {
-  RhpcBLASctl::blas_set_num_threads(1)
-  RhpcBLASctl::omp_set_num_threads(1)
-
   # Fit linear regression
   model_formula <- get_mri_formula(imp)
   model_formula <- update(model_formula, as.formula(paste(outcome, "~ .")))
@@ -10,8 +7,6 @@ get_mri_model <- function(imp, outcome) {
 }
 
 get_mri_ref <- function(imp, outcome, model) {
-  RhpcBLASctl::blas_set_num_threads(1)
-  RhpcBLASctl::omp_set_num_threads(1)
   imp$estimate <- predict(model, newdata = imp)
   data.table(
     outcome = outcome,
@@ -29,8 +24,6 @@ get_mri_subs <- function(
   duration,
   comp_limits
 ) {
-  RhpcBLASctl::blas_set_num_threads(1)
-  RhpcBLASctl::omp_set_num_threads(1)
   subbed <- apply_substitution(imp, from_var, to_var, duration, comp_limits)
   subbed_results <- subbed$results[[1]]
   subbed_results$estimate <- predict(model, newdata = subbed_results)
@@ -96,7 +89,7 @@ get_mri_labels <- function(mri_results) {
         })
       ))
     } else if (outcome == "log_wmh") {
-      ylabel <- "Log WMH"
+      ylabel <- "Change in Log WMH"
     } else {
       ylabel <- expression(as.character(outcome))
     },

@@ -261,19 +261,33 @@ create_data <- function(
 
   #### Trim dataset for selected sample ####
 
+  # tracking sample size
+
+  sample_size_info <- list()
+
   # Accelerometry data available
 
+  sample_size_info$total_cohort <- nrow(d)
+
   d2 <- d |> filter(!is.na(accel_data_available))
+
+  sample_size_info$accel_available <- nrow(d2)
 
   # apply UKB data cleaning thresholds to accelerometry data
 
   d2 <- d2 |> filter(is.na(d2$accel_data_problem))
 
+  sample_size_info$no_accel_data_problem <- nrow(d2)
+
   d2 <- d2 |> filter(accel_good_wear_time == 1)
+
+  sample_size_info$good_wear_time <- nrow(d2)
 
   d2 <- d2 |> filter(accel_good_calibration == 1)
 
   d2 <- d2 |> filter(accel_calibrated_own_data == 1)
+
+  sample_size_info$good_calibration <- nrow(d2)
 
   ## must have GGIR data available
 
@@ -291,13 +305,18 @@ create_data <- function(
 
   d3 <- d2 |> left_join(a, by = "eid")
 
-  ## At least 2 measurements of sleep duration
+  ## At least 3 measurements of sleep duration
+
+  # Set sleep to missing if cleaningcode indicates problem
+
+  d3 <- d3 |>
+    mutate(dur_spt_sleep_min = ifelse(cleaningcode == 1, dur_spt_sleep_min, NA))
 
   d3 <- d3 |>
     group_by(eid) |>
     mutate(n_valid = sum(!is.na(dur_spt_sleep_min))) |>
     ungroup() |>
-    filter(n_valid >= 2)
+    filter(n_valid >= 3)
 
   ### Create accelerometry time use variables
 
@@ -456,13 +475,32 @@ create_data <- function(
 
   d2 <- left_join(d2, nd, by = "eid")
 
-  # remove those with fewer than 2 sleep values
+  # remove those with insufficient sleep values/failed GGIR quality checks
 
   d2 <- d2 |> filter(!is.na(avg_sleep))
+
+  sample_size_info$GGIR_checks <- nrow(d2)
+
+  # Remove observations outside of 0.1st and 99.9th percentiles
+  d2 <- d2 |>
+    filter(
+      avg_sleep > quantile(avg_sleep, 0.001) &
+        avg_sleep < quantile(avg_sleep, 0.999),
+      avg_mvpa > quantile(avg_mvpa, 0.001) &
+        avg_mvpa < quantile(avg_mvpa, 0.999),
+      avg_light > quantile(avg_light, 0.001) &
+        avg_light < quantile(avg_light, 0.999),
+      avg_inactivity > quantile(avg_inactivity, 0.001) &
+        avg_inactivity < quantile(avg_inactivity, 0.999)
+    )
+
+  sample_size_info$quantile_exclusion <- nrow(d2)
 
   ## remove exclusionary neurological conditions
 
   d2 <- d2 |> filter(neurological_exclude_bl == 0)
+
+  sample_size_info$Non_neurological_exclusion <- nrow(d2)
 
   ### Calculate time to dementia
 
@@ -549,7 +587,7 @@ create_data <- function(
     ) |>
     mutate(time_to_dem = as.integer(time_to_dem))
 
-  # create death and age at death variable
+  # create death and time to death variable
 
   d2$death <- ifelse(is.na(d2$date_of_death), 0, 1)
 
@@ -562,6 +600,8 @@ create_data <- function(
   ## remove those with prevalent dementia
 
   d2 <- d2 |> filter(time_to_dem > 0)
+
+  sample_size_info$no_prevalent_dementia <- nrow(d2)
 
   # Sleep disorders data
   sleep_dis_df <- fread(sleep_file)
@@ -582,5 +622,5 @@ create_data <- function(
 
   #### Save created dataset ####
 
-  return(d2)
+  return(list(df = d2, sample_size_info = sample_size_info))
 }

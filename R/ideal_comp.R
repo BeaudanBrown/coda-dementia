@@ -1,14 +1,10 @@
 generate_compositions <- function(df) {
   step_size <- 15
 
-  sleep_quants <- quantile(df$avg_sleep, probs = c(0.01, 0.99), na.rm = TRUE)
-  inactivity_quants <- quantile(
-    df$avg_inactivity,
-    probs = c(0.01, 0.99),
-    na.rm = TRUE
-  )
-  light_quants <- quantile(df$avg_light, probs = c(0.01, 0.99), na.rm = TRUE)
-  mvpa_quants <- quantile(df$avg_mvpa, probs = c(0.01, 0.99), na.rm = TRUE)
+  sleep_quants <- quantile(df$avg_sleep, probs = c(0.01, 0.99))
+  inactivity_quants <- quantile(df$avg_inactivity, probs = c(0.01, 0.99))
+  light_quants <- quantile(df$avg_light, probs = c(0.01, 0.99))
+  mvpa_quants <- quantile(df$avg_mvpa, probs = c(0.01, 0.99))
 
   comp_limits <- list(
     avg_sleep = list(

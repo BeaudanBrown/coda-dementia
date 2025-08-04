@@ -126,10 +126,7 @@ prepare_dataset <- function(df, disease_file) {
 
   ### Add prevalent disease variables
 
-  prev <- fread(
-    disease_file,
-    stringsAsFactors = T
-  )
+  prev <- fread(disease_file, stringsAsFactors = TRUE)
 
   # add in date of actigraphy and number of cancers
 

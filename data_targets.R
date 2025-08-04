@@ -64,7 +64,7 @@ data_targets <- list(
       sri_file
     )
   ),
-  tar_target(df, prepare_dataset(df_raw, disease_file)),
+  tar_target(df, prepare_dataset(df_raw$df, disease_file)),
 
   #### DEFINE ANALYSIS PARAMETERS ####
   tar_target(timegroup_cuts, make_cuts(df)),

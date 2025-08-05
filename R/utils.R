@@ -130,11 +130,11 @@ apply_substitution <- function(imp, from_var, to_var, duration, comp_limits) {
   max_from_change <- imp[[from_var]] - lower_from
   max_to_change <- upper_to - imp[[to_var]]
   can_substitute <- (max_from_change >= duration) & (max_to_change >= duration)
-  prop_substituted <- sum(can_substitute) / nrow(imp)
 
   sub <- imp
   sub[[from_var]] <- sub[[from_var]] - (can_substitute * duration)
   sub[[to_var]] <- sub[[to_var]] + (can_substitute * duration)
+  sub[["substituted"]] <- can_substitute
 
   comp <- acomp(sub[, c(
     "avg_sleep",
@@ -151,8 +151,7 @@ apply_substitution <- function(imp, from_var, to_var, duration, comp_limits) {
     B = unique(imp$tar_batch),
     from_var = from_var,
     to_var = to_var,
-    duration = duration,
-    prop_substituted = prop_substituted
+    duration = duration
   )
 }
 

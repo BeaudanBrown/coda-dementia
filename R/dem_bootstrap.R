@@ -82,6 +82,7 @@ average_sub_results <- function(results, df, filter_fn, result_name = "risk") {
 }
 
 merge_risks <- function(sub_risks, ref_risks, cohort) {
+  n <- nrow(ref_risks)
   sub_risks |>
     rename("sub_risk" = "results") |>
     left_join(
@@ -93,7 +94,7 @@ merge_risks <- function(sub_risks, ref_risks, cohort) {
     ) |>
     dplyr::group_by(from_var, to_var, duration) |>
     dplyr::summarize(
-      prop_substituted = mean(prop_substituted, na.rm = TRUE),
+      prop_substituted = sum(substituted) / n,
       mean_sub_risk = mean(sub_risk, na.rm = TRUE),
       mean_ref_risk = mean(ref_risk, na.rm = TRUE),
       mean_rr = mean(rr, na.rm = TRUE),

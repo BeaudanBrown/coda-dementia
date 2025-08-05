@@ -64,7 +64,15 @@ get_sub_risk <- function(
 ) {
   subbed <- apply_substitution(imp, from_var, to_var, duration, comp_limits)
   risks <- get_risk(subbed$results[[1]], models, final_time)
-  subbed$results <- list(risks[timegroup == final_time, .(eid, risk)])
+  risks <- risks[
+    timegroup == final_time,
+    .(eid, risk)
+  ]
+  subbed$results <- list(risks[
+    subbed$results[, .(eid, substituted)],
+    substituted := i.substituted,
+    on = "eid"
+  ])
   subbed
 }
 

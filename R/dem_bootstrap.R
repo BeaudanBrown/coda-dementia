@@ -68,11 +68,12 @@ get_sub_risk <- function(
     timegroup == final_time,
     .(eid, risk)
   ]
-  subbed$results <- list(risks[
+  subbed$results <- merge(
+    risks,
     subbed$results[, .(eid, substituted)],
-    substituted := i.substituted,
-    on = "eid"
-  ])
+    by = "eid",
+    all.x = TRUE
+  )
   subbed
 }
 

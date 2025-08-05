@@ -64,30 +64,37 @@ get_sub_risk <- function(
 ) {
   subbed <- apply_substitution(imp, from_var, to_var, duration, comp_limits)
   risks <- get_risk(subbed$results[[1]], models, final_time)
-  risks <- risks[
-    timegroup == final_time,
-    .(eid, risk)
-  ]
-  subbed$results <- merge(
+  risks <- risks[timegroup == final_time, .(eid, risk)]
+  risks <- merge(
     risks,
-    subbed$results[, .(eid, substituted)],
+    subbed$results[[1]][, .(eid, substituted)][!duplicated(eid)],
     by = "eid",
     all.x = TRUE
   )
+  subbed$results <- list(risks)
   subbed
 }
 
 average_sub_results <- function(results, df, filter_fn, result_name = "risk") {
   eids <- filter_fn(df)[, .(eid)]
+  inner_results <- results$results
+  results_structure <- results[, -"results"]
 
-  # replace the data table of results with the filtered mean
-  results[,
-    "results" := sapply(.SD[[1]], function(inner) {
-      mean(inner[eids, on = "eid", nomatch = 0L][[result_name]], na.rm = TRUE)
-    }),
-    .SDcols = "results"
-  ]
-  results
+  processed_results <- sapply(inner_results, function(inner_result) {
+    filtered_inner <- inner_result[eids, on = "eid", nomatch = 0L]
+    mean(filtered_inner[[result_name]], na.rm = TRUE)
+  })
+  results_structure[, results := processed_results]
+
+  if ("substituted" %in% names(inner_results[[1]])) {
+    prop_substituted <- sapply(inner_results, function(inner_result) {
+      filtered_inner <- inner_result[eids, on = "eid", nomatch = 0L]
+        mean(filtered_inner[["substituted"]], na.rm = TRUE)
+      }
+    )
+    results_structure[, prop_substituted := prop_substituted]
+  }
+  results_structure
 }
 
 merge_risks <- function(sub_risks, ref_risks, cohort) {

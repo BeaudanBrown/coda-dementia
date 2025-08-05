@@ -89,9 +89,8 @@ average_sub_results <- function(results, df, filter_fn, result_name = "risk") {
   if ("substituted" %in% names(inner_results[[1]])) {
     prop_substituted <- sapply(inner_results, function(inner_result) {
       filtered_inner <- inner_result[eids, on = "eid", nomatch = 0L]
-        mean(filtered_inner[["substituted"]], na.rm = TRUE)
-      }
-    )
+      mean(filtered_inner[["substituted"]], na.rm = TRUE)
+    })
     results_structure[, prop_substituted := prop_substituted]
   }
   results_structure
@@ -110,7 +109,7 @@ merge_risks <- function(sub_risks, ref_risks, cohort) {
     ) |>
     dplyr::group_by(from_var, to_var, duration) |>
     dplyr::summarize(
-      prop_substituted = sum(substituted) / n,
+      prop_substituted = mean(prop_substituted, na.rm = TRUE),
       mean_sub_risk = mean(sub_risk, na.rm = TRUE),
       mean_ref_risk = mean(ref_risk, na.rm = TRUE),
       mean_rr = mean(rr, na.rm = TRUE),

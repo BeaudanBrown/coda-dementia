@@ -27,7 +27,7 @@ get_mri_subs <- function(
   subbed <- apply_substitution(imp, from_var, to_var, duration, comp_limits)
   subbed_results <- subbed$results[[1]]
   subbed_results$estimate <- predict(model, newdata = subbed_results)
-  subbed$results <- list(subbed_results[, .(eid, estimate)])
+  subbed$results <- list(subbed_results[, .(eid, estimate, substituted)])
   subbed[, outcome := outcome]
   subbed
 }

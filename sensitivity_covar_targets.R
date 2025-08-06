@@ -41,45 +41,49 @@ covar_sensitivity_targets <- list(
       pattern = map(half_imp, sensitivity_models)
     ),
     ### ANALYSIS ###
-    tar_target(
-      sensitivity_ref_avg_risks,
-      average_sub_results(sensitivity_ref_risk, df, no_filter_fn)
-    ),
-    tar_target(
-      sensitivity_sub_avg_risks,
-      average_sub_results(sensitivity_sub_risk, df, no_filter_fn)
-    ),
-    tar_target(
-      sensitivity_risk_ratios,
-      merge_risks(
-        sensitivity_sub_avg_risks,
+    tar_map(
+      values = cohorts,
+      names = cohort,
+      tar_target(
         sensitivity_ref_avg_risks,
-        sens_name
+        average_sub_results(sensitivity_ref_risk, df, filter_fn)
+      ),
+      tar_target(
+        sensitivity_sub_avg_risks,
+        average_sub_results(sensitivity_sub_risk, df, filter_fn)
+      ),
+      tar_target(
+        sensitivity_risk_ratios,
+        merge_risks(
+          sensitivity_sub_avg_risks,
+          sensitivity_ref_avg_risks,
+          sens_name
+        )
+      ),
+      tar_target(
+        sensitivity_plots,
+        make_plot(sensitivity_risk_ratios, sens_name)
       )
-    ),
-    tar_target(
-      sensitivity_plots,
-      make_plot(sensitivity_risk_ratios, sens_name)
     )
   ),
   tar_target(
-    all_sensitivity_plots,
+    short_sensitivity_plots,
     rbind(
-      primary_plots_full_cohort,
-      sensitivity_plots_s1,
-      sensitivity_plots_s2,
-      representative_plots,
-      reverse_causation_plots
+      primary_plots_short_sleeper,
+      sensitivity_plots_short_sleeper_s1,
+      sensitivity_plots_short_sleeper_s2,
+      representative_short_sleeper_plots,
+      reverse_causation_short_sleeper_plots
     )
   ),
   # ### PLOTS ###
   tar_target(
-    sensitivity_plot_grid,
+    sensitivity_plot_grid_shorts,
     make_plot_grid(
-      all_sensitivity_plots,
+      short_sensitivity_plots,
       list(
         cohort_order = c(
-          "full_cohort",
+          "short_sleepers",
           "s1",
           "s2",
           "representative",

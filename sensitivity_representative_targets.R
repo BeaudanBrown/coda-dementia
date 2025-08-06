@@ -64,35 +64,28 @@ representative_targets <- list(
     pattern = map(imp_rep, representative_models)
   ),
   ### ANALYSIS ###
-  tar_target(
-    representative_ref_avg_risks,
-    average_sub_results(representative_ref_risk, df, no_filter_fn)
-  ),
-  tar_target(
-    representative_sub_avg_risks,
-    average_sub_results(representative_sub_risk, df, no_filter_fn)
-  ),
-  tar_target(
-    representative_risk_ratios,
-    merge_risks(
-      representative_sub_avg_risks,
+  tar_map(
+    values = cohorts,
+    names = cohort,
+    tar_target(
       representative_ref_avg_risks,
-      "representative"
-    )
-  ),
-  tar_target(
-    representative_plots,
-    make_plot(representative_risk_ratios, "representative")
-  ),
-  # ### PLOTS ###
-  tar_target(
-    representative_plot_grid,
-    make_plot_grid(
-      representative_plots,
-      list(
-        cohort_order = c("representative"),
-        subtype_order = c("avg_inactivity", "avg_light", "avg_mvpa")
+      average_sub_results(representative_ref_risk, df, filter_fn)
+    ),
+    tar_target(
+      representative_sub_avg_risks,
+      average_sub_results(representative_sub_risk, df, filter_fn)
+    ),
+    tar_target(
+      representative_risk_ratios,
+      merge_risks(
+        representative_sub_avg_risks,
+        representative_ref_avg_risks,
+        "representative"
       )
+    ),
+    tar_target(
+      representative_plots,
+      make_plot(representative_risk_ratios, "representative")
     )
   )
 )

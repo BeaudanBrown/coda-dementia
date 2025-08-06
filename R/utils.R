@@ -191,10 +191,36 @@ make_plot_grid <- function(
       theme(plot.margin = margin(0, 0, 0, 0)) +
       theme_void()
   })
-  grid_list <- lapply(grid_layout$subtype_order, function(this_subtype) {
-    plots_row <- plot_data[sub_type == this_subtype][order(cohort), plot]
-    wrap_plots(c(plots_row), nrow = 1)
-  })
+
+  n_subtypes <- length(grid_layout$subtype_order)
+  n_cohorts <- length(grid_layout$cohort_order)
+  labels <- LETTERS[1:(n_subtypes * n_cohorts)]
+
+  grid_list <- lapply(
+    seq_along(grid_layout$subtype_order),
+    function(subtype_idx) {
+      this_subtype <- grid_layout$subtype_order[subtype_idx]
+      plots_row <- plot_data[sub_type == this_subtype][order(cohort), plot]
+
+      labeled_plots <- lapply(seq_along(plots_row), function(cohort_idx) {
+        label_idx <- subtype_idx + (cohort_idx - 1) * n_subtypes
+        label <- labels[label_idx]
+
+        plots_row[[cohort_idx]] +
+          annotation_custom(
+            textGrob(
+              label,
+              gp = gpar(fontsize = 14, fontfamily = "serif", fontface = 1),
+              x = unit(-1.3, "cm"),
+              y = unit(1.1, "npc"),
+              hjust = 0,
+              vjust = 0
+            )
+          )
+      })
+      wrap_plots(labeled_plots, nrow = 1)
+    }
+  )
   patchwork::wrap_plots(
     c(list(wrap_plots(c(title_row), nrow = 1)), grid_list),
     heights = c(0.2, rep(1, length(grid_list))),

@@ -157,11 +157,6 @@ mri_targets <- list(
   tar_target(
     mri_synth_plots,
     {
-      tar_load(mri_synth_plot_tbv)
-      tar_load(mri_synth_plot_gmv)
-      tar_load(mri_synth_plot_wmv)
-      tar_load(mri_synth_plot_hip)
-      tar_load(mri_synth_plot_log_wmh)
       plots <- list(
         mri_synth_plot_tbv,
         mri_synth_plot_gmv,

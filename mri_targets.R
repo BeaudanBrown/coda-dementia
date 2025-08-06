@@ -11,6 +11,53 @@ mri_targets <- list(
       pattern = map(mri_imp),
       iteration = "list"
     ),
+    ### SYNTH TARGETS ###
+    tar_map(
+      values = list(
+        comp = c("Best", "Worst", "Typical")
+      ),
+      names = comp,
+      tar_target(
+        mri_synth_results,
+        {
+          mri_imp$R1 <- reference_comps[[comp]]$R1
+          mri_imp$R2 <- reference_comps[[comp]]$R2
+          mri_imp$R3 <- reference_comps[[comp]]$R3
+          get_mri_ref(mri_imp, outcome, mri_models)
+        },
+        pattern = map(mri_imp, mri_models)
+      ),
+      tar_target(
+        mri_synth_avg_estimate,
+        {
+          est_data <- average_sub_results(
+            mri_synth_results,
+            df,
+            no_filter_fn,
+            result_name = "estimate"
+          )
+          data.table(
+            comp = comp,
+            outcome = outcome,
+            estimate = mean(est_data$results),
+            lower = quantile(est_data$results, 0.025, names = FALSE),
+            upper = quantile(est_data$results, 0.975, names = FALSE)
+          )
+        }
+      )
+    ),
+    tar_target(
+      mri_synth_plot_data,
+      rbind(
+        mri_synth_avg_estimate_Best,
+        mri_synth_avg_estimate_Worst,
+        mri_synth_avg_estimate_Typical
+      )
+    ),
+    tar_target(
+      mri_synth_plot,
+      make_mri_synth_plot(mri_synth_plot_data)
+    ),
     ### REF ESTIMATE ###
     tar_target(
       mri_ref_results,
@@ -105,5 +152,24 @@ mri_targets <- list(
         )
       )
     )
+  ),
+  ### PLOTS ###
+  tar_target(
+    mri_synth_plots,
+    {
+      tar_load(mri_synth_plot_tbv)
+      tar_load(mri_synth_plot_gmv)
+      tar_load(mri_synth_plot_wmv)
+      tar_load(mri_synth_plot_hip)
+      tar_load(mri_synth_plot_log_wmh)
+      plots <- list(
+        mri_synth_plot_tbv,
+        mri_synth_plot_gmv,
+        mri_synth_plot_wmv,
+        mri_synth_plot_hip,
+        mri_synth_plot_log_wmh
+      )
+      patchwork::wrap_plots(c(plots), nrow = 3, ncol = 2)
+    }
   )
 )

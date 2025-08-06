@@ -274,3 +274,73 @@ make_mri_plots <- function(mri_results, cohort) {
     colours
   ))
 }
+
+get_mri_synth_labels <- function(mri_results) {
+  outcome <- unique(mri_results$outcome)
+  list(
+    ylabel = if (outcome == "tbv") {
+      ylabel <- expression(paste(
+        "Total brain volume ",
+        (cm^{
+          "3"
+        })
+      ))
+    } else if (outcome == "wmv") {
+      ylabel <- expression(paste(
+        "White matter volume ",
+        (cm^{
+          "3"
+        })
+      ))
+    } else if (outcome == "gmv") {
+      ylabel <- expression(paste(
+        "Grey matter volume ",
+        (cm^{
+          "3"
+        })
+      ))
+    } else if (outcome == "hip") {
+      ylabel <- expression(paste(
+        "Hippocampal volume ",
+        (cm^{
+          "3"
+        })
+      ))
+    } else if (outcome == "log_wmh") {
+      ylabel <- "Log WMH"
+    } else {
+      ylabel <- expression(as.character(outcome))
+    },
+    outcome = outcome
+  )
+}
+
+make_mri_synth_plot <- function(synth_results) {
+  labels <- get_mri_synth_labels(synth_results)
+  synth_results <- synth_results |>
+    mutate(comp = factor(comp, levels = c("Worst", "Typical", "Best")))
+  synth_results$comp <- recode(synth_results$comp, "Best" = "Ideal")
+  ggplot(synth_results, aes(x = comp, y = estimate)) +
+    geom_point(size = 1) +
+    geom_errorbar(aes(ymin = lower, ymax = upper), width = 0) +
+    labs(
+      x = "Composition",
+      y = labels$ylabel,
+    ) +
+    cowplot::theme_cowplot(
+      font_size = 12,
+      font_family = "serif",
+      line_size = 0.25
+    ) +
+    theme(
+      plot.margin = unit(c(1, 1, 4, 1), "lines"),
+      strip.background = element_blank(),
+      strip.text.x = element_blank(),
+      panel.border = element_rect(fill = NA, colour = "#585656"),
+      panel.grid = element_line(colour = "grey92"),
+      panel.grid.minor = element_line(linewidth = rel(0.5)),
+      axis.ticks.y = element_blank(),
+      axis.line = element_line(color = "#585656"),
+      axis.title.y = element_text(margin = margin(r = 10))
+    )
+}

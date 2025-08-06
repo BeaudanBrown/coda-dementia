@@ -58,16 +58,5 @@ reverse_causation_targets <- list(
       reverse_causation_plots,
       make_plot(reverse_causation_risk_ratios, "reverse_causation")
     )
-  ),
-  # ### PLOTS ###
-  tar_target(
-    reverse_causation_plot_grid,
-    make_plot_grid(
-      reverse_causation_plots,
-      list(
-        cohort_order = c("reverse_causation"),
-        subtype_order = c("avg_inactivity", "avg_light", "avg_mvpa")
-      )
-    )
   )
 )

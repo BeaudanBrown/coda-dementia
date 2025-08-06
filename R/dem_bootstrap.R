@@ -288,3 +288,29 @@ make_plot <- function(df, cohort) {
     colours
   ))
 }
+
+process_sub_table <- function(data) {
+  data |>
+    select(
+      -to_var,
+      -cohort,
+      -prop_substituted,
+      -mean_ref_risk,
+      -mean_sub_risk
+    ) |>
+    mutate(
+      from_var = case_when(
+        from_var == "avg_inactivity" ~ "Inactivity",
+        from_var == "avg_light" ~ "Light Activity",
+        from_var == "avg_mvpa" ~ "MVPA"
+      ),
+      # Create formatted string with ratio (lower, upper)
+      formatted_rr = sprintf("%.2f (%.2f, %.2f)", mean_rr, lower_rr, upper_rr)
+    ) |>
+    select(from_var, duration, formatted_rr) |>
+    pivot_wider(
+      names_from = from_var,
+      values_from = formatted_rr
+    ) |>
+    rename(Duration = duration)
+}

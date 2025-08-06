@@ -62,34 +62,34 @@ get_mri_labels <- function(mri_results) {
   list(
     ylabel = if (outcome == "tbv") {
       ylabel <- expression(paste(
-        "Change in Total brain volume ",
+        "Total brain volume MD ",
         (cm^{
           "3"
         })
       ))
     } else if (outcome == "wmv") {
       ylabel <- expression(paste(
-        "Change in White matter volume ",
+        "White matter volume MD ",
         (cm^{
           "3"
         })
       ))
     } else if (outcome == "gmv") {
       ylabel <- expression(paste(
-        "Change in Grey matter volume ",
+        "Grey matter volume MD ",
         (cm^{
           "3"
         })
       ))
     } else if (outcome == "hip") {
       ylabel <- expression(paste(
-        "Change in Hippocampal volume ",
+        "Hippocampal volume MD ",
         (cm^{
           "3"
         })
       ))
     } else if (outcome == "log_wmh") {
-      ylabel <- "Change in Log WMH"
+      ylabel <- "Log WMH MD"
     } else {
       ylabel <- expression(as.character(outcome))
     },

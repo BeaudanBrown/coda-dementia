@@ -88,5 +88,14 @@ list(
   #### SENSITIVITIES ####
   reverse_causation_targets,
   covar_sensitivity_targets,
-  representative_targets
+  representative_targets,
+
+  tar_target(
+    sub_tables,
+    list(
+      shorts = process_sub_table(primary_risk_ratios_short_sleeper),
+      avgs = process_sub_table(primary_risk_ratios_avg_sleeper),
+      longs = process_sub_table(primary_risk_ratios_long_sleeper)
+    )
+  )
 )

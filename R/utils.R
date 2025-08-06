@@ -212,13 +212,13 @@ make_plot_grid <- function(
               label,
               gp = gpar(fontsize = 14, fontfamily = "serif", fontface = 1),
               x = unit(-1.3, "cm"),
-              y = unit(1.1, "npc"),
+              y = unit(1.2, "npc"),
               hjust = 0,
               vjust = 0
             )
           )
       })
-      wrap_plots(labeled_plots, nrow = 1)
+      wrap_plots(labeled_plots, nrow = 1, axis_titles = "collect")
     }
   )
   patchwork::wrap_plots(

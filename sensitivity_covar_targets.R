@@ -72,8 +72,8 @@ covar_sensitivity_targets <- list(
       primary_plots_short_sleeper,
       sensitivity_plots_short_sleeper_s1,
       sensitivity_plots_short_sleeper_s2,
-      representative_short_sleeper_plots,
-      reverse_causation_short_sleeper_plots
+      representative_plots_short_sleeper,
+      reverse_causation_plots_short_sleeper
     )
   ),
   # ### PLOTS ###

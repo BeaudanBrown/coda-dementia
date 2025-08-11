@@ -344,3 +344,30 @@ make_mri_synth_plot <- function(synth_results) {
       axis.title.y = element_text(margin = margin(r = 10))
     )
 }
+
+process_mri_table <- function(data) {
+  data |>
+    select(
+      -to_var,
+      -cohort,
+      -outcome,
+      -prop_substituted,
+      -mean_ref_estimate,
+      -mean_sub_estimate
+    ) |>
+    mutate(
+      from_var = case_when(
+        from_var == "avg_inactivity" ~ "Inactivity",
+        from_var == "avg_light" ~ "Light Activity",
+        from_var == "avg_mvpa" ~ "MVPA"
+      ),
+      # Create formatted string with ratio (lower, upper)
+      formatted_md = sprintf("%.2f (%.2f, %.2f)", md, lower_md, upper_md)
+    ) |>
+    select(from_var, duration, formatted_md) |>
+    pivot_wider(
+      names_from = from_var,
+      values_from = formatted_md
+    ) |>
+    rename(Duration = duration)
+}

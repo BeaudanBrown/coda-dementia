@@ -290,11 +290,11 @@ make_plot <- function(df, cohort) {
 }
 
 process_sub_table <- function(data) {
-  data |>
+  cohort <- unique(data$cohort)
+  table <- data |>
     select(
       -to_var,
       -cohort,
-      -prop_substituted,
       -mean_ref_risk,
       -mean_sub_risk
     ) |>
@@ -305,7 +305,13 @@ process_sub_table <- function(data) {
         from_var == "avg_mvpa" ~ "MVPA"
       ),
       # Create formatted string with ratio (lower, upper)
-      formatted_rr = sprintf("%.2f (%.2f, %.2f)", mean_rr, lower_rr, upper_rr)
+      formatted_rr = sprintf(
+        "%.2f (%.2f, %.2f) [%.3f]",
+        mean_rr,
+        lower_rr,
+        upper_rr,
+        prop_substituted
+      )
     ) |>
     select(from_var, duration, formatted_rr) |>
     pivot_wider(
@@ -313,4 +319,6 @@ process_sub_table <- function(data) {
       values_from = formatted_rr
     ) |>
     rename(Duration = duration)
+  write.csv(table, file = paste0("tables/primary_", cohort, ".csv"))
+  table
 }

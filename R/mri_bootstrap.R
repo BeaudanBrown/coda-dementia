@@ -346,12 +346,13 @@ make_mri_synth_plot <- function(synth_results) {
 }
 
 process_mri_table <- function(data) {
-  data |>
+  cohort <- unique(data$cohort)
+  outcome <- unique(data$outcome)
+  table <- data |>
     select(
       -to_var,
       -cohort,
       -outcome,
-      -prop_substituted,
       -mean_ref_estimate,
       -mean_sub_estimate
     ) |>
@@ -362,7 +363,13 @@ process_mri_table <- function(data) {
         from_var == "avg_mvpa" ~ "MVPA"
       ),
       # Create formatted string with ratio (lower, upper)
-      formatted_md = sprintf("%.2f (%.2f, %.2f)", md, lower_md, upper_md)
+      formatted_md = sprintf(
+        "%.2f (%.2f, %.2f) [%.3f]",
+        md,
+        lower_md,
+        upper_md,
+        prop_substituted
+      )
     ) |>
     select(from_var, duration, formatted_md) |>
     pivot_wider(
@@ -370,4 +377,6 @@ process_mri_table <- function(data) {
       values_from = formatted_md
     ) |>
     rename(Duration = duration)
+  write.csv(table, file = paste0("tables/mri_", cohort, "_", outcome, ".csv"))
+  table
 }

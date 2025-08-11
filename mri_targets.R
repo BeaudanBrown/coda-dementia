@@ -124,6 +124,14 @@ mri_targets <- list(
     tar_target(
       mri_plots,
       make_mri_plots(mri_plot_data)
+    ),
+    tar_target(
+      mri_tables,
+      list(
+        shorts = process_mri_table(mri_mean_diffs_short_sleeper),
+        avgs = process_mri_table(mri_mean_diffs_avg_sleeper),
+        longs = process_mri_table(mri_mean_diffs_long_sleeper)
+      )
     )
   ),
   ### PLOTS ###

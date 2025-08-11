@@ -31,24 +31,36 @@ get_mri_formula <- function(data) {
     data[["scan_long_bpos"]],
     c(0.1, 0.5, 0.9)
   )
+  knots_R1 <- quantile(
+    data[["R1"]],
+    c(0.1, 0.5, 0.9)
+  )
+  knots_R2 <- quantile(
+    data[["R2"]],
+    c(0.1, 0.5, 0.9)
+  )
+  knots_R3 <- quantile(
+    data[["R3"]],
+    c(0.1, 0.5, 0.9)
+  )
 
   primary_formula <- as.formula(
-    ~ poly(R1, 2) *
+    ~ rcs(R1, knots_R1) *
       as.numeric(avg_total_household_income) +
-      poly(R2, 2) * as.numeric(avg_total_household_income) +
-      poly(R3, 2) * as.numeric(avg_total_household_income) +
-      poly(R1, 2) * sex +
-      poly(R2, 2) * sex +
-      poly(R3, 2) * sex +
-      poly(R1, 2) * retired +
-      poly(R2, 2) * retired +
-      poly(R3, 2) * retired +
-      poly(R1, 2) * smok_status +
-      poly(R2, 2) * smok_status +
-      poly(R3, 2) * smok_status +
-      poly(R1, 2) * rcs(age_mri, knots_age_mri) +
-      poly(R2, 2) * rcs(age_mri, knots_age_mri) +
-      poly(R3, 2) * rcs(age_mri, knots_age_mri) +
+      rcs(R2, knots_R2) * as.numeric(avg_total_household_income) +
+      rcs(R3, knots_R3) * as.numeric(avg_total_household_income) +
+      rcs(R1, knots_R1) * sex +
+      rcs(R2, knots_R2) * sex +
+      rcs(R3, knots_R3) * sex +
+      rcs(R1, knots_R1) * retired +
+      rcs(R2, knots_R2) * retired +
+      rcs(R3, knots_R3) * retired +
+      rcs(R1, knots_R1) * smok_status +
+      rcs(R2, knots_R2) * smok_status +
+      rcs(R3, knots_R3) * smok_status +
+      rcs(R1, knots_R1) * rcs(age_mri, knots_age_mri) +
+      rcs(R2, knots_R2) * rcs(age_mri, knots_age_mri) +
+      rcs(R3, knots_R3) * rcs(age_mri, knots_age_mri) +
       as.numeric(apoe_e4) +
       highest_qual +
       rcs(fruit_veg, knots_fruit_veg) +

@@ -114,6 +114,7 @@
                   autometric
                   ks
                   patchwork
+                  ggrepel
                 ]);
             };
       }

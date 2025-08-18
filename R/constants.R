@@ -17,14 +17,45 @@ no_filter_fn <- function(df) {
   df
 }
 
-not_retired_filter_fn <- function(df) {
-  df |> filter(retired == 0)
+not_retired_short_filter_fn <- function(df) {
+  df |>
+    filter(avg_sleep < short_sleep_hours * 60) |>
+    filter(retired == 0)
 }
 
-retired_filter_fn <- function(df) {
-  df |> filter(retired == 1)
+retired_short_filter_fn <- function(df) {
+  df |>
+    filter(avg_sleep < short_sleep_hours * 60) |>
+    filter(retired == 1)
 }
 
+not_retired_avg_filter_fn <- function(df) {
+  df |>
+    filter(
+      avg_sleep >= short_sleep_hours * 60 & avg_sleep <= long_sleep_hours * 60
+    ) |>
+    filter(retired == 0)
+}
+
+retired_avg_filter_fn <- function(df) {
+  df |>
+    filter(
+      avg_sleep >= short_sleep_hours * 60 & avg_sleep <= long_sleep_hours * 60
+    ) |>
+    filter(retired == 1)
+}
+
+not_retired_long_filter_fn <- function(df) {
+  df |>
+    filter(avg_sleep > long_sleep_min_hours * 60) |>
+    filter(retired == 0)
+}
+
+retired_long_filter_fn <- function(df) {
+  df |>
+    filter(avg_sleep > long_sleep_min_hours * 60) |>
+    filter(retired == 1)
+}
 
 short_sleeper_filter_fn <- function(df) {
   df |> filter(avg_sleep < short_sleep_hours * 60)
@@ -57,11 +88,21 @@ all_subs <- merge(substitutions, durations)
 
 retired_cohorts <- list(
   filter_fn = rlang::syms(c(
-    "not_retired_filter_fn",
-    "retired_filter_fn"
+    "not_retired_short_filter_fn",
+    "retired_short_filter_fn",
+    "not_retired_avg_filter_fn",
+    "retired_avg_filter_fn",
+    "not_retired_long_filter_fn",
+    "retired_long_filter_fn"
   )),
-  cohort = c("not_retired", "retired"),
-  colour = c("#ff747b", "#6ed853")
+  cohort = c(
+    "not_retired_short",
+    "retired_short",
+    "not_retired_avg",
+    "retired_avg",
+    "not_retired_long",
+    "retired_long"
+  )
 )
 
 cohorts <- list(
@@ -71,6 +112,5 @@ cohorts <- list(
     "long_sleeper_filter_fn",
     "no_filter_fn"
   )),
-  cohort = c("short_sleeper", "avg_sleeper", "long_sleeper", "full_cohort"),
-  colour = c("#ff747b", "#6ed853", "#708ff9", "#f39c12")
+  cohort = c("short_sleeper", "avg_sleeper", "long_sleeper", "full_cohort")
 )

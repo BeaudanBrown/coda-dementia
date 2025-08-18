@@ -78,11 +78,37 @@ primary_targets <- list(
     )
   ),
   tar_target(
-    retired_plot_grid,
+    retired_short_plot_grid,
     make_plot_grid(
       rbind(
-        primary_plots_retired,
-        primary_plots_not_retired
+        primary_plots_retired_short,
+        primary_plots_not_retired_short
+      ),
+      list(
+        cohort_order = c("retired", "not_retired"),
+        subtype_order = c("avg_inactivity", "avg_light", "avg_mvpa")
+      )
+    )
+  ),
+  tar_target(
+    retired_avg_plot_grid,
+    make_plot_grid(
+      rbind(
+        primary_plots_retired_avg,
+        primary_plots_not_retired_avg
+      ),
+      list(
+        cohort_order = c("retired", "not_retired"),
+        subtype_order = c("avg_inactivity", "avg_light", "avg_mvpa")
+      )
+    )
+  ),
+  tar_target(
+    retired_long_plot_grid,
+    make_plot_grid(
+      rbind(
+        primary_plots_retired_long,
+        primary_plots_not_retired_long
       ),
       list(
         cohort_order = c("retired", "not_retired"),

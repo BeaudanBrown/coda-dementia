@@ -133,6 +133,11 @@ make_plot <- function(df, cohort, sleep_cohort, ymin = 0.5) {
     long = 0.4,
     0.7
   )
+  ymin <- switch(
+    sleep_cohort,
+    long = 0.4,
+    0.5
+  )
 
   left_centre <- unit(0.4, "npc")
   right_centre <- unit(0.6, "npc")

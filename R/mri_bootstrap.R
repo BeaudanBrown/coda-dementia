@@ -151,9 +151,9 @@ make_mri_plots <- function(mri_results, cohort) {
             outcome = labels$outcome
           ))
         dark_factor <- switch(
-          cohort_name,
-          short_sleeper = 1.2,
-          long_sleeper = 1.2,
+          sleep_cohort,
+          short = 1.2,
+          long = 0.4,
           0.7
         )
         colour <- adjust_colour(colour, dark_factor)

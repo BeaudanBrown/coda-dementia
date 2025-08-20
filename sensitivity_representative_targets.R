@@ -85,7 +85,7 @@ representative_targets <- list(
     ),
     tar_target(
       representative_plots,
-      make_plot(representative_risk_ratios, "representative")
+      make_plot(representative_risk_ratios, "representative", sleep_cohort)
     )
   )
 )

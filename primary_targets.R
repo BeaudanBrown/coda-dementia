@@ -45,7 +45,7 @@ primary_targets <- list(
     ),
     tar_target(
       primary_plots,
-      make_plot(primary_risk_ratios, cohort)
+      make_plot(primary_risk_ratios, cohort, sleep_cohort)
     )
   ),
   ### RETIRED ANALYSES ###
@@ -66,7 +66,7 @@ primary_targets <- list(
     ),
     tar_target(
       primary_plots,
-      make_plot(retired_risk_ratios, cohort)
+      make_plot(retired_risk_ratios, cohort, sleep_cohort, ymin = 0.4)
     )
   ),
   ### PLOTS ###
@@ -78,14 +78,21 @@ primary_targets <- list(
     )
   ),
   tar_target(
+    long_primary_plots,
+    rbind(
+      primary_plots_long_sleeper
+    )
+  ),
+  tar_target(
     retired_short_plot_grid,
     make_plot_grid(
       rbind(
+        primary_plots_short_sleeper,
         primary_plots_retired_short,
         primary_plots_not_retired_short
       ),
       list(
-        cohort_order = c("retired", "not_retired"),
+        cohort_order = c("short_sleeper", "retired", "not_retired"),
         subtype_order = c("avg_inactivity", "avg_light", "avg_mvpa")
       )
     )
@@ -94,11 +101,12 @@ primary_targets <- list(
     retired_avg_plot_grid,
     make_plot_grid(
       rbind(
+        primary_plots_avg_sleeper,
         primary_plots_retired_avg,
         primary_plots_not_retired_avg
       ),
       list(
-        cohort_order = c("retired", "not_retired"),
+        cohort_order = c("avg_sleeper", "retired", "not_retired"),
         subtype_order = c("avg_inactivity", "avg_light", "avg_mvpa")
       )
     )
@@ -107,11 +115,12 @@ primary_targets <- list(
     retired_long_plot_grid,
     make_plot_grid(
       rbind(
+        primary_plots_long_sleeper,
         primary_plots_retired_long,
         primary_plots_not_retired_long
       ),
       list(
-        cohort_order = c("retired", "not_retired"),
+        cohort_order = c("long_sleeper", "retired", "not_retired"),
         subtype_order = c("avg_inactivity", "avg_light", "avg_mvpa")
       )
     )
@@ -122,6 +131,16 @@ primary_targets <- list(
       all_primary_plots,
       list(
         cohort_order = c("avg_sleeper", "short_sleeper"),
+        subtype_order = c("avg_inactivity", "avg_light", "avg_mvpa")
+      )
+    )
+  ),
+  tar_target(
+    long_plot_grid,
+    make_plot_grid(
+      long_primary_plots,
+      list(
+        cohort_order = c("long_sleeper"),
         subtype_order = c("avg_inactivity", "avg_light", "avg_mvpa")
       )
     )

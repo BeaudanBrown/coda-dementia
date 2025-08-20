@@ -72,16 +72,6 @@ strip_glm <- function(cm) {
   return(cm)
 }
 
-save_plot <- function(plot, file_path) {
-  ggsave(
-    file_path,
-    plot = plot,
-    device = "svg",
-    width = 10,
-    height = 12
-  )
-}
-
 ordinal_to_numeric <- function(data) {
   ## set binary/ordinal factor variables to numeric to allow use of pmm
   data$ethnicity <- as.numeric(data$ethnicity)
@@ -157,7 +147,8 @@ apply_substitution <- function(imp, from_var, to_var, duration, comp_limits) {
 
 make_plot_grid <- function(
   plot_data,
-  grid_layout
+  grid_layout,
+  row_pad = 0
 ) {
   plot_data[, cohort := factor(cohort, levels = grid_layout$cohort_order)]
   plot_data[, sub_type := factor(sub_type, levels = grid_layout$subtype_order)]
@@ -169,11 +160,12 @@ make_plot_grid <- function(
       avg_sleeper = "Normal Sleepers",
       long_sleeper = "Long Sleepers",
       full_cohort = "Full Cohort",
+      reference = "Main Result",
       s1 = "WASO Adjusted",
       s2 = "Comorbidity Adjusted",
       s3 = "Interactions Adjusted",
-      representative = "Representative Covar Adjusted",
-      reverse_causation = "Reverse Causation Adjusted",
+      representative = "Selection Adjusted",
+      reverse_causation = "Early Follow-up Truncated",
       retired = "Retired",
       not_retired = "Not Retired",
       cohort
@@ -194,6 +186,7 @@ make_plot_grid <- function(
 
   n_subtypes <- length(grid_layout$subtype_order)
   n_cohorts <- length(grid_layout$cohort_order)
+  n_rows <- length(grid_layout$subtype_order) + row_pad
   labels <- LETTERS[1:(n_subtypes * n_cohorts)]
 
   grid_list <- lapply(
@@ -212,7 +205,7 @@ make_plot_grid <- function(
               label,
               gp = gpar(fontsize = 14, fontfamily = "serif", fontface = 1),
               x = unit(-1.3, "cm"),
-              y = unit(1.2, "npc"),
+              y = unit(1.1, "npc"),
               hjust = 0,
               vjust = 0
             )
@@ -221,10 +214,14 @@ make_plot_grid <- function(
       wrap_plots(labeled_plots, nrow = 1, axis_titles = "collect")
     }
   )
-  patchwork::wrap_plots(
-    c(list(wrap_plots(c(title_row), nrow = 1)), grid_list),
-    heights = c(0.2, rep(1, length(grid_list))),
-    ncol = 1
+  list(
+    plot_grid = patchwork::wrap_plots(
+      c(list(wrap_plots(c(title_row), nrow = 1)), grid_list),
+      heights = c(0.2, rep(1, length(grid_list))),
+      ncol = 1
+    ),
+    n_cohorts = n_cohorts,
+    n_rows = n_rows
   )
 }
 
@@ -235,49 +232,26 @@ save_plots <- function(plot_pattern = "plot_grid", sc = TRUE) {
   source("sensitivity_reverse_causation_targets.R")
   source("sensitivity_covar_targets.R")
   source("sensitivity_representative_targets.R")
-  quint_targets <- tarchetypes::tar_select_names(
-    list(
-      covar_sensitivity_targets
-    ),
-    tidyr::contains(plot_pattern)
-  )
-  double_targets <- tarchetypes::tar_select_names(
+  all_targets <- tarchetypes::tar_select_names(
     list(
       mri_targets,
-      primary_targets
+      primary_targets,
+      cum_targets,
+      covar_sensitivity_targets
     ),
-    tidyr::contains(plot_pattern)
-  )
-  single_targets <- tarchetypes::tar_select_names(
-    list(
-      cum_targets
-    ),
-    tidyr::contains(plot_pattern)
+    tidyr::matches(plot_pattern)
   )
   save_plots_cust(
-    plot_width = 25,
-    plot_targets = quint_targets,
-    sc = sc,
-    plot_pattern = plot_pattern
-  )
-  save_plots_cust(
-    plot_width = 10,
-    plot_targets = double_targets,
-    sc = sc,
-    plot_pattern = plot_pattern
-  )
-  save_plots_cust(
-    plot_width = 5,
-    plot_targets = single_targets,
+    plot_targets = all_targets,
     sc = sc,
     plot_pattern = plot_pattern
   )
 }
 
+# save_plots_cust(plot_width = )
+
 save_plots_cust <- function(
   plot_dir = "plots",
-  plot_width = 15,
-  plot_height = 12,
   plot_targets,
   plot_pattern = "plot_grid",
   sc = TRUE
@@ -292,7 +266,12 @@ save_plots_cust <- function(
       name_part <- target
     }
     file_path <- file.path(plot_dir, paste0(name_part, ".png"))
-    plot_obj <- tar_read_raw(target)
+    plot_target <- tar_read_raw(target)
+    plot_obj <- plot_target$plot_grid
+    n_cohorts <- plot_target$n_cohorts
+    n_rows <- plot_target$n_rows
+    plot_width <- 5 * n_cohorts
+    plot_height <- 4 * n_rows
     ggplot2::ggsave(
       file_path,
       plot_obj,

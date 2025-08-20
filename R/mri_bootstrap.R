@@ -364,17 +364,17 @@ process_mri_table <- function(data) {
       ),
       # Create formatted string with ratio (lower, upper)
       formatted_md = sprintf(
-        "%.2f (%.2f, %.2f) [%.3f]",
+        "%.2f (%.2f, %.2f)",
         md,
         lower_md,
-        upper_md,
-        prop_substituted
-      )
+        upper_md
+      ),
+      prop_substituted = round(prop_substituted * 100)
     ) |>
-    select(from_var, duration, formatted_md) |>
+    select(from_var, duration, formatted_md, prop_substituted) |>
     pivot_wider(
       names_from = from_var,
-      values_from = formatted_md
+      values_from = c(formatted_md, prop_substituted)
     ) |>
     rename(Duration = duration)
   write.csv(table, file = paste0("tables/mri_", cohort, "_", outcome, ".csv"))

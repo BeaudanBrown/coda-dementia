@@ -126,11 +126,11 @@ adjust_colour <- function(col, factor = 1.2) {
   rgb(col_new[1], col_new[2], col_new[3], max = 255)
 }
 
-make_plot <- function(df, cohort) {
+make_plot <- function(df, cohort, sleep_cohort, ymin = 0.5) {
   dark_factor <- switch(
-    cohort,
-    short_sleeper = 1.2,
-    long_sleeper = 1.2,
+    sleep_cohort,
+    short = 1.2,
+    long = 0.4,
     0.7
   )
 
@@ -249,12 +249,12 @@ make_plot <- function(df, cohort) {
           )
         ) +
         scale_y_log10(
-          breaks = c(0.5, 0.75, 1, 1.5, 2),
+          breaks = c(ymin, 0.5, 0.75, 1, 1.5, 2),
           labels = scales::label_number()
         ) +
         coord_cartesian(
           xlim = c(-60, 60),
-          ylim = c(0.5, 2),
+          ylim = c(ymin, 2),
           expand = FALSE,
           clip = "off"
         ) +

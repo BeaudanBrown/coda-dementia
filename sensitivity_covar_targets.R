@@ -3,8 +3,7 @@ sensitivities <- list(
     "get_s1_formula",
     "get_s2_formula"
   )),
-  sens_name = c("s1", "s2"),
-  colour = c("#ff747b", "#708ff9")
+  sens_name = c("s1", "s2")
 )
 
 covar_sensitivity_targets <- list(
@@ -62,7 +61,7 @@ covar_sensitivity_targets <- list(
       ),
       tar_target(
         sensitivity_plots,
-        make_plot(sensitivity_risk_ratios, sens_name)
+        make_plot(sensitivity_risk_ratios, sens_name, sleep_cohort)
       )
     )
   ),
@@ -83,14 +82,71 @@ covar_sensitivity_targets <- list(
       short_sensitivity_plots,
       list(
         cohort_order = c(
-          "short_sleepers",
+          "reference",
           "s1",
           "s2",
           "representative",
           "reverse_causation"
         ),
         subtype_order = c("avg_inactivity", "avg_light", "avg_mvpa")
-      )
+      ),
+      row_pad = 1
+    )
+  ),
+  tar_target(
+    avg_sensitivity_plots,
+    rbind(
+      primary_plots_avg_sleeper,
+      sensitivity_plots_avg_sleeper_s1,
+      sensitivity_plots_avg_sleeper_s2,
+      representative_plots_avg_sleeper,
+      reverse_causation_plots_avg_sleeper
+    )
+  ),
+  # ### PLOTS ###
+  tar_target(
+    sensitivity_plot_grid_avgs,
+    make_plot_grid(
+      avg_sensitivity_plots,
+      list(
+        cohort_order = c(
+          "avg_sleeper",
+          "s1",
+          "s2",
+          "representative",
+          "reverse_causation"
+        ),
+        subtype_order = c("avg_inactivity", "avg_light", "avg_mvpa")
+      ),
+      row_pad = 1
+    )
+  ),
+  tar_target(
+    long_sensitivity_plots,
+    rbind(
+      primary_plots_long_sleeper,
+      sensitivity_plots_long_sleeper_s1,
+      sensitivity_plots_long_sleeper_s2,
+      representative_plots_long_sleeper,
+      reverse_causation_plots_long_sleeper
+    )
+  ),
+  # ### PLOTS ###
+  tar_target(
+    sensitivity_plot_grid_longs,
+    make_plot_grid(
+      long_sensitivity_plots,
+      list(
+        cohort_order = c(
+          "long_sleeper",
+          "s1",
+          "s2",
+          "representative",
+          "reverse_causation"
+        ),
+        subtype_order = c("avg_inactivity", "avg_light", "avg_mvpa")
+      ),
+      row_pad = 1
     )
   )
 )

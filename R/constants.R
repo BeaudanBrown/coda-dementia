@@ -102,6 +102,14 @@ retired_cohorts <- list(
     "retired_avg",
     "not_retired_long",
     "retired_long"
+  ),
+  sleep_cohort = c(
+    "short",
+    "short",
+    "avg",
+    "avg",
+    "long",
+    "long"
   )
 )
 
@@ -112,5 +120,11 @@ cohorts <- list(
     "long_sleeper_filter_fn",
     "no_filter_fn"
   )),
-  cohort = c("short_sleeper", "avg_sleeper", "long_sleeper", "full_cohort")
+  cohort = c("short_sleeper", "avg_sleeper", "long_sleeper", "full_cohort"),
+  sleep_cohort = c(
+    "short",
+    "avg",
+    "long",
+    "full"
+  )
 )

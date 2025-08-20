@@ -56,7 +56,11 @@ reverse_causation_targets <- list(
     ),
     tar_target(
       reverse_causation_plots,
-      make_plot(reverse_causation_risk_ratios, "reverse_causation")
+      make_plot(
+        reverse_causation_risk_ratios,
+        "reverse_causation",
+        sleep_cohort
+      )
     )
   )
 )

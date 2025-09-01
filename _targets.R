@@ -8,6 +8,7 @@ dotenv::load_dot_env()
 data_dir <- Sys.getenv("DATA_DIR")
 cache_dir <- Sys.getenv("CACHE_DIR")
 ncpus <- future::availableCores() - 1
+# ncpus <- 2
 
 Sys.setenv(R_DATATABLE_NUM_THREADS = 1)
 Sys.setenv(OMP_NUM_THREADS = 1)
@@ -73,6 +74,7 @@ source("mri_targets.R")
 source("cum_targets.R")
 source("cum_test.R")
 source("sensitivity_reverse_causation_targets.R")
+source("sensitivity_reverse_causation_test.R")
 source("sensitivity_covar_targets.R")
 source("sensitivity_representative_targets.R")
 
@@ -87,6 +89,7 @@ list(
   cum_targets,
   #### SENSITIVITIES ####
   reverse_causation_targets,
+  reverse_causation_targets_test,
   covar_sensitivity_targets,
   representative_targets,
 

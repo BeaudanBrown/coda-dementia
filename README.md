@@ -1,11 +1,46 @@
 # Optimizing Dementia Risk Reduction
 
-This repository contains the analysis code for the paper Optimizing Dementia Risk Reduction: Balancing Sleep and Physical Activity Trade-offs by Yiallourou et al. This project made use of the UK Biobank resource. Data analysis was performed by Beaudan Campbell-Brown and Lachlan Cribb.
+This repository contains the analysis code for the paper Sleep and Physical Activity Trade-offs and Dementia Risk: A Prospective Cohort Study in UK Biobank Participants by Yiallourou et al. This project made use of the UK Biobank resource. Data analysis was performed by Beaudan Campbell-Brown and Lachlan Cribb.
 
-## Description
+## Getting Started
 
-Code for executing the analysis and providing key outputs are contained in R files with the _bootstrap suffix (e.g., dem_bootstrap.R for the primary dementia risk analysis). Helper functions for these files will be contained in the respective files with _models suffix and in the utils.R script. Create_dataset.R and prepare_data.R are files for selecting and preparing relevant variables from the UK Biobank resource for use with this project.
+### Prerequisites
 
-## Packages
+This project uses [Nix](https://nixos.org/) for reproducible dependency management. To get started:
 
-All packages and package dependencies used in the project are available in the renv.lock. See the R [renv](https://rstudio.github.io/renv/articles/renv.html) package for details.
+1. Install Nix
+2. Enable flakes (if not already enabled)
+3. Run `nix develop` to enter the development environment
+
+All R packages and system dependencies are managed through the `flake.nix` configuration, ensuring a reproducible analysis environment.
+
+### Running the Analysis
+
+The analysis pipeline is implemented using the R [targets](https://books.ropensci.org/targets/) package for reproducible workflow management. To execute the full pipeline:
+
+```r
+# Load the targets library
+library(targets)
+
+# Run the entire pipeline
+tar_make()
+
+# View the pipeline structure
+tar_visnetwork(targets_only = TRUE)
+```
+
+## Project Structure
+
+The pipeline is organized into several target files:
+- `data_targets.R` - Data preparation targets
+- `primary_targets.R` - Primary analysis targets
+- `mri_targets.R` - MRI analysis targets
+- `cum_targets.R` - Cumulative incidence (risk) plot targets
+- `sensitivity_*.R` - Various sensitivity analysis targets
+
+## Dependencies
+
+This project uses Nix flakes for dependency management, providing:
+- R environment with all required packages
+- System-level dependencies (Quarto, formatters)
+- Reproducible package versions across different systems

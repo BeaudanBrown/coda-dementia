@@ -41,42 +41,14 @@
                 pkgs.bashInteractive
                 self.checks.${system}.pre-commit-check.enabledPackages
               ];
-              packages =
-                with pkgsUnstable;
+              packages = with pkgsUnstable;
                 [
                   R
                   quarto
                   just
-                ]
-                ++ (with pkgsUnstable; [
                   air-formatter
-                ])
+                ]
                 ++ (with pkgsUnstable.rPackages; [
-                  (pkgs.rPackages.buildRPackage {
-                    name = "lmtp";
-                    src = pkgs.fetchFromGitHub{
-                      owner = "nt-williams";
-                      repo = "lmtp";
-                      rev = "57b2064d234b66786b371340e64f76267ded0f31";
-                      sha256 = "sha256-O8NHAjl95nssX//y+UgjghxF5Bqnv4eQR3l5FbVNv/I=";
-                    };
-                    propagatedBuildInputs = with pkgs.rPackages; [
-                      nnls
-                      cli
-                      R6
-                      generics
-                      origami
-                      future
-                      progressr
-                      data_table
-                      checkmate
-                      SuperLearner
-                      isotone
-                      ife
-                      lifecycle
-                    ];
-                  })
-
                   data_table
                   languageserver
                   dotenv

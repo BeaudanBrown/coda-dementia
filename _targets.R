@@ -49,7 +49,6 @@ tar_option_set(
     "emmeans",
     "lubridate",
     "mvtnorm",
-    "lmtp",
     "extrafont",
     "RhpcBLASctl",
     "ks",
@@ -72,9 +71,7 @@ source("data_targets.R")
 source("primary_targets.R")
 source("mri_targets.R")
 source("cum_targets.R")
-source("cum_test.R")
 source("sensitivity_reverse_causation_targets.R")
-source("sensitivity_reverse_causation_test.R")
 source("sensitivity_covar_targets.R")
 source("sensitivity_representative_targets.R")
 
@@ -89,7 +86,6 @@ list(
   cum_targets,
   #### SENSITIVITIES ####
   reverse_causation_targets,
-  reverse_causation_targets_test,
   covar_sensitivity_targets,
   representative_targets,
 

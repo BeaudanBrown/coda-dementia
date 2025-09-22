@@ -4,10 +4,15 @@
 .pre-commit-config.yaml
 _targets.yaml
 
+CLAUDE.md
+.Rprofile
+.claude/
+plots/
 logs/
 data/
 renv/
 _targets/
+tables/
 
 # History files
 .Rlib

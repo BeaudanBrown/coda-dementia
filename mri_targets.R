@@ -202,7 +202,46 @@ mri_targets <- list(
         mri_synth_plot_hip,
         mri_synth_plot_log_wmh
       )
-      patchwork::wrap_plots(c(plots), nrow = 3, ncol = 2)
+
+      ncol <- 2
+      labels <- LETTERS[seq_along(plots)]
+      top_idx <- seq_len(min(ncol, length(plots)))
+
+      labeled_plots <- lapply(seq_along(plots), function(i) {
+        pad_top <- 28
+
+        plots[[i]] +
+          ggplot2::annotation_custom(
+            grob = grid::textGrob(
+              labels[i],
+              gp = grid::gpar(
+                fontsize = 14,
+                fontfamily = "serif",
+                fontface = 1
+              ),
+              x = grid::unit(-1.3, "cm"),
+              y = grid::unit(1.1, "npc"),
+              hjust = 0,
+              vjust = 0
+            )
+          ) +
+          ggplot2::coord_cartesian(clip = "off") +
+          ggplot2::theme(
+            plot.margin = ggplot2::margin(
+              t = pad_top,
+              r = 5.5,
+              b = 5.5,
+              l = 25,
+              unit = "pt"
+            )
+          )
+      })
+
+      list(
+        plot_grid = patchwork::wrap_plots(labeled_plots, nrow = 3, ncol = ncol),
+        n_cohorts = ncol,
+        n_rows = 3
+      )
     }
   )
 )

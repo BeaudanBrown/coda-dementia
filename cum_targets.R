@@ -77,7 +77,7 @@ cum_targets <- list(
     tar_target(
       cum_avg_risks,
       {
-        cum_risks[,
+        out <- cum_risks[,
           .(
             risk = mean(risk),
             lower_risk = quantile(risk, 0.025),
@@ -86,6 +86,17 @@ cum_targets <- list(
           ),
           by = timegroup
         ]
+
+        # One zero row per Composition, at timegroup = 0
+        zeros <- unique(out[, .(Composition)])
+        zeros[, `:=`(
+          timegroup = 0,
+          risk = 0,
+          lower_risk = 0,
+          upper_risk = 0
+        )]
+
+        rbind(out, zeros, use.names = TRUE)[order(timegroup)]
       }
     ),
     tar_target(
@@ -140,11 +151,29 @@ cum_targets <- list(
   tar_target(
     cum_pie_combined,
     {
-      tar_make(c(cum_pie_Worst, cum_pie_Typical, cum_pie_Best))
-      tar_load(c(cum_pie_Worst, cum_pie_Typical, cum_pie_Best))
-      tar_read(cum_pie_Worst)
       pies <- list(cum_pie_Worst, cum_pie_Typical, cum_pie_Best)
-      wrap_plots(pies, nrow = 3, axis_titles = "collect")
+      titles <- c("Highest Risk", "Typical", "Lowest Risk")
+
+      pies_tagged <- Map(
+        function(p, t) {
+          p +
+            ggplot2::labs(tag = t) +
+            ggplot2::theme(
+              plot.title = ggplot2::element_blank(),
+              plot.tag = ggplot2::element_text(
+                face = "bold",
+                size = 14,
+                margin = ggplot2::margin(0, 0, 0, 1)
+              ),
+              plot.tag.position = c(0.02, 0.98)
+            )
+        },
+        pies,
+        titles
+      )
+
+      patchwork::wrap_plots(pies_tagged, nrow = 3, axis_titles = "collect") &
+        ggplot2::theme(plot.margin = grid::unit(c(0, 0, 0, 0), "mm"))
     }
   ),
   tar_target(
@@ -161,11 +190,24 @@ cum_targets <- list(
     cum_plot,
     {
       composition_colors <- c(
-        "Worst" = "#ff747b",
+        "Highest Risk" = "#ff747b",
         "Typical" = "#708ff9",
-        "Best" = "#6ed853"
+        "Lowest Risk" = "#6ed853"
       )
       plot <- cum_plot_data |>
+        mutate(
+          Composition = case_match(
+            Composition,
+            "Best" ~ "Lowest Risk",
+            "Worst" ~ "Highest Risk",
+            "Typical" ~ "Typical",
+            .default = ""
+          ),
+          Composition = factor(
+            Composition,
+            levels = c("Highest Risk", "Typical", "Lowest Risk")
+          )
+        ) |>
         ggplot(aes(x = timegroup, y = risk)) +
         geom_ribbon(
           aes(ymin = lower_risk, ymax = upper_risk, fill = Composition),
@@ -183,7 +225,7 @@ cum_targets <- list(
           values = composition_colors
         ) +
         cowplot::theme_cowplot(
-          font_size = 12,
+          font_size = 16,
           font_family = "serif",
           line_size = 0.25
         ) +
@@ -196,9 +238,29 @@ cum_targets <- list(
           axis.line = element_line(color = "#585656")
         )
       list(
-        plot_grid = plot,
-        n_cohorts = 1,
-        n_rows = 1
+        plot_grid = {
+          pies <- cum_pie_combined +
+            theme(
+              plot.margin = margin(1, 2, 0, 1),
+              plot.background = element_rect(fill = NA, colour = NA)
+            )
+          main <- plot +
+            theme(
+              plot.margin = margin(0, 1, 0, 0),
+              plot.background = element_rect(fill = NA, colour = NA)
+            )
+          patchwork::wrap_plots(
+            pies,
+            main,
+            nrow = 1,
+            ncol = 2,
+            widths = c(1, 2)
+          ) +
+            patchwork::plot_layout(guides = "collect") &
+            theme(plot.margin = margin(0, 1, 0, 1))
+        },
+        n_cohorts = 3.5,
+        n_rows = 3
       )
     }
   )

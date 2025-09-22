@@ -104,7 +104,7 @@ get_mri_labels <- function(mri_results) {
   )
 }
 
-make_mri_plots <- function(mri_results, cohort) {
+make_mri_plots <- function(mri_results) {
   sub_types <- c("avg_mvpa", "avg_light", "avg_inactivity")
   colours <- c("#708ff9", "#6ed853", "#ff747b")
 
@@ -151,9 +151,9 @@ make_mri_plots <- function(mri_results, cohort) {
             outcome = labels$outcome
           ))
         dark_factor <- switch(
-          sleep_cohort,
-          short = 1.2,
-          long = 0.4,
+          cohort_name,
+          short_sleeper = 1.2,
+          long_sleeper = 0.4,
           0.7
         )
         colour <- adjust_colour(colour, dark_factor)
@@ -319,13 +319,54 @@ make_mri_synth_plot <- function(synth_results) {
   labels <- get_mri_synth_labels(synth_results)
   synth_results <- synth_results |>
     mutate(comp = factor(comp, levels = c("Worst", "Typical", "Best")))
-  synth_results$comp <- recode(synth_results$comp, "Best" = "Ideal")
+  synth_results$comp <- recode(
+    synth_results$comp,
+    "Best" = "Lowest Risk",
+    "Worst" = "Highest Risk",
+    "Typical" = "Typical"
+  )
+
+  # Build 5 "nice" breaks that cover the full data (estimates + CIs), with padding
+  y_vals <- c(synth_results$estimate, synth_results$lower, synth_results$upper)
+
+  nice_step <- function(target) {
+    if (!is.finite(target) || target <= 0) return(1)
+    exp10 <- floor(log10(target))
+    base <- target / 10^exp10
+    base_step <- if (base <= 1) 1 else if (base <= 2) 2 else if (base <= 2.5)
+      2.5 else if (base <= 5) 5 else 10
+    base_step * 10^exp10
+  }
+
+  make_5_breaks <- function(y) {
+    y <- y[is.finite(y)]
+    if (length(y) == 0) {
+      br <- -2:2
+      step <- 1
+      pad <- step * 0.05
+      return(list(breaks = br, limits = range(br) + c(-pad, pad)))
+    }
+    y_min <- min(y)
+    y_max <- max(y)
+    r <- y_max - y_min
+    step <- nice_step(if (r > 0) r / 4 else max(1, abs(y_max), abs(y_min)) / 4)
+    mid <- (y_min + y_max) / 2
+    c0 <- round(mid / step) * step
+    br <- c0 + step * (-2:2)
+    pad <- step * 0.05
+    list(breaks = br, limits = range(br) + c(-pad, pad))
+  }
+
   ggplot(synth_results, aes(x = comp, y = estimate)) +
     geom_point(size = 1) +
     geom_errorbar(aes(ymin = lower, ymax = upper), width = 0) +
     labs(
-      x = "Composition",
-      y = labels$ylabel,
+      x = NULL,
+      y = labels$ylabel
+    ) +
+    scale_y_continuous(
+      breaks = br$breaks,
+      limits = br$limits
     ) +
     cowplot::theme_cowplot(
       font_size = 12,

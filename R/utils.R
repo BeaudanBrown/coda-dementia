@@ -239,7 +239,9 @@ save_plots <- function(plot_pattern = "plot_grid", sc = TRUE) {
       cum_targets,
       covar_sensitivity_targets
     ),
-    tidyr::matches(plot_pattern)
+    tidyr::matches(plot_pattern),
+    tidyr::matches("cum_plot$"),
+    tidyr::matches("mri_synth_plots$")
   )
   save_plots_cust(
     plot_targets = all_targets,

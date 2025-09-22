@@ -95,13 +95,15 @@ covar_sensitivity_targets <- list(
   ),
   tar_target(
     avg_sensitivity_plots,
-    rbind(
-      primary_plots_avg_sleeper,
-      sensitivity_plots_avg_sleeper_s1,
-      sensitivity_plots_avg_sleeper_s2,
-      representative_plots_avg_sleeper,
-      reverse_causation_plots_avg_sleeper
-    )
+    {
+      rbind(
+        primary_plots_avg_sleeper,
+        sensitivity_plots_avg_sleeper_s1,
+        sensitivity_plots_avg_sleeper_s2,
+        representative_plots_avg_sleeper,
+        reverse_causation_plots_avg_sleeper
+      )
+    }
   ),
   # ### PLOTS ###
   tar_target(
@@ -110,7 +112,7 @@ covar_sensitivity_targets <- list(
       avg_sensitivity_plots,
       list(
         cohort_order = c(
-          "avg_sleeper",
+          "reference",
           "s1",
           "s2",
           "representative",
@@ -138,7 +140,7 @@ covar_sensitivity_targets <- list(
       long_sensitivity_plots,
       list(
         cohort_order = c(
-          "long_sleeper",
+          "reference",
           "s1",
           "s2",
           "representative",

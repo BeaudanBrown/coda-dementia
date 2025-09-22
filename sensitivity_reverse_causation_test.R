@@ -64,12 +64,16 @@ reverse_causation_targets_test <- list(
     )
   ),
   tar_target(
-    sensitivity_plot_grid_avgs_test,
+    sensitivity_plot_grid_test,
     make_plot_grid(
-      reverse_causation_plots_test_short_sleeper,
+      rbind(
+        reverse_causation_plots_test_short_sleeper,
+        reverse_causation_plots_test_avg_sleeper
+      ),
       list(
         cohort_order = c(
-          "reverse_causation"
+          "short_sleeper",
+          "long_sleeper"
         ),
         subtype_order = c("avg_inactivity", "avg_light", "avg_mvpa")
       )

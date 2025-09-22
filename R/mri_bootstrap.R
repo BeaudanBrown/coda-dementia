@@ -357,6 +357,8 @@ make_mri_synth_plot <- function(synth_results) {
     list(breaks = br, limits = range(br) + c(-pad, pad))
   }
 
+  br <- make_5_breaks(y_vals)
+
   ggplot(synth_results, aes(x = comp, y = estimate)) +
     geom_point(size = 1) +
     geom_errorbar(aes(ymin = lower, ymax = upper), width = 0) +

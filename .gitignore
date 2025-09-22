@@ -3,6 +3,7 @@
 .envrc
 .pre-commit-config.yaml
 _targets.yaml
+justfile
 
 CLAUDE.md
 .Rprofile
